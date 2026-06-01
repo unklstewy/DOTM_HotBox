@@ -1,0 +1,155 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "ESP-IDF: Build",
+            "type": "shell",
+            "command": "idf.py build",
+            "options": {
+                "env": {
+                    "IDF_CCACHE_ENABLE": "1"
+                }
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": "$gcc",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "ESP-IDF: Flash",
+            "type": "shell",
+            "command": "idf.py -p ${config:idf.port} flash",
+            "options": {
+                "env": {
+                    "IDF_CCACHE_ENABLE": "1"
+                }
+            },
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "ESP-IDF: Flash + Monitor",
+            "type": "shell",
+            "command": "idf.py -p ${config:idf.port} flash monitor",
+            "options": {
+                "env": {
+                    "IDF_CCACHE_ENABLE": "1"
+                }
+            },
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "ESP-IDF: Monitor",
+            "type": "shell",
+            "command": "idf.py -p ${config:idf.port} monitor",
+            "options": {
+                "env": {
+                    "IDF_CCACHE_ENABLE": "1"
+                }
+            },
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "ESP-IDF: Build App Only",
+            "type": "shell",
+            "command": "idf.py app",
+            "options": {
+                "env": {
+                    "IDF_CCACHE_ENABLE": "1"
+                }
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "ESP-IDF: Flash App Only",
+            "type": "shell",
+            "command": "idf.py -p ${config:idf.port} app-flash",
+            "options": {
+                "env": {
+                    "IDF_CCACHE_ENABLE": "1"
+                }
+            },
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "ESP-IDF: App Flash + Monitor",
+            "type": "shell",
+            "command": "idf.py -p ${config:idf.port} app-flash monitor",
+            "options": {
+                "env": {
+                    "IDF_CCACHE_ENABLE": "1"
+                }
+            },
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "ESP-IDF: Update Dependencies",
+            "type": "shell",
+            "command": "idf.py update-dependencies",
+            "options": {
+                "env": {
+                    "IDF_CCACHE_ENABLE": "1"
+                }
+            },
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "ESP-IDF: Erase Flash",
+            "type": "shell",
+            "command": "idf.py -p ${config:idf.port} erase-flash",
+            "options": {
+                "env": {
+                    "IDF_CCACHE_ENABLE": "1"
+                }
+            },
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "PC Bridge: Start",
+            "type": "shell",
+            "command": "python tools/pc_bridge/bridge.py",
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        }
+    ]
+}

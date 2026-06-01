@@ -1,0 +1,101 @@
+# ======================================================================
+#  SC Terminal — sdkconfig.defaults
+#  Target : ESP32-P4  (reTerminal D1001 — ESP32-P4NRW32)
+#  Run    : idf.py set-target esp32p4  (once, before first build)
+# ======================================================================
+
+# --------------- Target -------------------------------------------------
+CONFIG_IDF_TARGET="esp32p4"
+
+# ESP32-P4 silicon revision — reTerminal D1001 ships with silicon v1.3 (FULL=103).
+# IDF 5.5.4 defaults to requiring v3.1 (FULL=301); override to v1.0 (FULL=100)
+# so the bootloader accepts v1.x chips.
+# IMPORTANT: ESP32P4_REV_MIN_100 depends on ESP32P4_SELECTS_REV_LESS_V3 — must be
+# set first.  Rev <3.0 and >=3.0 are mutually exclusive silicon lines; reTerminal
+# uses the v1.x line.
+CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y
+CONFIG_ESP32P4_REV_MIN_100=y
+
+# --------------- CPU ----------------------------------------------------
+CONFIG_ESP32P4_DEFAULT_CPU_FREQ_MHZ_400=y
+
+# --------------- PSRAM (32 MB on-package OCT) ---------------------------
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_SPEED_80M=y
+CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=16384
+CONFIG_SPIRAM_MALLOC_RESERVE_INTERNAL=32768
+CONFIG_SPIRAM_USE_CAPS_ALLOC=y
+
+# --------------- Flash --------------------------------------------------
+CONFIG_ESPTOOLPY_FLASHSIZE_32MB=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+# --------------- Development Wi-Fi fallback ----------------------------
+# Remove or set to n before any production build.
+CONFIG_SC_NETWORK_DEV_FALLBACK=y
+CONFIG_SC_NETWORK_DEV_SSID="Waterways"
+CONFIG_SC_NETWORK_DEV_PSK="RiverS0ng"
+
+# --------------- USB / TinyUSB ------------------------------------------
+# TINYUSB_HID_COUNT>0 enables HID and sets CFG_TUD_HID in the build.
+# We use 1 HID interface with 2 reports (keyboard + consumer control).
+CONFIG_TINYUSB_HID_COUNT=1
+# Suppress the esp_tinyusb background task; sc_hid.c runs its own USB poll task.
+CONFIG_TINYUSB_NO_DEFAULT_TASK=y
+CONFIG_TINYUSB_DESC_USE_ESPRESSIF_VID=n
+
+# --------------- FreeRTOS -----------------------------------------------
+CONFIG_FREERTOS_HZ=1000
+CONFIG_FREERTOS_UNICORE=n
+CONFIG_FREERTOS_SUPPORT_STATIC_ALLOCATION=y
+CONFIG_FREERTOS_ENABLE_BACKWARD_COMPATIBILITY=n
+
+# --------------- LVGL Fonts ---------------------------------------------
+# 8" 800x1280 display — enable the font sizes used by sc_ui_theme.h
+CONFIG_LV_FONT_MONTSERRAT_20=y
+CONFIG_LV_FONT_MONTSERRAT_36=y
+
+# --------------- Logging ------------------------------------------------
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y
+CONFIG_LOG_MAXIMUM_LEVEL_DEBUG=y
+CONFIG_LOG_COLORS=y
+
+# --------------- NVS ----------------------------------------------------
+CONFIG_NVS_ENCRYPTION=n
+
+# --------------- SPIFFS -------------------------------------------------
+CONFIG_SPIFFS_PAGE_SIZE=256
+CONFIG_SPIFFS_GC_MAX_RUNS=10
+CONFIG_SPIFFS_CACHE=y
+CONFIG_SPIFFS_MAX_PARTITIONS=3
+
+# --------------- Wi-Fi (via ESP32-C6 coprocessor / esp_hosted) ----------
+# ESP32-P4 has SOC_WIRELESS_HOST_SUPPORTED — use ESP_HOST_WIFI_ENABLED,
+# not ESP_WIFI_ENABLED (which only applies to SoCs with native WiFi silicon).
+CONFIG_ESP_HOST_WIFI_ENABLED=y
+CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM=10
+CONFIG_ESP_WIFI_DYNAMIC_RX_BUFFER_NUM=32
+# TX buffer choice (dynamic=1 → sets CONFIG_ESP_WIFI_TX_BUFFER_TYPE=1)
+CONFIG_ESP_WIFI_DYNAMIC_TX_BUFFER=y
+CONFIG_ESP_WIFI_DYNAMIC_TX_BUFFER_NUM=32
+# MGMT RX buffer choice (static → sets CONFIG_ESP_WIFI_DYNAMIC_RX_MGMT_BUF=0)
+CONFIG_ESP_WIFI_STATIC_RX_MGMT_BUFFER=y
+CONFIG_ESP_WIFI_AMPDU_TX_ENABLED=y
+CONFIG_ESP_WIFI_AMPDU_RX_ENABLED=y
+CONFIG_ESP_WIFI_NVS_ENABLED=n
+CONFIG_ESP_WIFI_ESPNOW_MAX_ENCRYPT_NUM=0
+
+# --------------- HTTP / WebSocket (built-in IDF) ------------------------
+CONFIG_ESP_WEBSOCKET_CLIENT_BUFFER_SIZE=4096
+CONFIG_ESP_HTTP_CLIENT_ENABLE_HTTPS=y
+
+# --------------- HEAP ---------------------------------------------------
+CONFIG_HEAP_POISONING_DISABLED=y
+CONFIG_HEAP_TRACING_STANDALONE=n
+
+# --------------- Compiler -----------------------------------------------
+CONFIG_COMPILER_OPTIMIZATION_PERF=y
+CONFIG_COMPILER_CXX_EXCEPTIONS=n
+CONFIG_COMPILER_CXX_RTTI=n

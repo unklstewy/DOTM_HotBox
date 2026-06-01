@@ -1,0 +1,24 @@
+menu "SC Network"
+
+    config SC_NETWORK_DEV_FALLBACK
+        bool "Use development Wi-Fi fallback when NVS is unpopulated"
+        default n
+        help
+            When enabled, sc_network will use the credentials below if no
+            Wi-Fi SSID is stored in NVS. Disable before production build.
+
+    config SC_NETWORK_DEV_SSID
+        string "Development fallback SSID"
+        default ""
+        depends on SC_NETWORK_DEV_FALLBACK
+        help
+            SSID used when NVS contains no Wi-Fi credentials.
+
+    config SC_NETWORK_DEV_PSK
+        string "Development fallback passphrase"
+        default ""
+        depends on SC_NETWORK_DEV_FALLBACK
+        help
+            WPA2 passphrase used when NVS contains no Wi-Fi credentials.
+
+endmenu

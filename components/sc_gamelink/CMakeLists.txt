@@ -1,0 +1,10 @@
+idf_component_register(
+    SRCS
+        "sc_gamelink.c"
+    INCLUDE_DIRS
+        "include"
+    REQUIRES
+        sc_network
+        json
+        esp_timer
+)

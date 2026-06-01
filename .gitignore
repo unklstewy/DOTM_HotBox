@@ -1,0 +1,27 @@
+# ESP-IDF build artifacts
+build/
+sdkconfig.old
+dependencies.lock
+
+# Managed components (auto-fetched from registry by idf-component-manager)
+managed_components/
+
+# Editor / OS
+.vscode/.cproject
+.vscode/ipch/
+.cache/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Local secrets / overrides
+secrets.h
+secrets/
+*.local

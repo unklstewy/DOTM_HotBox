@@ -1,0 +1,14 @@
+idf_component_register(
+    SRCS
+        "main.c"
+    INCLUDE_DIRS
+        "."
+    REQUIRES
+        nvs_flash
+        esp_partition
+        sc_hid
+        sc_ui
+        sc_network
+        sc_config
+        sc_gamelink
+)

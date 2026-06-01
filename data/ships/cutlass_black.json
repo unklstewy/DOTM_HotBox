@@ -1,0 +1,659 @@
+{
+    "ship_id": "cutlass_black",
+    "ship_name": "Drake Cutlass Black",
+    "manufacturer": "Drake Interplanetary",
+    "consoles": [
+        {
+            "console_id": "pilot_mfd_left",
+            "display_name": "Pilot MFD — Left",
+            "position": "pilot",
+            "layout": "grid_4x5",
+            "actions": [
+                {
+                    "id": "toggle_landing_gear",
+                    "label": "GEAR",
+                    "description": "Toggle landing gear up/down",
+                    "icon": "gear",
+                    "row": 0,
+                    "col": 0,
+                    "width": 1,
+                    "height": 1,
+                    "hid": {
+                        "modifier": 0,
+                        "keycodes": [
+                            44
+                        ],
+                        "consumer_usage": 0,
+                        "hold_ms": 0
+                    },
+                    "state": {
+                        "gamelink_event": "gear_state_changed",
+                        "values": {
+                            "up": {
+                                "label": "GEAR UP",
+                                "color": "#00FF88"
+                            },
+                            "down": {
+                                "label": "GEAR DOWN",
+                                "color": "#FF4444"
+                            },
+                            "deploying": {
+                                "label": "DEPLOYING",
+                                "color": "#FFAA00"
+                            },
+                            "retracting": {
+                                "label": "RETRCTNG",
+                                "color": "#FFAA00"
+                            }
+                        }
+                    }
+                },
+                {
+                    "id": "request_landing",
+                    "label": "LAND RQ",
+                    "description": "Request landing permission",
+                    "icon": "landing",
+                    "row": 0,
+                    "col": 1,
+                    "width": 1,
+                    "height": 1,
+                    "hid": {
+                        "modifier": 0,
+                        "keycodes": [
+                            40
+                        ],
+                        "consumer_usage": 0,
+                        "hold_ms": 0
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                },
+                {
+                    "id": "toggle_shields",
+                    "label": "SHIELDS",
+                    "description": "Raise/lower shields",
+                    "icon": "shield",
+                    "row": 0,
+                    "col": 2,
+                    "width": 1,
+                    "height": 1,
+                    "hid": {
+                        "modifier": 0,
+                        "keycodes": [
+                            62
+                        ],
+                        "consumer_usage": 0,
+                        "hold_ms": 0
+                    },
+                    "state": {
+                        "gamelink_event": "shield_state_changed",
+                        "values": {
+                            "up": {
+                                "label": "SHIELDS",
+                                "color": "#0099FF"
+                            },
+                            "down": {
+                                "label": "NO SHLD",
+                                "color": "#FF4444"
+                            }
+                        }
+                    }
+                },
+                {
+                    "id": "toggle_flight_ready",
+                    "label": "FLT RDY",
+                    "description": "Toggle flight ready / engines",
+                    "icon": "engine",
+                    "row": 0,
+                    "col": 3,
+                    "width": 1,
+                    "height": 1,
+                    "hid": {
+                        "modifier": 0,
+                        "keycodes": [
+                            26
+                        ],
+                        "consumer_usage": 0,
+                        "hold_ms": 1500
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                },
+                {
+                    "id": "quantum_spool",
+                    "label": "Q SPOOL",
+                    "description": "Spool quantum drive",
+                    "icon": "quantum",
+                    "row": 1,
+                    "col": 0,
+                    "width": 2,
+                    "height": 1,
+                    "hid": {
+                        "modifier": 0,
+                        "keycodes": [
+                            29
+                        ],
+                        "consumer_usage": 0,
+                        "hold_ms": 0
+                    },
+                    "state": {
+                        "gamelink_event": "quantum_drive_state",
+                        "values": {
+                            "idle": {
+                                "label": "Q IDLE",
+                                "color": "#333333"
+                            },
+                            "spooling": {
+                                "label": "SPOOLING",
+                                "color": "#FFAA00"
+                            },
+                            "ready": {
+                                "label": "Q READY",
+                                "color": "#00FF88"
+                            },
+                            "jumping": {
+                                "label": "JUMPING",
+                                "color": "#0099FF"
+                            },
+                            "cooldown": {
+                                "label": "COOLDOWN",
+                                "color": "#FF4444"
+                            }
+                        }
+                    }
+                },
+                {
+                    "id": "quantum_engage",
+                    "label": "Q JUMP",
+                    "description": "Engage quantum jump",
+                    "icon": "jump",
+                    "row": 1,
+                    "col": 2,
+                    "width": 2,
+                    "height": 1,
+                    "hid": {
+                        "modifier": 0,
+                        "keycodes": [
+                            29
+                        ],
+                        "consumer_usage": 0,
+                        "hold_ms": 3000
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                },
+                {
+                    "id": "cycle_target_friendly",
+                    "label": "TGT FRN",
+                    "description": "Cycle to next friendly target",
+                    "icon": "target_friendly",
+                    "row": 2,
+                    "col": 0,
+                    "width": 1,
+                    "height": 1,
+                    "hid": {
+                        "modifier": 0,
+                        "keycodes": [
+                            48
+                        ],
+                        "consumer_usage": 0,
+                        "hold_ms": 0
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                },
+                {
+                    "id": "cycle_target_hostile",
+                    "label": "TGT ENM",
+                    "description": "Cycle to next hostile target",
+                    "icon": "target_hostile",
+                    "row": 2,
+                    "col": 1,
+                    "width": 1,
+                    "height": 1,
+                    "hid": {
+                        "modifier": 0,
+                        "keycodes": [
+                            49
+                        ],
+                        "consumer_usage": 0,
+                        "hold_ms": 0
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                },
+                {
+                    "id": "lock_target",
+                    "label": "LOCK",
+                    "description": "Lock current target",
+                    "icon": "lock_target",
+                    "row": 2,
+                    "col": 2,
+                    "width": 1,
+                    "height": 1,
+                    "hid": {
+                        "modifier": 0,
+                        "keycodes": [
+                            23
+                        ],
+                        "consumer_usage": 0,
+                        "hold_ms": 0
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                },
+                {
+                    "id": "pin_target",
+                    "label": "PIN",
+                    "description": "Pin / unpin target",
+                    "icon": "pin",
+                    "row": 2,
+                    "col": 3,
+                    "width": 1,
+                    "height": 1,
+                    "hid": {
+                        "modifier": 0,
+                        "keycodes": [
+                            16
+                        ],
+                        "consumer_usage": 0,
+                        "hold_ms": 0
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                }
+            ]
+        },
+        {
+            "console_id": "pilot_mfd_right",
+            "display_name": "Pilot MFD — Right",
+            "position": "pilot",
+            "layout": "grid_4x5",
+            "actions": [
+                {
+                    "id": "fire_primary",
+                    "label": "FIRE 1",
+                    "description": "Fire primary weapons",
+                    "icon": "cannon",
+                    "row": 0,
+                    "col": 0,
+                    "width": 2,
+                    "height": 2,
+                    "hid": {
+                        "modifier": 0,
+                        "keycodes": [
+                            0
+                        ],
+                        "consumer_usage": 0,
+                        "hold_ms": 100
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                },
+                {
+                    "id": "fire_secondary",
+                    "label": "FIRE 2",
+                    "description": "Fire secondary / missiles",
+                    "icon": "missile",
+                    "row": 0,
+                    "col": 2,
+                    "width": 2,
+                    "height": 2,
+                    "hid": {
+                        "modifier": 0,
+                        "keycodes": [
+                            0
+                        ],
+                        "consumer_usage": 0,
+                        "hold_ms": 100
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                },
+                {
+                    "id": "toggle_missiles",
+                    "label": "MSSL",
+                    "description": "Toggle missile mode",
+                    "icon": "missile_mode",
+                    "row": 2,
+                    "col": 0,
+                    "width": 1,
+                    "height": 1,
+                    "hid": {
+                        "modifier": 0,
+                        "keycodes": [
+                            16
+                        ],
+                        "consumer_usage": 0,
+                        "hold_ms": 0
+                    },
+                    "state": {
+                        "gamelink_event": "weapon_armed_changed",
+                        "values": {
+                            "guns": {
+                                "label": "GUNS",
+                                "color": "#FF4444"
+                            },
+                            "missiles": {
+                                "label": "MSSL",
+                                "color": "#FFAA00"
+                            }
+                        }
+                    }
+                },
+                {
+                    "id": "decoupled_mode",
+                    "label": "DECPLD",
+                    "description": "Toggle decoupled flight mode",
+                    "icon": "decoupled",
+                    "row": 2,
+                    "col": 1,
+                    "width": 1,
+                    "height": 1,
+                    "hid": {
+                        "modifier": 0,
+                        "keycodes": [
+                            47
+                        ],
+                        "consumer_usage": 0,
+                        "hold_ms": 0
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                },
+                {
+                    "id": "vtol_toggle",
+                    "label": "VTOL",
+                    "description": "Toggle VTOL mode",
+                    "icon": "vtol",
+                    "row": 2,
+                    "col": 2,
+                    "width": 1,
+                    "height": 1,
+                    "hid": {
+                        "modifier": 0,
+                        "keycodes": [
+                            10
+                        ],
+                        "consumer_usage": 0,
+                        "hold_ms": 0
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                },
+                {
+                    "id": "afterburner",
+                    "label": "BOOST",
+                    "description": "Afterburner / boost",
+                    "icon": "boost",
+                    "row": 2,
+                    "col": 3,
+                    "width": 1,
+                    "height": 1,
+                    "hid": {
+                        "modifier": 0,
+                        "keycodes": [
+                            44
+                        ],
+                        "consumer_usage": 0,
+                        "hold_ms": 500
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                }
+            ]
+        },
+        {
+            "console_id": "pilot_power",
+            "display_name": "Pilot Power Management",
+            "position": "pilot",
+            "layout": "grid_4x5",
+            "actions": [
+                {
+                    "id": "power_preset_combat",
+                    "label": "COMBAT",
+                    "description": "Power preset: weapons priority",
+                    "icon": "power_combat",
+                    "row": 0,
+                    "col": 0,
+                    "width": 2,
+                    "height": 1,
+                    "hid": {
+                        "modifier": 0,
+                        "keycodes": [
+                            61
+                        ],
+                        "consumer_usage": 0,
+                        "hold_ms": 0
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                },
+                {
+                    "id": "power_preset_cruise",
+                    "label": "CRUISE",
+                    "description": "Power preset: engine priority",
+                    "icon": "power_cruise",
+                    "row": 0,
+                    "col": 2,
+                    "width": 2,
+                    "height": 1,
+                    "hid": {
+                        "modifier": 0,
+                        "keycodes": [
+                            62
+                        ],
+                        "consumer_usage": 0,
+                        "hold_ms": 0
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                },
+                {
+                    "id": "power_preset_stealth",
+                    "label": "STEALTH",
+                    "description": "Power preset: low emission",
+                    "icon": "power_stealth",
+                    "row": 1,
+                    "col": 0,
+                    "width": 2,
+                    "height": 1,
+                    "hid": {
+                        "modifier": 0,
+                        "keycodes": [
+                            63
+                        ],
+                        "consumer_usage": 0,
+                        "hold_ms": 0
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                },
+                {
+                    "id": "power_all_off",
+                    "label": "PWR OFF",
+                    "description": "Cut all non-essential power",
+                    "icon": "power_off",
+                    "row": 1,
+                    "col": 2,
+                    "width": 2,
+                    "height": 1,
+                    "hid": {
+                        "modifier": 4,
+                        "keycodes": [
+                            64
+                        ],
+                        "consumer_usage": 0,
+                        "hold_ms": 1000
+                    },
+                    "state": {
+                        "gamelink_event": "power_state_changed",
+                        "values": {
+                            "online": {
+                                "label": "PWR ON",
+                                "color": "#00FF88"
+                            },
+                            "reduced": {
+                                "label": "PWR LOW",
+                                "color": "#FFAA00"
+                            },
+                            "offline": {
+                                "label": "PWR OFF",
+                                "color": "#FF4444"
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "console_id": "pilot_weapons",
+            "display_name": "Pilot Weapons Control",
+            "position": "pilot",
+            "layout": "grid_4x5",
+            "actions": [
+                {
+                    "id": "cycle_gun_mode",
+                    "label": "GUN MODE",
+                    "description": "Cycle gun fire mode (single/burst/auto)",
+                    "icon": "gun_mode",
+                    "row": 0,
+                    "col": 0,
+                    "width": 2,
+                    "height": 1,
+                    "hid": {
+                        "modifier": 0,
+                        "keycodes": [
+                            50
+                        ],
+                        "consumer_usage": 0,
+                        "hold_ms": 0
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                },
+                {
+                    "id": "cycle_missile_type",
+                    "label": "MSSL TYP",
+                    "description": "Cycle missile type",
+                    "icon": "missile_type",
+                    "row": 0,
+                    "col": 2,
+                    "width": 2,
+                    "height": 1,
+                    "hid": {
+                        "modifier": 0,
+                        "keycodes": [
+                            51
+                        ],
+                        "consumer_usage": 0,
+                        "hold_ms": 0
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                },
+                {
+                    "id": "gimbal_lock",
+                    "label": "GIMBAL",
+                    "description": "Toggle gimbal lock",
+                    "icon": "gimbal",
+                    "row": 1,
+                    "col": 0,
+                    "width": 1,
+                    "height": 1,
+                    "hid": {
+                        "modifier": 0,
+                        "keycodes": [
+                            52
+                        ],
+                        "consumer_usage": 0,
+                        "hold_ms": 0
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                },
+                {
+                    "id": "countermeasure_flares",
+                    "label": "FLARES",
+                    "description": "Deploy flares",
+                    "icon": "flare",
+                    "row": 1,
+                    "col": 1,
+                    "width": 1,
+                    "height": 1,
+                    "hid": {
+                        "modifier": 0,
+                        "keycodes": [
+                            53
+                        ],
+                        "consumer_usage": 0,
+                        "hold_ms": 0
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                },
+                {
+                    "id": "countermeasure_noise",
+                    "label": "NOISE",
+                    "description": "Deploy noise (ECM)",
+                    "icon": "ecm",
+                    "row": 1,
+                    "col": 2,
+                    "width": 1,
+                    "height": 1,
+                    "hid": {
+                        "modifier": 0,
+                        "keycodes": [
+                            54
+                        ],
+                        "consumer_usage": 0,
+                        "hold_ms": 0
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                },
+                {
+                    "id": "self_destruct",
+                    "label": "S-DEST",
+                    "description": "Initiate self-destruct sequence",
+                    "icon": "skull",
+                    "row": 4,
+                    "col": 3,
+                    "width": 1,
+                    "height": 1,
+                    "hid": {
+                        "modifier": 0,
+                        "keycodes": [
+                            55
+                        ],
+                        "consumer_usage": 0,
+                        "hold_ms": 5000
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                }
+            ]
+        }
+    ]
+}

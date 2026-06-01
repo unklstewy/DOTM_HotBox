@@ -1,0 +1,52 @@
+{
+    "configurations": [
+        {
+            "name": "ESP-IDF (esp32p4)",
+            "includePath": [
+                "${workspaceFolder}/main",
+                "${workspaceFolder}/components/sc_hid/include",
+                "${workspaceFolder}/components/sc_config/include",
+                "${workspaceFolder}/components/sc_network/include",
+                "${workspaceFolder}/components/sc_gamelink/include",
+                "${workspaceFolder}/components/sc_ui/include",
+                "${workspaceFolder}/components/sc_ui/screens",
+                "${env:IDF_PATH}/components/freertos/FreeRTOS-Kernel/include",
+                "${env:IDF_PATH}/components/freertos/FreeRTOS-Kernel/portable/xtensa/include",
+                "${env:IDF_PATH}/components/esp_common/include",
+                "${env:IDF_PATH}/components/esp_hw_support/include",
+                "${env:IDF_PATH}/components/nvs_flash/include",
+                "${env:IDF_PATH}/components/driver/include",
+                "${env:IDF_PATH}/components/esp_lcd/include",
+                "${env:IDF_PATH}/components/tinyusb/additions/include",
+                "${env:IDF_PATH}/components/log/include",
+                "${env:IDF_PATH}/components/esp_wifi/include",
+                "${env:IDF_PATH}/components/esp_websocket_client/include",
+                "${env:IDF_PATH}/components/mdns/include",
+                "${env:IDF_PATH}/components/cJSON/cJSON",
+                "${workspaceFolder}/build/config"
+            ],
+            "defines": [
+                "ESP_PLATFORM",
+                "__riscv",
+                "IDF_VER=\"v5.3\"",
+                "CONFIG_TINYUSB_ENABLED=1",
+                "CONFIG_TINYUSB_HID_ENABLED=1",
+                "CONFIG_SPIRAM=1",
+                "CONFIG_SPIRAM_MODE_OCT=1",
+                "LV_CONF_INCLUDE_SIMPLE=1"
+            ],
+            "compilerPath": "${env:IDF_PATH}/../tools/riscv32-esp-elf/esp-13.2.0_20230928/riscv32-esp-elf/bin/riscv32-esp-elf-gcc.exe",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "gcc-arm",
+            "browse": {
+                "path": [
+                    "${workspaceFolder}",
+                    "${env:IDF_PATH}/components"
+                ],
+                "limitSymbolsToIncludedHeaders": true
+            }
+        }
+    ],
+    "version": 4
+}

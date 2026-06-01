@@ -1,0 +1,22 @@
+idf_component_register(
+    SRCS
+        "sc_ui.c"
+        "screens/sc_ui_screen_console.c"
+        "screens/sc_ui_screen_settings.c"
+        "screens/sc_ui_screen_pairing.c"
+    INCLUDE_DIRS
+        "include"
+        "screens"
+    REQUIRES
+        lvgl__lvgl
+        esp_lcd_jd9365_8
+        espressif__esp_lcd_touch_gt911
+        esp_io_expander_pca9535
+        esp_lcd
+        driver
+        sc_config
+        sc_hid
+        sc_gamelink
+        esp_timer
+        nvs_flash
+)
