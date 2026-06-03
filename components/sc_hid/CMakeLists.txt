@@ -6,7 +6,7 @@ idf_component_register(
         "include"
     REQUIRES
         espressif__esp_tinyusb
-        json
+        espressif__cjson
         esp_timer
 )
 

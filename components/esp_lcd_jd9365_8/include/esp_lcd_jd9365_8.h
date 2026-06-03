@@ -8,6 +8,7 @@
 
 #include <stdint.h>
 #include "soc/soc_caps.h"
+#include "esp_idf_version.h"
 
 #if SOC_MIPI_DSI_SUPPORTED
 #include "esp_lcd_panel_vendor.h"
@@ -110,6 +111,7 @@ esp_err_t esp_lcd_new_panel_jd9365_8(const esp_lcd_panel_io_handle_t io, const e
  * @param[in] px_format Pixel format of the panel
  *
  */
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(6, 0, 0)
 #define JD9365_8_800_1280_PANEL_60HZ_DPI_CONFIG(px_format) \
     {                                                    \
         .dpi_clk_src = MIPI_DSI_DPI_CLK_SRC_DEFAULT,     \
@@ -129,6 +131,27 @@ esp_err_t esp_lcd_new_panel_jd9365_8(const esp_lcd_panel_io_handle_t io, const e
         },                                               \
         .flags.use_dma2d = true,                         \
     }
+#else
+#define JD9365_8_800_1280_PANEL_60HZ_DPI_CONFIG(px_format) \
+    {                                                    \
+        .dpi_clk_src = MIPI_DSI_DPI_CLK_SRC_DEFAULT,     \
+        .dpi_clock_freq_mhz = 60,                        \
+        .virtual_channel = 0,                            \
+        .in_color_format = px_format,                    \
+        .out_color_format = px_format,                   \
+        .num_fbs = 1,                                    \
+        .video_timing = {                                \
+            .h_size = 800,                               \
+            .v_size = 1280,                              \
+            .hsync_back_porch = 20,                      \
+            .hsync_pulse_width = 20,                     \
+            .hsync_front_porch = 40,                     \
+            .vsync_back_porch = 30,                      \
+            .vsync_pulse_width = 4,                      \
+            .vsync_front_porch = 30,                     \
+        },                                               \
+    }
+#endif
 
 #endif
 

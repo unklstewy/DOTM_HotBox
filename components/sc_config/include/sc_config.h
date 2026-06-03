@@ -29,6 +29,17 @@ extern "C" {
 #define SC_CONFIG_HOSTNAME_LEN     (64)
 #define SC_CONFIG_SSID_LEN         (32)
 
+typedef struct {
+    bool is_calibrated;
+    int32_t x_min;
+    int32_t x_max;
+    int32_t y_min;
+    int32_t y_max;
+    bool swap_xy;
+    bool invert_x;
+    bool invert_y;
+} sc_touch_cal_t;
+
 /* ── Terminal identity (stored in NVS) ──────────────────────────────────── */
 typedef struct {
     char    ship_id[SC_CONFIG_SHIP_ID_LEN];       /**< e.g. "cutlass_black"   */
@@ -37,6 +48,7 @@ typedef struct {
     char    bridge_host[SC_CONFIG_HOSTNAME_LEN];  /**< PC bridge hostname/IP  */
     uint16_t bridge_port;                         /**< WebSocket port (default 8765) */
     bool    hid_enabled;                          /**< USB HID active         */
+    sc_touch_cal_t touch_cal;                     /**< Touch calibration data */
 } sc_terminal_config_t;
 
 /* ── Lifecycle ──────────────────────────────────────────────────────────── */

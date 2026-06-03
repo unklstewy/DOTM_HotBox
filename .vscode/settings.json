@@ -1,36 +1,45 @@
 {
-    "idf.espIdfPath": "${env:IDF_PATH}",
-    "idf.customExtraPaths": "",
-    "idf.pythonBinPath": "${env:IDF_PYTHON_ENV_PATH}/Scripts/python.exe",
-    "idf.toolsPath": "${env:IDF_TOOLS_PATH}",
-    "idf.port": "COM7",
-    "idf.adapterTargetName": "esp32p4",
-    "idf.openOCDConfigs": [
-        "board/esp32p4_builtin.cfg"
-    ],
-    "idf.flashBaudRate": "921600",
-    "idf.monitorBaudRate": "115200",
-    "idf.buildPath": "${workspaceFolder}/build",
-    "idf.enableUpdateSdkconfigFromProject": false,
-    "C_Cpp.default.compilerPath": "${env:IDF_PATH}/../tools/xtensa-esp-elf/esp-13.2.0_20230928/xtensa-esp-elf/bin/xtensa-esp32-elf-gcc.exe",
-    "C_Cpp.default.includePath": [
-        "${workspaceFolder}/main",
-        "${workspaceFolder}/components/**",
-        "${env:IDF_PATH}/components/**"
-    ],
-    "C_Cpp.default.defines": [
-        "ESP_PLATFORM",
-        "IDF_VER=\"v5.3\"",
-        "CONFIG_TINYUSB_ENABLED=1",
-        "CONFIG_SPIRAM=1"
-    ],
-    "files.associations": {
-        "*.h": "c",
-        "*.c": "c"
-    },
-    "editor.formatOnSave": true,
-    "C_Cpp.formatting": "clangFormat",
-    "[c]": {
-        "editor.defaultFormatter": "ms-vscode.cpptools"
-    }
+  "idf.espIdfPath": "/home/sannis/.espressif/v6.0.1/esp-idf",
+  "idf.customExtraPaths": "/home/sannis/.espressif/tools",
+  "idf.pythonBinPath": "/home/sannis/.espressif/tools/python/v6.0.1/venv/bin/python",
+  "idf.toolsPath": "/home/sannis/.espressif",
+  "idf.port": "/dev/ttyACM0",
+  "idf.adapterTargetName": "esp32p4",
+  "idf.openOCDConfigs": [
+    "board/esp32p4_builtin.cfg"
+  ],
+  "idf.flashBaudRate": "921600",
+  "idf.monitorBaudRate": "115200",
+  "idf.buildPath": "${workspaceFolder}/build",
+  "idf.enableUpdateSdkconfigFromProject": false,
+  "C_Cpp.default.includePath": [
+    "${workspaceFolder}/main",
+    "${workspaceFolder}/components/**",
+    "${env:IDF_PATH}/components/**"
+  ],
+  "C_Cpp.default.defines": [
+    "ESP_PLATFORM",
+    "IDF_VER=\"v6.0\"",
+    "CONFIG_TINYUSB_ENABLED=1",
+    "CONFIG_SPIRAM=1"
+  ],
+  "files.associations": {
+    "*.h": "c",
+    "*.c": "c"
+  },
+  "editor.formatOnSave": true,
+  "C_Cpp.formatting": "clangFormat",
+  "[c]": {
+    "editor.defaultFormatter": "ms-vscode.cpptools"
+  },
+  "idf.customExtraVars": {
+    "IDF_PATH": "/home/sannis/.espressif/v5.5.4/esp-idf",
+    "IDF_TOOLS_PATH": "/home/sannis/.espressif",
+    "IDF_PYTHON_ENV_PATH": "/home/sannis/.espressif/tools/python/v5.5.4/venv",
+    "PYTHON": "/home/sannis/.espressif/tools/python/v5.5.4/venv/bin/python",
+    "PATH": "/home/sannis/.espressif/tools/cmake/3.30.2/bin:/home/sannis/.espressif/tools/ninja/1.12.1:${env:PATH}"
+  },
+  "idf.currentSetup": "/home/sannis/.espressif/v5.5.4/esp-idf",
+  "idf.sdkconfigFilePath": "${workspaceFolder}/sdkconfig",
+  "idf.eimIdfJsonPath": "/home/sannis/.espressif/idf-env.json"
 }

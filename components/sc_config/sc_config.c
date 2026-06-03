@@ -29,6 +29,16 @@ static const char *TAG = "sc_config";
 #define NVS_KEY_BRIDGE_PORT  "bridge_port"
 #define NVS_KEY_HID_EN       "hid_enabled"
 
+/* Touch calibration keys */
+#define NVS_KEY_TC_IS_CAL    "tc_is_cal"
+#define NVS_KEY_TC_X_MIN     "tc_x_min"
+#define NVS_KEY_TC_X_MAX     "tc_x_max"
+#define NVS_KEY_TC_Y_MIN     "tc_y_min"
+#define NVS_KEY_TC_Y_MAX     "tc_y_max"
+#define NVS_KEY_TC_SWAP      "tc_swap"
+#define NVS_KEY_TC_INV_X     "tc_inv_x"
+#define NVS_KEY_TC_INV_Y     "tc_inv_y"
+
 /* ── Defaults ────────────────────────────────────────────────────────────── */
 #define DEFAULT_SHIP_ID      "cutlass_black"
 #define DEFAULT_CONSOLE_ID   "pilot_mfd_left"
@@ -60,6 +70,14 @@ static void config_set_defaults(sc_terminal_config_t *cfg)
     strlcpy(cfg->bridge_host,  DEFAULT_BRIDGE_HOST, sizeof(cfg->bridge_host));
     cfg->bridge_port   = DEFAULT_BRIDGE_PORT;
     cfg->hid_enabled   = DEFAULT_HID_ENABLED;
+    cfg->touch_cal.is_calibrated = false;
+    cfg->touch_cal.x_min = 0;
+    cfg->touch_cal.x_max = 800;
+    cfg->touch_cal.y_min = 0;
+    cfg->touch_cal.y_max = 1280;
+    cfg->touch_cal.swap_xy = false;
+    cfg->touch_cal.invert_x = false;
+    cfg->touch_cal.invert_y = false;
 }
 
 static esp_err_t nvs_load(sc_terminal_config_t *cfg)
@@ -87,6 +105,17 @@ static esp_err_t nvs_load(sc_terminal_config_t *cfg)
     if (nvs_get_u8(h,  NVS_KEY_TERM_IDX,    &u8)  == ESP_OK) cfg->terminal_index = u8;
     if (nvs_get_u16(h, NVS_KEY_BRIDGE_PORT, &u16) == ESP_OK) cfg->bridge_port    = u16;
     if (nvs_get_u8(h,  NVS_KEY_HID_EN,      &hid) == ESP_OK) cfg->hid_enabled    = (bool)hid;
+
+    uint8_t tc_bool;
+    int32_t i32;
+    if (nvs_get_u8(h, NVS_KEY_TC_IS_CAL, &tc_bool) == ESP_OK) cfg->touch_cal.is_calibrated = (bool)tc_bool;
+    if (nvs_get_i32(h, NVS_KEY_TC_X_MIN, &i32) == ESP_OK) cfg->touch_cal.x_min = i32;
+    if (nvs_get_i32(h, NVS_KEY_TC_X_MAX, &i32) == ESP_OK) cfg->touch_cal.x_max = i32;
+    if (nvs_get_i32(h, NVS_KEY_TC_Y_MIN, &i32) == ESP_OK) cfg->touch_cal.y_min = i32;
+    if (nvs_get_i32(h, NVS_KEY_TC_Y_MAX, &i32) == ESP_OK) cfg->touch_cal.y_max = i32;
+    if (nvs_get_u8(h, NVS_KEY_TC_SWAP, &tc_bool) == ESP_OK) cfg->touch_cal.swap_xy = (bool)tc_bool;
+    if (nvs_get_u8(h, NVS_KEY_TC_INV_X, &tc_bool) == ESP_OK) cfg->touch_cal.invert_x = (bool)tc_bool;
+    if (nvs_get_u8(h, NVS_KEY_TC_INV_Y, &tc_bool) == ESP_OK) cfg->touch_cal.invert_y = (bool)tc_bool;
 
     nvs_close(h);
     return ESP_OK;
@@ -150,6 +179,16 @@ esp_err_t sc_config_save(const sc_terminal_config_t *cfg)
     nvs_set_u8 (h, NVS_KEY_TERM_IDX,   cfg->terminal_index);
     nvs_set_u16(h, NVS_KEY_BRIDGE_PORT, cfg->bridge_port);
     nvs_set_u8 (h, NVS_KEY_HID_EN,     (uint8_t)cfg->hid_enabled);
+
+    nvs_set_u8(h, NVS_KEY_TC_IS_CAL, (uint8_t)cfg->touch_cal.is_calibrated);
+    nvs_set_i32(h, NVS_KEY_TC_X_MIN, cfg->touch_cal.x_min);
+    nvs_set_i32(h, NVS_KEY_TC_X_MAX, cfg->touch_cal.x_max);
+    nvs_set_i32(h, NVS_KEY_TC_Y_MIN, cfg->touch_cal.y_min);
+    nvs_set_i32(h, NVS_KEY_TC_Y_MAX, cfg->touch_cal.y_max);
+    nvs_set_u8(h, NVS_KEY_TC_SWAP, (uint8_t)cfg->touch_cal.swap_xy);
+    nvs_set_u8(h, NVS_KEY_TC_INV_X, (uint8_t)cfg->touch_cal.invert_x);
+    nvs_set_u8(h, NVS_KEY_TC_INV_Y, (uint8_t)cfg->touch_cal.invert_y);
+
     esp_err_t ret = nvs_commit(h);
     nvs_close(h);
 

@@ -1,0 +1,450 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1280" width="800" height="1280" font-family="ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace">
+  <!-- =========================================================
+       MOCKUP · ENGINEERING / POWER MGMT  ·  800 × 1280
+       Drake Military, battle-worn
+       ========================================================= -->
+  <defs>
+    <filter id="grunge" x="-2%" y="-2%" width="104%" height="104%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="19"/>
+      <feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.07 0"/>
+      <feComposite in2="SourceGraphic" operator="in"/>
+    </filter>
+    <filter id="scuff" x="-2%" y="-2%" width="104%" height="104%">
+      <feTurbulence type="turbulence" baseFrequency="0.05 0.6" numOctaves="2" seed="9"/>
+      <feColorMatrix values="0 0 0 0 0.78  0 0 0 0 0.72  0 0 0 0 0.61  0 0 0 0.05 0"/>
+      <feComposite in2="SourceGraphic" operator="in"/>
+    </filter>
+    <pattern id="hazard" patternUnits="userSpaceOnUse" width="24" height="12">
+      <rect width="24" height="12" fill="#FFB000"/>
+      <path d="M -6 12 L 6 0 L 12 0 L 0 12 Z  M 12 12 L 24 0 L 30 0 L 18 12 Z" fill="#0B0807"/>
+    </pattern>
+    <pattern id="hazard-worn" patternUnits="userSpaceOnUse" width="24" height="12">
+      <rect width="24" height="12" fill="#8A3B12"/>
+      <path d="M -6 12 L 6 0 L 12 0 L 0 12 Z  M 12 12 L 24 0 L 30 0 L 18 12 Z" fill="#140E0A"/>
+    </pattern>
+    <radialGradient id="rivet" cx="35%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#7A6B58"/>
+      <stop offset="60%" stop-color="#2A1F18"/>
+      <stop offset="100%" stop-color="#0B0807"/>
+    </radialGradient>
+    <symbol id="rv" viewBox="-4 -4 8 8" overflow="visible">
+      <circle r="3" fill="url(#rivet)" stroke="#000" stroke-width="0.5"/>
+      <circle r="0.8" cx="-0.8" cy="-0.8" fill="#C8B89C" opacity="0.4"/>
+    </symbol>
+    <!-- segmented bar segments -->
+    <symbol id="seg-on" viewBox="0 0 14 22"><path d="M 1 1 H 11 L 13 5 V 21 H 3 L 1 17 Z" fill="#FFB000"/></symbol>
+    <symbol id="seg-cool" viewBox="0 0 14 22"><path d="M 1 1 H 11 L 13 5 V 21 H 3 L 1 17 Z" fill="#3FB6C8"/></symbol>
+    <symbol id="seg-warn" viewBox="0 0 14 22"><path d="M 1 1 H 11 L 13 5 V 21 H 3 L 1 17 Z" fill="#FF1F1F"/></symbol>
+    <symbol id="seg-off" viewBox="0 0 14 22"><path d="M 1 1 H 11 L 13 5 V 21 H 3 L 1 17 Z" fill="#1C140E" stroke="#3A2C20" stroke-width="0.5"/></symbol>
+    <style>
+      .lbl   { font-size: 11px; fill: #C8B89C; letter-spacing: 2px; }
+      .lbl-d { font-size: 10px; fill: #6A5E4E; letter-spacing: 1.5px; }
+      .hdr   { font-size: 13px; fill: #FFB000; letter-spacing: 3px; font-weight: 700; }
+      .num   { font-size: 22px; fill: #FFB000; font-weight: 700; }
+      .big   { font-size: 36px; fill: #FFB000; font-weight: 700; }
+      .cool  { fill: #3FB6C8; }
+      .warn  { fill: #FF1F1F; }
+    </style>
+  </defs>
+
+  <rect width="800" height="1280" fill="#000"/>
+  <rect width="800" height="1280" fill="#0B0807" opacity="0.6" filter="url(#grunge)"/>
+
+  <!-- ============== TOP STATUS BAR ============== -->
+  <g>
+    <rect y="0" width="800" height="56" fill="#140E0A"/>
+    <rect y="52" width="800" height="4" fill="url(#hazard)"/>
+    <rect y="52" width="800" height="4" fill="#000" opacity="0.3" filter="url(#scuff)"/>
+    <text x="20" y="22" class="hdr">CUTLASS-BLK · DRK-2947</text>
+    <text x="20" y="42" class="lbl-d">CONSOLE · ENGINEERING.OVERVIEW</text>
+    <text x="780" y="22" class="hdr" text-anchor="end">REACTOR · ONLINE</text>
+    <text x="780" y="42" class="lbl-d" text-anchor="end">CORE  76%  ·  Δ +2.1 kW/s</text>
+  </g>
+
+  <!-- ============== REACTOR CORE PANEL ============== -->
+  <g transform="translate(20,76)">
+    <rect width="760" height="340" fill="#0B0807" stroke="#2A1F18"/>
+    <rect width="760" height="4" fill="url(#hazard-worn)"/>
+    <text x="14" y="24" class="hdr">REACTOR CORE · OUTPUT</text>
+    <text x="746" y="24" class="lbl-d" text-anchor="end">A4-PRIME FUSION</text>
+    <use href="#rv" x="10" y="10"/><use href="#rv" x="750" y="10"/>
+    <use href="#rv" x="10" y="330"/><use href="#rv" x="750" y="330"/>
+
+    <!-- Big reactor schematic on left -->
+    <g transform="translate(180,200)">
+      <!-- outer cooling ring -->
+      <circle r="120" fill="none" stroke="#2A1F18" stroke-width="2"/>
+      <circle r="120" fill="none" stroke="#5A4636" stroke-width="0.5" stroke-dasharray="2 6"/>
+      <!-- inner ring -->
+      <circle r="86" fill="#000" stroke="#7A5400"/>
+      <!-- glowing core -->
+      <circle r="62" fill="#FFB000" opacity="0.18"/>
+      <circle r="42" fill="#FFB000" opacity="0.35"/>
+      <circle r="22" fill="#FFB000"/>
+      <circle r="22" fill="#FFE9B0" opacity="0.4"/>
+      <!-- pulse markers -->
+      <g stroke="#FFB000" stroke-width="1" fill="none">
+        <line x1="0" y1="-120" x2="0" y2="-100"/>
+        <line x1="0" y1="100" x2="0" y2="120"/>
+        <line x1="-120" y1="0" x2="-100" y2="0"/>
+        <line x1="100" y1="0" x2="120" y2="0"/>
+      </g>
+      <!-- coolant tubes (cyan) -->
+      <g stroke="#3FB6C8" stroke-width="3" fill="none" opacity="0.7">
+        <path d="M -120 -40 Q -86 -86 -40 -120"/>
+        <path d="M  120 -40 Q  86 -86  40 -120"/>
+        <path d="M -120  40 Q -86  86 -40  120"/>
+        <path d="M  120  40 Q  86  86  40  120"/>
+      </g>
+      <!-- center readout -->
+      <text x="0" y="6" font-size="20" font-weight="700" fill="#0B0807" text-anchor="middle">76%</text>
+    </g>
+
+    <!-- right column: output stats -->
+    <g transform="translate(400,60)">
+      <text class="lbl-d" y="0">OUTPUT</text>
+      <text class="big" y="34">14.8</text>
+      <text x="120" y="32" font-size="14" fill="#7A5400">MW · NOMINAL</text>
+
+      <text class="lbl-d" y="76">DRAW</text>
+      <text class="num" y="102">11.2 MW</text>
+
+      <text class="lbl-d" y="138">RESERVE</text>
+      <text class="num" y="164">3.6 MW</text>
+
+      <!-- mini bipolar bar: surplus/deficit -->
+      <g transform="translate(0,180)">
+        <rect width="320" height="20" fill="#1C140E" stroke="#3A2C20"/>
+        <line x1="160" y1="0" x2="160" y2="20" stroke="#5A4636"/>
+        <rect x="160" y="2" width="76" height="16" fill="#FFB000"/>
+        <text x="0" y="36" class="lbl-d">SURPLUS  +3.6 MW</text>
+      </g>
+
+      <!-- toggles -->
+      <g transform="translate(0,230)">
+        <rect width="100" height="28" fill="#1C140E" stroke="#7A5400"/>
+        <text x="50" y="20" font-size="11" fill="#FFB000" text-anchor="middle">VENT</text>
+        <g transform="translate(108,0)">
+          <rect width="100" height="28" fill="#1C140E" stroke="#7A5400"/>
+          <text x="50" y="20" font-size="11" fill="#FFB000" text-anchor="middle">PURGE</text>
+        </g>
+        <g transform="translate(216,0)">
+          <rect width="100" height="28" fill="#3A0808" stroke="#FF1F1F"/>
+          <text x="50" y="20" font-size="11" fill="#FF1F1F" font-weight="700" text-anchor="middle">SCRAM</text>
+        </g>
+      </g>
+    </g>
+  </g>
+
+  <!-- ============== SUBSYSTEM POWER ALLOCATION ============== -->
+  <g transform="translate(20,436)">
+    <rect width="760" height="320" fill="#0B0807" stroke="#2A1F18"/>
+    <rect width="760" height="4" fill="url(#hazard-worn)"/>
+    <text x="14" y="24" class="hdr">SUBSYSTEM ALLOCATION</text>
+    <text x="746" y="24" class="lbl-d" text-anchor="end">DRAG TO REBALANCE</text>
+    <use href="#rv" x="10" y="10"/><use href="#rv" x="750" y="10"/>
+    <use href="#rv" x="10" y="310"/><use href="#rv" x="750" y="310"/>
+
+    <!-- rows: 5 systems -->
+    <g transform="translate(20,48)">
+      <!-- row template values -->
+      <!-- SHIELDS 80% -->
+      <g>
+        <text class="lbl" y="14">SHIELDS</text>
+        <text x="200" y="14" class="lbl-d">3.2 MW</text>
+        <text x="720" y="14" class="lbl-d" text-anchor="end">80%</text>
+        <g transform="translate(0,20)">
+          <rect width="720" height="22" fill="#1C140E" stroke="#3A2C20"/>
+          <g transform="translate(3,0)">
+            <!-- 16 of 20 segments lit -->
+            <use href="#seg-on" x="0" width="35" height="22"/>
+            <use href="#seg-on" x="36" width="35" height="22"/>
+            <use href="#seg-on" x="72" width="35" height="22"/>
+            <use href="#seg-on" x="108" width="35" height="22"/>
+            <use href="#seg-on" x="144" width="35" height="22"/>
+            <use href="#seg-on" x="180" width="35" height="22"/>
+            <use href="#seg-on" x="216" width="35" height="22"/>
+            <use href="#seg-on" x="252" width="35" height="22"/>
+            <use href="#seg-on" x="288" width="35" height="22"/>
+            <use href="#seg-on" x="324" width="35" height="22"/>
+            <use href="#seg-on" x="360" width="35" height="22"/>
+            <use href="#seg-on" x="396" width="35" height="22"/>
+            <use href="#seg-on" x="432" width="35" height="22"/>
+            <use href="#seg-on" x="468" width="35" height="22"/>
+            <use href="#seg-on" x="504" width="35" height="22"/>
+            <use href="#seg-on" x="540" width="35" height="22"/>
+            <use href="#seg-off" x="576" width="35" height="22"/>
+            <use href="#seg-off" x="612" width="35" height="22"/>
+            <use href="#seg-off" x="648" width="35" height="22"/>
+            <use href="#seg-off" x="684" width="35" height="22"/>
+          </g>
+        </g>
+      </g>
+      <!-- WEAPONS 140% (overdrive, warn segs at top) -->
+      <g transform="translate(0,56)">
+        <text class="lbl" y="14">WEAPONS</text>
+        <text x="200" y="14" class="lbl-d warn">5.6 MW · OVERDRIVE</text>
+        <text x="720" y="14" class="lbl-d warn" text-anchor="end">140%</text>
+        <g transform="translate(0,20)">
+          <rect width="720" height="22" fill="#1C140E" stroke="#3A2C20"/>
+          <g transform="translate(3,0)">
+            <use href="#seg-on" x="0" width="35" height="22"/>
+            <use href="#seg-on" x="36" width="35" height="22"/>
+            <use href="#seg-on" x="72" width="35" height="22"/>
+            <use href="#seg-on" x="108" width="35" height="22"/>
+            <use href="#seg-on" x="144" width="35" height="22"/>
+            <use href="#seg-on" x="180" width="35" height="22"/>
+            <use href="#seg-on" x="216" width="35" height="22"/>
+            <use href="#seg-on" x="252" width="35" height="22"/>
+            <use href="#seg-on" x="288" width="35" height="22"/>
+            <use href="#seg-on" x="324" width="35" height="22"/>
+            <use href="#seg-on" x="360" width="35" height="22"/>
+            <use href="#seg-on" x="396" width="35" height="22"/>
+            <use href="#seg-on" x="432" width="35" height="22"/>
+            <use href="#seg-on" x="468" width="35" height="22"/>
+            <use href="#seg-warn" x="504" width="35" height="22"/>
+            <use href="#seg-warn" x="540" width="35" height="22"/>
+            <use href="#seg-warn" x="576" width="35" height="22"/>
+            <use href="#seg-warn" x="612" width="35" height="22"/>
+            <use href="#seg-warn" x="648" width="35" height="22"/>
+            <use href="#seg-warn" x="684" width="35" height="22"/>
+          </g>
+        </g>
+      </g>
+      <!-- ENGINES 80% -->
+      <g transform="translate(0,112)">
+        <text class="lbl" y="14">ENGINES</text>
+        <text x="200" y="14" class="lbl-d">2.4 MW</text>
+        <text x="720" y="14" class="lbl-d" text-anchor="end">80%</text>
+        <g transform="translate(0,20)">
+          <rect width="720" height="22" fill="#1C140E" stroke="#3A2C20"/>
+          <g transform="translate(3,0)">
+            <use href="#seg-on" x="0" width="35" height="22"/>
+            <use href="#seg-on" x="36" width="35" height="22"/>
+            <use href="#seg-on" x="72" width="35" height="22"/>
+            <use href="#seg-on" x="108" width="35" height="22"/>
+            <use href="#seg-on" x="144" width="35" height="22"/>
+            <use href="#seg-on" x="180" width="35" height="22"/>
+            <use href="#seg-on" x="216" width="35" height="22"/>
+            <use href="#seg-on" x="252" width="35" height="22"/>
+            <use href="#seg-on" x="288" width="35" height="22"/>
+            <use href="#seg-on" x="324" width="35" height="22"/>
+            <use href="#seg-on" x="360" width="35" height="22"/>
+            <use href="#seg-on" x="396" width="35" height="22"/>
+            <use href="#seg-on" x="432" width="35" height="22"/>
+            <use href="#seg-on" x="468" width="35" height="22"/>
+            <use href="#seg-on" x="504" width="35" height="22"/>
+            <use href="#seg-on" x="540" width="35" height="22"/>
+            <use href="#seg-off" x="576" width="35" height="22"/>
+            <use href="#seg-off" x="612" width="35" height="22"/>
+            <use href="#seg-off" x="648" width="35" height="22"/>
+            <use href="#seg-off" x="684" width="35" height="22"/>
+          </g>
+        </g>
+      </g>
+      <!-- LIFE SUPPORT 100% -->
+      <g transform="translate(0,168)">
+        <text class="lbl" y="14">LIFE SUPPORT</text>
+        <text x="200" y="14" class="lbl-d">0.6 MW</text>
+        <text x="720" y="14" class="lbl-d" text-anchor="end">100%</text>
+        <g transform="translate(0,20)">
+          <rect width="720" height="22" fill="#1C140E" stroke="#3A2C20"/>
+          <g transform="translate(3,0)">
+            <use href="#seg-on" x="0" width="35" height="22"/>
+            <use href="#seg-on" x="36" width="35" height="22"/>
+            <use href="#seg-on" x="72" width="35" height="22"/>
+            <use href="#seg-on" x="108" width="35" height="22"/>
+            <use href="#seg-on" x="144" width="35" height="22"/>
+            <use href="#seg-on" x="180" width="35" height="22"/>
+            <use href="#seg-on" x="216" width="35" height="22"/>
+            <use href="#seg-on" x="252" width="35" height="22"/>
+            <use href="#seg-on" x="288" width="35" height="22"/>
+            <use href="#seg-on" x="324" width="35" height="22"/>
+            <use href="#seg-on" x="360" width="35" height="22"/>
+            <use href="#seg-on" x="396" width="35" height="22"/>
+            <use href="#seg-on" x="432" width="35" height="22"/>
+            <use href="#seg-on" x="468" width="35" height="22"/>
+            <use href="#seg-on" x="504" width="35" height="22"/>
+            <use href="#seg-on" x="540" width="35" height="22"/>
+            <use href="#seg-on" x="576" width="35" height="22"/>
+            <use href="#seg-on" x="612" width="35" height="22"/>
+            <use href="#seg-on" x="648" width="35" height="22"/>
+            <use href="#seg-on" x="684" width="35" height="22"/>
+          </g>
+        </g>
+      </g>
+      <!-- QUANTUM 0% (spooling next) -->
+      <g transform="translate(0,224)">
+        <text class="lbl" y="14">QUANTUM DRV</text>
+        <text x="200" y="14" class="lbl-d">— STANDBY —</text>
+        <text x="720" y="14" class="lbl-d" text-anchor="end">0%</text>
+        <g transform="translate(0,20)">
+          <rect width="720" height="22" fill="#1C140E" stroke="#3A2C20"/>
+        </g>
+      </g>
+    </g>
+  </g>
+
+  <!-- ============== HEAT / COOLANT + FUEL ============== -->
+  <g transform="translate(20,776)">
+    <!-- HEAT/COOL panel -->
+    <g>
+      <rect width="500" height="280" fill="#0B0807" stroke="#2A1F18"/>
+      <rect width="500" height="4" fill="url(#hazard-worn)"/>
+      <text x="14" y="24" class="hdr">THERMAL · COOLANT</text>
+      <use href="#rv" x="10" y="10"/><use href="#rv" x="490" y="10"/>
+      <use href="#rv" x="10" y="270"/><use href="#rv" x="490" y="270"/>
+
+      <!-- heat exchangers row -->
+      <g transform="translate(20,48)">
+        <text class="lbl-d" y="0">HEAT EXCHANGERS</text>
+
+        <!-- HX-1 -->
+        <g transform="translate(0,12)">
+          <rect width="220" height="86" fill="#140E0A" stroke="#3A2C20"/>
+          <text x="10" y="18" font-size="11" fill="#FFB000">HX-01  PORT</text>
+          <text x="210" y="18" font-size="11" fill="#FFB000" text-anchor="end">62°C</text>
+          <rect x="10" y="28" width="200" height="14" fill="#1C140E" stroke="#3A2C20"/>
+          <rect x="10" y="28" width="124" height="14" fill="#FFB000"/>
+          <text x="10" y="58" class="lbl-d">FLOW</text>
+          <rect x="10" y="64" width="200" height="14" fill="#1C140E" stroke="#3A2C20"/>
+          <rect x="10" y="64" width="170" height="14" fill="#3FB6C8"/>
+        </g>
+        <!-- HX-2 -->
+        <g transform="translate(232,12)">
+          <rect width="220" height="86" fill="#140E0A" stroke="#3A2C20"/>
+          <text x="10" y="18" font-size="11" fill="#FFB000">HX-02  STBD</text>
+          <text x="210" y="18" font-size="11" fill="#FF1F1F" text-anchor="end" font-weight="700">94°C</text>
+          <rect x="10" y="28" width="200" height="14" fill="#1C140E" stroke="#3A2C20"/>
+          <rect x="10" y="28" width="184" height="14" fill="#FF1F1F"/>
+          <text x="10" y="58" class="lbl-d warn">FLOW · LOW</text>
+          <rect x="10" y="64" width="200" height="14" fill="#1C140E" stroke="#3A2C20"/>
+          <rect x="10" y="64" width="60" height="14" fill="#3FB6C8"/>
+        </g>
+      </g>
+
+      <!-- coolant reservoir bipolar -->
+      <g transform="translate(20,170)">
+        <text class="lbl-d" y="0">COOLANT RESERVOIR · 71%</text>
+        <rect y="8" width="452" height="24" fill="#1C140E" stroke="#3A2C20"/>
+        <rect y="8" width="320" height="24" fill="#3FB6C8"/>
+        <text x="448" y="26" font-size="12" fill="#3FB6C8" text-anchor="end" font-weight="700">71%</text>
+      </g>
+
+      <!-- vent button -->
+      <g transform="translate(20,224)">
+        <rect width="220" height="34" fill="#1C140E" stroke="#7A5400"/>
+        <text x="110" y="22" font-size="12" fill="#FFB000" text-anchor="middle" letter-spacing="2">VENT HEAT</text>
+      </g>
+      <g transform="translate(252,224)">
+        <rect width="220" height="34" fill="#3A0808" stroke="#FF1F1F"/>
+        <text x="110" y="22" font-size="12" fill="#FF1F1F" text-anchor="middle" letter-spacing="2" font-weight="700">EMERG · DUMP</text>
+      </g>
+    </g>
+
+    <!-- FUEL panel -->
+    <g transform="translate(520,0)">
+      <rect width="260" height="280" fill="#0B0807" stroke="#2A1F18"/>
+      <rect width="260" height="4" fill="url(#hazard-worn)"/>
+      <text x="14" y="24" class="hdr">FUEL</text>
+      <use href="#rv" x="10" y="10"/><use href="#rv" x="250" y="10"/>
+      <use href="#rv" x="10" y="270"/><use href="#rv" x="250" y="270"/>
+
+      <!-- hydrogen tank -->
+      <g transform="translate(40,52)">
+        <text class="lbl-d" y="0">HYDROGEN</text>
+        <rect width="32" height="180" fill="#0B0807" stroke="#2A1F18"/>
+        <!-- 12 segments, 8 filled -->
+        <g transform="translate(5,4)">
+          <rect y="0"   width="22" height="13" fill="#1C140E"/>
+          <rect y="15"  width="22" height="13" fill="#1C140E"/>
+          <rect y="30"  width="22" height="13" fill="#1C140E"/>
+          <rect y="45"  width="22" height="13" fill="#1C140E"/>
+          <rect y="60"  width="22" height="13" fill="#FFB000"/>
+          <rect y="75"  width="22" height="13" fill="#FFB000"/>
+          <rect y="90"  width="22" height="13" fill="#FFB000"/>
+          <rect y="105" width="22" height="13" fill="#FFB000"/>
+          <rect y="120" width="22" height="13" fill="#FFB000"/>
+          <rect y="135" width="22" height="13" fill="#FFB000"/>
+          <rect y="150" width="22" height="13" fill="#FFB000"/>
+          <rect y="165" width="22" height="13" fill="#FFB000"/>
+        </g>
+        <text x="46" y="100" font-size="22" fill="#FFB000" font-weight="700">67%</text>
+        <text x="46" y="118" font-size="10" fill="#6A5E4E">14.2 t</text>
+      </g>
+
+      <!-- quantum fuel -->
+      <g transform="translate(160,52)">
+        <text class="lbl-d" y="0">QUANTUM</text>
+        <rect width="32" height="180" fill="#0B0807" stroke="#2A1F18"/>
+        <g transform="translate(5,4)">
+          <rect y="0"   width="22" height="13" fill="#1C140E"/>
+          <rect y="15"  width="22" height="13" fill="#1C140E"/>
+          <rect y="30"  width="22" height="13" fill="#1C140E"/>
+          <rect y="45"  width="22" height="13" fill="#1C140E"/>
+          <rect y="60"  width="22" height="13" fill="#1C140E"/>
+          <rect y="75"  width="22" height="13" fill="#1C140E"/>
+          <rect y="90"  width="22" height="13" fill="#1C140E"/>
+          <rect y="105" width="22" height="13" fill="#FF1F1F"/>
+          <rect y="120" width="22" height="13" fill="#FF1F1F"/>
+          <rect y="135" width="22" height="13" fill="#FF1F1F"/>
+          <rect y="150" width="22" height="13" fill="#FF1F1F"/>
+          <rect y="165" width="22" height="13" fill="#FF1F1F"/>
+        </g>
+        <text x="-110" y="252" font-size="22" fill="#FF1F1F" font-weight="700">42%</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- ============== DAMAGE / SYSTEM HEALTH LIST ============== -->
+  <g transform="translate(20,1076)">
+    <rect width="760" height="160" fill="#0B0807" stroke="#2A1F18"/>
+    <rect width="760" height="4" fill="url(#hazard-worn)"/>
+    <text x="14" y="24" class="hdr">SYSTEM HEALTH</text>
+    <text x="746" y="24" class="lbl-d" text-anchor="end">3 ISSUES</text>
+    <use href="#rv" x="10" y="10"/><use href="#rv" x="750" y="10"/>
+    <use href="#rv" x="10" y="150"/><use href="#rv" x="750" y="150"/>
+
+    <g transform="translate(20,44)" font-size="12">
+      <g>
+        <circle cx="6" cy="6" r="5" fill="#FF1F1F"/>
+        <text x="20" y="10" fill="#C8B89C">HULL · AFT QUADRANT</text>
+        <text x="500" y="10" class="warn" font-weight="700" text-anchor="end">BREACH · 12% INTEG</text>
+        <text x="746" y="10" class="lbl-d" text-anchor="end">02:14:00</text>
+      </g>
+      <g transform="translate(0,24)">
+        <circle cx="6" cy="6" r="5" fill="#FFB000"/>
+        <text x="20" y="10" fill="#C8B89C">HX-02 · STBD COOLER</text>
+        <text x="500" y="10" fill="#FFB000" font-weight="700" text-anchor="end">FLOW DEGRADED</text>
+        <text x="746" y="10" class="lbl-d" text-anchor="end">02:11:42</text>
+      </g>
+      <g transform="translate(0,48)">
+        <circle cx="6" cy="6" r="5" fill="#FFB000"/>
+        <text x="20" y="10" fill="#C8B89C">WING-L · SLEDGE MOUNT</text>
+        <text x="500" y="10" fill="#FFB000" font-weight="700" text-anchor="end">OVER-TEMP CYCLE</text>
+        <text x="746" y="10" class="lbl-d" text-anchor="end">02:13:18</text>
+      </g>
+      <g transform="translate(0,72)">
+        <circle cx="6" cy="6" r="5" fill="#7A5400"/>
+        <text x="20" y="10" fill="#6A5E4E">QUANTUM · STANDBY</text>
+        <text x="500" y="10" fill="#7A5400" text-anchor="end">NOMINAL</text>
+        <text x="746" y="10" class="lbl-d" text-anchor="end">—</text>
+      </g>
+      <g transform="translate(0,96)">
+        <circle cx="6" cy="6" r="5" fill="#7A5400"/>
+        <text x="20" y="10" fill="#6A5E4E">LIFE SUPPORT</text>
+        <text x="500" y="10" fill="#7A5400" text-anchor="end">NOMINAL</text>
+        <text x="746" y="10" class="lbl-d" text-anchor="end">—</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- bottom band -->
+  <g transform="translate(0,1262)">
+    <rect width="800" height="18" fill="#140E0A"/>
+    <rect width="800" height="2" fill="url(#hazard-worn)"/>
+  </g>
+
+  <rect width="800" height="1280" fill="#C8B89C" opacity="0.025" filter="url(#scuff)" pointer-events="none"/>
+</svg>

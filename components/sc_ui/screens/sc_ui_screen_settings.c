@@ -11,6 +11,7 @@
 #include "sc_ui_screen_settings.h"
 #include "sc_ui_theme.h"
 #include "sc_config.h"
+#include "sc_ui_screens.h"
 #include "esp_log.h"
 
 static const char *TAG = "sc_ui_settings";
@@ -28,6 +29,14 @@ static void reset_btn_cb(lv_event_t *e)
 {
     sc_config_factory_reset();
     ESP_LOGW(TAG, "Factory reset triggered");
+}
+
+static void theme_btn_cb(lv_event_t *e) {
+    sc_ui_router_push(SC_UI_SCREEN_THEME_SELECTOR);
+}
+
+static void calibrate_btn_cb(lv_event_t *e) {
+    sc_ui_router_push(SC_UI_SCREEN_CALIBRATION);
 }
 
 /* ── Create ──────────────────────────────────────────────────────────────── */
@@ -74,6 +83,20 @@ lv_obj_t *sc_ui_screen_settings_create(lv_obj_t *parent)
     lv_obj_add_event_cb(reset_btn, reset_btn_cb, LV_EVENT_RELEASED, NULL);
     lv_obj_t *reset_lbl = lv_label_create(reset_btn);
     lv_label_set_text(reset_lbl, "Factory Reset");
+
+    /* Theme selector button */
+    lv_obj_t *theme_btn = lv_button_create(s_root);
+    lv_obj_set_style_bg_color(theme_btn, SC_COL_ACCENT, 0);
+    lv_obj_add_event_cb(theme_btn, theme_btn_cb, LV_EVENT_RELEASED, NULL);
+    lv_obj_t *theme_lbl = lv_label_create(theme_btn);
+    lv_label_set_text(theme_lbl, "Open Theme Selector");
+
+    /* Calibrate Touch button */
+    lv_obj_t *cal_btn = lv_button_create(s_root);
+    lv_obj_set_style_bg_color(cal_btn, SC_COL_ACCENT, 0);
+    lv_obj_add_event_cb(cal_btn, calibrate_btn_cb, LV_EVENT_RELEASED, NULL);
+    lv_obj_t *cal_lbl = lv_label_create(cal_btn);
+    lv_label_set_text(cal_lbl, "Calibrate Touch");
 
     lv_unlock();
     return s_root;

@@ -10,13 +10,13 @@ tools: ["run_in_terminal"]
 Build, flash, and open the IDF monitor for the reTerminal D1001 (ESP32-P4).
 
 ## Pre-flight Checks
-1. Confirm `IDF_PATH` is set: run `echo $env:IDF_PATH` (Windows) or `echo $IDF_PATH` (Linux/Mac)
+1. Confirm `IDF_PATH` is set: run `echo $env:IDF_PATH` (Windows PowerShell) or `echo $IDF_PATH` (Linux/macOS)
 2. Confirm target is `esp32p4`: run `idf.py get-target` — if wrong, run `idf.py set-target esp32p4`
 3. Confirm the device port. On Windows use Device Manager; on Linux `ls /dev/ttyACM*` or `ls /dev/ttyUSB*`
 
 ## Build
-```powershell
-cd c:\Development\ESP32\ESPSCar
+```bash
+cd /home/sannis/ESPSCar
 idf.py build
 ```
 Fix any errors before proceeding.

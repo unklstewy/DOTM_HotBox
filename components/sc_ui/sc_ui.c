@@ -14,6 +14,7 @@
 #include "sc_ui_screen_console.h"
 #include "sc_ui_screen_settings.h"
 #include "sc_ui_screen_pairing.h"
+#include "sc_ui_screen_calibration.h"
 
 #include "lvgl.h"
 #include "esp_idf_version.h"
@@ -23,7 +24,7 @@
 #include "esp_lcd_panel_io.h"
 #include "esp_lcd_panel_vendor.h"
 #include "esp_lcd_panel_ops.h"
-#include "esp_lcd_touch_gt911.h"
+#include "esp_lcd_touch_gsl3670.h"
 #include "esp_io_expander.h"
 #include "esp_io_expander_pca9535.h"
 #include "driver/i2c_master.h"
@@ -54,6 +55,7 @@ static const char *TAG = "sc_ui";
 #define SC_UI_EXP_LCD_PWR_EN   (1ULL << 0)   /* panel VCC enable */
 #define SC_UI_EXP_LCD_BL_EN    (1ULL << 7)   /* backlight rail enable */
 #define SC_UI_EXP_LCD_RST      (1ULL << 2)   /* panel HW reset (active low) */
+#define SC_UI_EXP_TOUCH_RST    (1ULL << 12)  /* touch HW reset */
 
 /* Touch controller — GT911 over I2C bus 0 */
 #define SC_UI_TOUCH_I2C_PORT   (I2C_NUM_0)
@@ -68,7 +70,7 @@ static const char *TAG = "sc_ui";
 #define SC_UI_DPI_CLOCK_FREQ_MHZ     (60)
 #define SC_UI_DSI_LANE_BITRATE_MBPS  (1000)   /* Seeed D1001 BSP value */
 #define SC_UI_DRAW_BUF_LINES         (80)
-#define SC_UI_ENABLE_TOUCH           (0)
+#define SC_UI_ENABLE_TOUCH           (1)
 #define SC_UI_DBG_FLUSH_LOG_INITIAL  (8)
 #define SC_UI_DBG_FLUSH_LOG_EVERY    (120)
 #define SC_UI_DBG_TOUCH_LOG_MS       (250)
@@ -96,6 +98,7 @@ static lv_display_t                *s_lv_disp  = NULL;
 static esp_timer_handle_t           s_lvgl_tick_timer = NULL;
 static i2c_master_bus_handle_t      s_exp_i2c_bus = NULL;
 static esp_io_expander_handle_t     s_io_expander = NULL;
+esp_io_expander_handle_t io_expander = NULL; /* Exported for GSL3670 driver */
 static uint8_t                     *s_fb[2]    = {NULL, NULL};
 static uint32_t                     s_flush_seq = 0;
 static int64_t                      s_touch_last_log_us = 0;
@@ -127,6 +130,8 @@ esp_err_t sc_ui_init(const sc_terminal_config_t *cfg)
     s_cfg = cfg;
     ESP_LOGI(TAG, "UI init start");
 
+    sc_ui_theme_init_default();
+
     ESP_LOGI(TAG, "Init PCA9535 IO expander (LCD power/reset/backlight gates)");
     esp_err_t ret = sc_ui_io_expander_init();
     if (ret != ESP_OK) return ret;
@@ -152,11 +157,10 @@ esp_err_t sc_ui_init(const sc_terminal_config_t *cfg)
         ESP_LOGW(TAG, "Touch init is disabled (SC_UI_ENABLE_TOUCH=0)");
     }
 
-    /* Zero-copy: render directly into the panel's own DMA framebuffer. */
+    /* The hardware still needs its framebuffer to scan out from */
     void *panel_fb0 = NULL;
     ESP_ERROR_CHECK(esp_lcd_dpi_panel_get_frame_buffer(s_panel, 1, &panel_fb0));
-    ESP_LOGI(TAG, "Panel framebuffer at %p (%d bytes)", panel_fb0,
-             SC_UI_DISPLAY_WIDTH * SC_UI_DISPLAY_HEIGHT * 2);
+    ESP_LOGI(TAG, "Panel framebuffer at %p", panel_fb0);
     s_fb[0] = panel_fb0;
     s_fb[1] = NULL;
 
@@ -167,10 +171,18 @@ esp_err_t sc_ui_init(const sc_terminal_config_t *cfg)
     lv_display_set_color_format(s_lv_disp, LV_COLOR_FORMAT_RGB565);
     lv_display_set_user_data(s_lv_disp, s_panel);
     lv_display_set_flush_cb(s_lv_disp, sc_ui_lvgl_flush_cb);
-    lv_display_set_buffers(s_lv_disp, panel_fb0, NULL,
-                           SC_UI_DISPLAY_WIDTH * SC_UI_DISPLAY_HEIGHT * 2,
-                           LV_DISPLAY_RENDER_MODE_FULL);
-    ESP_LOGI(TAG, "LVGL display configured (zero-copy full render)");
+
+    /* Allocate a dedicated LVGL draw buffer (1/10 screen size) in internal SRAM to 
+     * completely eliminate PSRAM bandwidth congestion (which causes DPI underruns).
+     * The DPI driver will use DMA2D to copy this buffer into the active panel_fb0 during flush. */
+    uint32_t draw_buf_size = SC_UI_DISPLAY_WIDTH * SC_UI_DISPLAY_HEIGHT * 2 / 10;
+    void *draw_buf = heap_caps_malloc(draw_buf_size, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    if (!draw_buf) {
+        ESP_LOGW(TAG, "SRAM too small for draw buffer, falling back to PSRAM!");
+        draw_buf = heap_caps_malloc(draw_buf_size, MALLOC_CAP_SPIRAM);
+    }
+    lv_display_set_buffers(s_lv_disp, draw_buf, NULL, draw_buf_size, LV_DISPLAY_RENDER_MODE_PARTIAL);
+    ESP_LOGI(TAG, "LVGL display configured (partial render, 1/10 screen draw buffer)");
 
     if (s_touch) {
         lv_indev_t *touch_indev = lv_indev_create();
@@ -201,7 +213,9 @@ esp_err_t sc_ui_init(const sc_terminal_config_t *cfg)
     ESP_LOGI(TAG, "LVGL task started");
 
     /* Navigate to initial screen */
-    if (cfg->bridge_host[0] == '\0' || cfg->ship_id[0] == '\0') {
+    if (!cfg->touch_cal.is_calibrated) {
+        sc_ui_router_push(SC_UI_SCREEN_CALIBRATION);
+    } else if (cfg->bridge_host[0] == '\0' || cfg->ship_id[0] == '\0') {
         sc_ui_router_push(SC_UI_SCREEN_PAIRING);
     } else {
         sc_ui_router_push(SC_UI_SCREEN_CONSOLE);
@@ -291,6 +305,14 @@ static lv_obj_t *sc_ui_screen_create(sc_ui_screen_id_t id)
             return sc_ui_screen_settings_create(NULL);
         case SC_UI_SCREEN_PAIRING:
             return sc_ui_screen_pairing_create(NULL);
+        case SC_UI_SCREEN_DRAKE:
+            return sc_ui_screen_drake_create(NULL);
+        case SC_UI_SCREEN_ORIGIN:
+            return sc_ui_screen_origin_create(NULL);
+        case SC_UI_SCREEN_THEME_SELECTOR:
+            return sc_ui_screen_theme_selector_create(NULL);
+        case SC_UI_SCREEN_CALIBRATION:
+            return sc_ui_screen_calibration_create(NULL);
         default:
             ESP_LOGW(TAG, "Unknown screen id: %d", id);
             return NULL;
@@ -371,32 +393,43 @@ static void sc_ui_lvgl_touch_cb(lv_indev_t *indev, lv_indev_data_t *data)
     esp_err_t ret = esp_lcd_touch_get_data(s_touch, pt, &count, 1);
     bool pressed = (ret == ESP_OK) && (count > 0);
 
-    int64_t now_us = esp_timer_get_time();
-    bool should_log = ((now_us - s_touch_last_log_us) >= (SC_UI_DBG_TOUCH_LOG_MS * 1000LL));
-
-    if (ret != ESP_OK && should_log) {
+    if (ret != ESP_OK && !s_touch_last_pressed) {
         ESP_LOGW(TAG, "Touch read error: %s", esp_err_to_name(ret));
-        s_touch_last_log_us = now_us;
     }
 
     if (pressed && count > 0) {
-        data->point.x = (int32_t)pt[0].x;
-        data->point.y = (int32_t)pt[0].y;
+        int32_t raw_x = (int32_t)pt[0].x;
+        int32_t raw_y = (int32_t)pt[0].y;
+        
+        if (s_cfg && s_cfg->touch_cal.is_calibrated) {
+            if (s_cfg->touch_cal.swap_xy) {
+                int32_t tmp = raw_x; raw_x = raw_y; raw_y = tmp;
+            }
+            int32_t dx = s_cfg->touch_cal.x_max - s_cfg->touch_cal.x_min;
+            int32_t dy = s_cfg->touch_cal.y_max - s_cfg->touch_cal.y_min;
+            if (dx != 0 && dy != 0) {
+                raw_x = (raw_x - s_cfg->touch_cal.x_min) * SC_UI_DISPLAY_WIDTH / dx;
+                raw_y = (raw_y - s_cfg->touch_cal.y_min) * SC_UI_DISPLAY_HEIGHT / dy;
+            }
+            if (s_cfg->touch_cal.invert_x) raw_x = SC_UI_DISPLAY_WIDTH - 1 - raw_x;
+            if (s_cfg->touch_cal.invert_y) raw_y = SC_UI_DISPLAY_HEIGHT - 1 - raw_y;
+        }
+
+        data->point.x = raw_x;
+        data->point.y = raw_y;
         data->state   = LV_INDEV_STATE_PRESSED;
 
-        if (!s_touch_last_pressed || should_log) {
-            ESP_LOGI(TAG, "Touch press x=%u y=%u strength=%u track=%u",
-                     (unsigned int)pt[0].x,
-                     (unsigned int)pt[0].y,
+        if (!s_touch_last_pressed) {
+            ESP_LOGI(TAG, "Touch press raw=(%u,%u) cal=(%ld,%ld) strength=%u track=%u",
+                     (unsigned int)pt[0].x, (unsigned int)pt[0].y,
+                     (long)raw_x, (long)raw_y,
                      (unsigned int)pt[0].strength,
                      (unsigned int)pt[0].track_id);
-            s_touch_last_log_us = now_us;
         }
     } else {
         data->state = LV_INDEV_STATE_RELEASED;
-        if (s_touch_last_pressed && should_log) {
+        if (s_touch_last_pressed) {
             ESP_LOGI(TAG, "Touch release");
-            s_touch_last_log_us = now_us;
         }
     }
 
@@ -445,6 +478,8 @@ static esp_err_t sc_ui_io_expander_init(void)
         ESP_IO_EXPANDER_I2C_PCA9535_ADDRESS_000,
         &s_io_expander));
 
+    io_expander = s_io_expander;
+
     ESP_ERROR_CHECK(esp_io_expander_set_dir(s_io_expander, 0xFFFF, IO_EXPANDER_OUTPUT));
     /* Bring up the 3V3 power-hold rail first; everything else needs it. */
     ESP_ERROR_CHECK(esp_io_expander_set_level(s_io_expander, SC_UI_EXP_PWR_HOLD,  1));
@@ -452,6 +487,12 @@ static esp_err_t sc_ui_io_expander_init(void)
     ESP_ERROR_CHECK(esp_io_expander_set_level(s_io_expander, SC_UI_EXP_LCD_BL_EN,  1));
     /* Hold LCD in reset until the panel driver is configured. */
     ESP_ERROR_CHECK(esp_io_expander_set_level(s_io_expander, SC_UI_EXP_LCD_RST,   1));
+    
+    /* Touch controller HW reset */
+    ESP_ERROR_CHECK(esp_io_expander_set_level(s_io_expander, SC_UI_EXP_TOUCH_RST, 0));
+    vTaskDelay(pdMS_TO_TICKS(10));
+    ESP_ERROR_CHECK(esp_io_expander_set_level(s_io_expander, SC_UI_EXP_TOUCH_RST, 1));
+    
     vTaskDelay(pdMS_TO_TICKS(20));
     ESP_LOGI(TAG, "PCA9535 ready: PWR_HOLD=LCD_PWR=BL_EN=1, LCD_RST released");
     return ESP_OK;
@@ -543,20 +584,14 @@ static esp_err_t sc_ui_touch_init(void)
     ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_cfg, &bus));
 
     esp_lcd_panel_io_handle_t tp_io;
-    const esp_lcd_panel_io_i2c_config_t tp_io_cfg = {
-        .dev_addr     = ESP_LCD_TOUCH_IO_I2C_GT911_ADDRESS,
-        .control_phase_bytes = 1,
-        .dc_bit_offset       = 0,
-        .lcd_cmd_bits        = 16,
-        .lcd_param_bits      = 0,
-        .scl_speed_hz        = SC_UI_TOUCH_I2C_FREQ,
-    };
+    esp_lcd_panel_io_i2c_config_t tp_io_cfg = ESP_LCD_TOUCH_IO_I2C_GSL3670_CONFIG();
+    tp_io_cfg.scl_speed_hz = SC_UI_TOUCH_I2C_FREQ;
     ESP_ERROR_CHECK(esp_lcd_new_panel_io_i2c(bus, &tp_io_cfg, &tp_io));
 
     const esp_lcd_touch_config_t tp_cfg = {
         .x_max        = SC_UI_DISPLAY_WIDTH,
         .y_max        = SC_UI_DISPLAY_HEIGHT,
-        .rst_gpio_num = SC_UI_TOUCH_RST,
+        .rst_gpio_num = 12, /* IO expander pin 12 */
         .int_gpio_num = SC_UI_TOUCH_INT,
         .levels = {
             .reset     = 0,
@@ -568,9 +603,13 @@ static esp_err_t sc_ui_touch_init(void)
             .mirror_y  = 0,
         },
     };
-    esp_err_t ret = esp_lcd_touch_new_i2c_gt911(tp_io, &tp_cfg, &s_touch);
+    
+    esp_err_t ret = esp_lcd_touch_new_i2c_gsl3670(tp_io, &tp_cfg, &s_touch);
+    
     if (ret == ESP_OK) {
-        ESP_LOGI(TAG, "Touch init complete (GT911 over I2C)");
+        ESP_LOGI(TAG, "Touch init complete (GSL3670 over I2C at 0x%02X)", tp_io_cfg.dev_addr);
+    } else {
+        ESP_LOGE(TAG, "Touch init failed: %s", esp_err_to_name(ret));
     }
     return ret;
 }

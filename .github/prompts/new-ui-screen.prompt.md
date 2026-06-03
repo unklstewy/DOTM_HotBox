@@ -24,7 +24,7 @@ Derive `<screen_name>` as lowercase_underscores from the argument.
 lv_obj_t *sc_ui_screen_<screen_name>_create(lv_obj_t *parent);
 void      sc_ui_screen_<screen_name>_load(const sc_terminal_config_t *cfg);
 void      sc_ui_screen_<screen_name>_destroy(void);
-void      sc_ui_screen_<screen_name>_on_event(sc_gamelink_event_t *evt);
+void      sc_ui_screen_<screen_name>_on_event(const sc_gamelink_event_t *evt);
 ```
 
 ### 2. Source — `components/sc_ui/screens/sc_ui_screen_<screen_name>.c`
@@ -42,7 +42,7 @@ lv_obj_t *sc_ui_screen_<screen_name>_create(lv_obj_t *parent) {
     lv_lock();
     s_root = lv_obj_create(parent);
     lv_obj_set_size(s_root, LV_PCT(100), LV_PCT(100));
-    lv_obj_set_style_bg_color(s_root, lv_color_hex(0x111111), 0);
+    lv_obj_set_style_bg_color(s_root, SC_COL_BG, 0);
     // TODO: populate widgets from ship config actions
     lv_unlock();
     return s_root;
@@ -59,24 +59,28 @@ void sc_ui_screen_<screen_name>_destroy(void) {
     lv_unlock();
 }
 
-void sc_ui_screen_<screen_name>_on_event(sc_gamelink_event_t *evt) {
+void sc_ui_screen_<screen_name>_on_event(const sc_gamelink_event_t *evt) {
     if (!s_root || !evt) return;
     // TODO: update widget state from game event
 }
 ```
 
 ### 3. Register in screen router
-Open `components/sc_ui/include/sc_ui_screens.h` and add the new enum value:
+Open `components/sc_ui/include/sc_ui.h` and add the new enum value to `sc_ui_screen_id_t`:
 ```c
 SC_UI_SCREEN_<SCREEN_NAME>,
 ```
 
-Open `components/sc_ui/sc_ui_router.c` and add the case in `sc_ui_router_push()`:
+Open `components/sc_ui/include/sc_ui_screens.h` and include the new header:
+```c
+#include "sc_ui_screen_<screen_name>.h"
+```
+
+Open `components/sc_ui/sc_ui.c` and add the case in `sc_ui_screen_create()`:
 ```c
 case SC_UI_SCREEN_<SCREEN_NAME>:
-    screen = sc_ui_screen_<screen_name>_create(lv_scr_act());
     sc_ui_screen_<screen_name>_load(cfg);
-    break;
+    return sc_ui_screen_<screen_name>_create(NULL);
 ```
 
 ## Key Rules (from [.github/instructions/lvgl-ui.instructions.md](.github/instructions/lvgl-ui.instructions.md))

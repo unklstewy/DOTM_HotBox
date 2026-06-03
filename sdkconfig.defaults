@@ -8,7 +8,7 @@
 CONFIG_IDF_TARGET="esp32p4"
 
 # ESP32-P4 silicon revision — reTerminal D1001 ships with silicon v1.3 (FULL=103).
-# IDF 5.5.4 defaults to requiring v3.1 (FULL=301); override to v1.0 (FULL=100)
+# IDF 6.0.1 defaults to requiring v3.1 (FULL=301); override to v1.0 (FULL=100)
 # so the bootloader accepts v1.x chips.
 # IMPORTANT: ESP32P4_REV_MIN_100 depends on ESP32P4_SELECTS_REV_LESS_V3 — must be
 # set first.  Rev <3.0 and >=3.0 are mutually exclusive silicon lines; reTerminal
@@ -75,6 +75,7 @@ CONFIG_SPIFFS_MAX_PARTITIONS=3
 # ESP32-P4 has SOC_WIRELESS_HOST_SUPPORTED — use ESP_HOST_WIFI_ENABLED,
 # not ESP_WIFI_ENABLED (which only applies to SoCs with native WiFi silicon).
 CONFIG_ESP_HOST_WIFI_ENABLED=y
+CONFIG_ESP_HOSTED_MEMPOOL_PREFER_SPIRAM=y
 CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM=10
 CONFIG_ESP_WIFI_DYNAMIC_RX_BUFFER_NUM=32
 # TX buffer choice (dynamic=1 → sets CONFIG_ESP_WIFI_TX_BUFFER_TYPE=1)
@@ -99,3 +100,8 @@ CONFIG_HEAP_TRACING_STANDALONE=n
 CONFIG_COMPILER_OPTIMIZATION_PERF=y
 CONFIG_COMPILER_CXX_EXCEPTIONS=n
 CONFIG_COMPILER_CXX_RTTI=n
+
+# --------------- Console ------------------------------------------------
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+CONFIG_ESP_CONSOLE_UART_DEFAULT=n
+CONFIG_ESP_CONSOLE_UART=n

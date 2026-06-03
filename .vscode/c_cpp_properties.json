@@ -38,7 +38,7 @@
             "compilerPath": "${env:IDF_PATH}/../tools/riscv32-esp-elf/esp-13.2.0_20230928/riscv32-esp-elf/bin/riscv32-esp-elf-gcc.exe",
             "cStandard": "c11",
             "cppStandard": "c++17",
-            "intelliSenseMode": "gcc-arm",
+            "intelliSenseMode": "linux-gcc-arm64",
             "browse": {
                 "path": [
                     "${workspaceFolder}",

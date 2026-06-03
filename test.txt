@@ -1,0 +1,1 @@
+This is a simple test file created to verify workspace access and confirm the initial setup for integrating the Drake Military and Origin Lux themes into the ESPSCar swipeable UI.

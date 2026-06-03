@@ -35,6 +35,10 @@ typedef enum {
     SC_UI_SCREEN_CONSOLE,        /**< Main ship console MFD layout     */
     SC_UI_SCREEN_SETTINGS,       /**< Terminal settings                 */
     SC_UI_SCREEN_OTA,            /**< OTA update progress               */
+    SC_UI_SCREEN_DRAKE,          /**< Drake Military mockup             */
+    SC_UI_SCREEN_ORIGIN,         /**< Origin Lux mockup                 */
+    SC_UI_SCREEN_THEME_SELECTOR, /**< Theme selector gallery            */
+    SC_UI_SCREEN_CALIBRATION,    /**< Touch calibration routine         */
     SC_UI_SCREEN_COUNT
 } sc_ui_screen_id_t;
 

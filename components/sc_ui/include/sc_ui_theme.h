@@ -12,17 +12,38 @@
 extern "C" {
 #endif
 
+typedef struct {
+    lv_color_t armed;
+    lv_color_t ready;
+    lv_color_t warn;
+    lv_color_t off;
+    lv_color_t accent;
+    lv_color_t bg;
+    lv_color_t bg_panel;
+    lv_color_t text;
+    lv_color_t text_dim;
+    lv_color_t divider;
+} sc_theme_colors_t;
+
+extern sc_theme_colors_t sc_theme;
+
 /* ── Brand Palette ───────────────────────────────────────────────────────── */
-#define SC_COL_ARMED    lv_color_hex(0xFF4444)   /**< Weapon armed / danger   */
-#define SC_COL_READY    lv_color_hex(0x00FF88)   /**< System online / safe    */
-#define SC_COL_WARN     lv_color_hex(0xFFAA00)   /**< Caution / degraded      */
-#define SC_COL_OFF      lv_color_hex(0x333333)   /**< System offline          */
-#define SC_COL_ACCENT   lv_color_hex(0x0099FF)   /**< UI highlight / selected */
-#define SC_COL_BG       lv_color_hex(0x111111)   /**< Screen background       */
-#define SC_COL_BG_PANEL lv_color_hex(0x1A1A2E)   /**< Panel / card background */
-#define SC_COL_TEXT     lv_color_hex(0xE0E0E0)   /**< Primary text            */
-#define SC_COL_TEXT_DIM lv_color_hex(0x888888)   /**< Secondary / disabled    */
-#define SC_COL_DIVIDER  lv_color_hex(0x2A2A3E)   /**< Separator lines         */
+#define SC_COL_ARMED    (sc_theme.armed)   /**< Weapon armed / danger   */
+#define SC_COL_READY    (sc_theme.ready)   /**< System online / safe    */
+#define SC_COL_WARN     (sc_theme.warn)    /**< Caution / degraded      */
+#define SC_COL_OFF      (sc_theme.off)     /**< System offline          */
+#define SC_COL_ACCENT   (sc_theme.accent)  /**< UI highlight / selected */
+#define SC_COL_BG       (sc_theme.bg)      /**< Screen background       */
+#define SC_COL_BG_PANEL (sc_theme.bg_panel)/**< Panel / card background */
+#define SC_COL_TEXT     (sc_theme.text)    /**< Primary text            */
+#define SC_COL_TEXT_DIM (sc_theme.text_dim)/**< Secondary / disabled    */
+#define SC_COL_DIVIDER  (sc_theme.divider) /**< Separator lines         */
+
+/* ── Theme API ───────────────────────────────────────────────────────────── */
+void sc_ui_theme_init_default(void);
+void sc_ui_theme_init_drake_military(void);
+void sc_ui_theme_init_origin_lux(void);
+void sc_ui_theme_set(const sc_theme_colors_t *colors);
 
 /* ── Radius / Padding ────────────────────────────────────────────────────── */
 #define SC_UI_BTN_RADIUS    (8)

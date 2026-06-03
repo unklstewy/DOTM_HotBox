@@ -1,0 +1,776 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 1700" width="1280" height="1700" font-family="ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace">
+  <!-- =========================================================
+       DRAKE MILITARY — BATTLE-WORN  /  Sprite Sheet  v0.1
+       ========================================================= -->
+
+  <defs>
+    <!-- Battle-worn grunge: subtle, low-cost (browser preview only;
+         baked into PNG atlas at build time so runtime sees a flat raster) -->
+    <filter id="grunge" x="-2%" y="-2%" width="104%" height="104%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7"/>
+      <feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.08 0"/>
+      <feComposite in2="SourceGraphic" operator="in"/>
+    </filter>
+
+    <filter id="scuff" x="-2%" y="-2%" width="104%" height="104%">
+      <feTurbulence type="turbulence" baseFrequency="0.04 0.7" numOctaves="2" seed="3"/>
+      <feColorMatrix values="0 0 0 0 0.78  0 0 0 0 0.72  0 0 0 0 0.61  0 0 0 0.05 0"/>
+      <feComposite in2="SourceGraphic" operator="in"/>
+    </filter>
+
+    <!-- Chipped-edge clip for panels: irregular bites taken out of corners -->
+    <clipPath id="chip-corners-lg">
+      <path d="M 6 0 H 234 L 240 6 V 234 L 234 240 H 6 L 0 234 V 6 Z
+               M 0 14 L 8 14 L 8 6 L 14 0 L 6 0 Z
+               M 232 0 L 226 0 L 232 6 L 240 6 L 240 14 L 232 14 Z"/>
+    </clipPath>
+
+    <!-- Hazard stripe tile -->
+    <pattern id="hazard" patternUnits="userSpaceOnUse" width="24" height="12" patternTransform="rotate(0)">
+      <rect width="24" height="12" fill="#FFB000"/>
+      <path d="M -6 12 L 6 0 L 12 0 L 0 12 Z  M 12 12 L 24 0 L 30 0 L 18 12 Z" fill="#0B0807"/>
+    </pattern>
+
+    <pattern id="hazard-worn" patternUnits="userSpaceOnUse" width="24" height="12">
+      <rect width="24" height="12" fill="#8A3B12"/>
+      <path d="M -6 12 L 6 0 L 12 0 L 0 12 Z  M 12 12 L 24 0 L 30 0 L 18 12 Z" fill="#140E0A"/>
+      <rect x="2" y="3" width="3" height="2" fill="#3A1808" opacity="0.7"/>
+      <rect x="16" y="7" width="4" height="1" fill="#3A1808" opacity="0.6"/>
+    </pattern>
+
+    <!-- Rivet -->
+    <radialGradient id="rivet" cx="35%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#7A6B58"/>
+      <stop offset="60%" stop-color="#2A1F18"/>
+      <stop offset="100%" stop-color="#0B0807"/>
+    </radialGradient>
+    <symbol id="rv" viewBox="-4 -4 8 8" overflow="visible">
+      <circle r="3" fill="url(#rivet)" stroke="#000" stroke-width="0.5"/>
+      <circle r="0.8" cx="-0.8" cy="-0.8" fill="#C8B89C" opacity="0.4"/>
+    </symbol>
+
+    <!-- Reusable panel frame (parametric via <use> not possible w/o nesting svg;
+         we'll just redraw or use symbol with fixed size and scale) -->
+
+    <!-- Segmented bar segment (lit / unlit) -->
+    <symbol id="seg-on" viewBox="0 0 14 22">
+      <path d="M 1 1 H 11 L 13 5 V 21 H 3 L 1 17 Z" fill="#FFB000" stroke="#7A5400" stroke-width="0.5"/>
+      <path d="M 2 2 H 10 L 12 5 V 7 H 2 Z" fill="#FFD96B" opacity="0.5"/>
+    </symbol>
+    <symbol id="seg-off" viewBox="0 0 14 22">
+      <path d="M 1 1 H 11 L 13 5 V 21 H 3 L 1 17 Z" fill="#1C140E" stroke="#3A2C20" stroke-width="0.5"/>
+    </symbol>
+    <symbol id="seg-warn" viewBox="0 0 14 22">
+      <path d="M 1 1 H 11 L 13 5 V 21 H 3 L 1 17 Z" fill="#FF1F1F" stroke="#7A0F0F" stroke-width="0.5"/>
+    </symbol>
+
+    <!-- Stencil text style -->
+    <style>
+      .lbl    { font-size: 11px; fill: #C8B89C; letter-spacing: 1px; }
+      .lbl-d  { font-size: 10px; fill: #6A5E4E; letter-spacing: 1px; }
+      .hdr    { font-size: 16px; fill: #FFB000; letter-spacing: 3px; font-weight: 700; }
+      .title  { font-size: 22px; fill: #FFB000; letter-spacing: 4px; font-weight: 700; }
+      .mono   { font-size: 14px; fill: #FFB000; }
+      .mono-d { font-size: 14px; fill: #7A5400; }
+      .big    { font-size: 42px; fill: #FFB000; font-weight: 700; letter-spacing: 2px; }
+      .num    { font-size: 28px; fill: #FFB000; font-weight: 700; }
+      .warn   { fill: #FF1F1F; }
+      .bone   { fill: #C8B89C; }
+      .cool   { fill: #3FB6C8; }
+      .chip   { font-size: 9px; fill: #6A5E4E; }
+    </style>
+  </defs>
+
+  <!-- ===== Page background ===== -->
+  <rect width="1280" height="1700" fill="#000"/>
+  <rect width="1280" height="1700" fill="#0B0807" opacity="0.5" filter="url(#grunge)"/>
+
+  <!-- ===== Title bar ===== -->
+  <g transform="translate(0,0)">
+    <rect x="0" y="0" width="1280" height="64" fill="#140E0A"/>
+    <rect x="0" y="60" width="1280" height="4" fill="url(#hazard)"/>
+    <rect x="0" y="60" width="1280" height="4" fill="#000" opacity="0.35" filter="url(#scuff)"/>
+    <text x="32" y="40" class="title">DRAKE MIL · BATTLE-WORN · UI KIT  v0.1</text>
+    <text x="1248" y="40" class="hdr" text-anchor="end">SC-TERM // CONCEPT</text>
+  </g>
+
+  <!-- =================================================================
+       SECTION: PALETTE
+       ================================================================= -->
+  <g transform="translate(32,96)">
+    <text class="hdr" y="0">PALETTE</text>
+    <g transform="translate(0,16)">
+      <!-- swatches -->
+      <g font-size="9" fill="#6A5E4E">
+        <g transform="translate(0,0)">    <rect width="80" height="56" fill="#000000"/><text x="4" y="48" class="bone">bg-void</text></g>
+        <g transform="translate(88,0)">   <rect width="80" height="56" fill="#0B0807"/><text x="4" y="48" class="bone">bg-deck</text></g>
+        <g transform="translate(176,0)">  <rect width="80" height="56" fill="#140E0A"/><text x="4" y="48" class="bone">bg-recess</text></g>
+        <g transform="translate(264,0)">  <rect width="80" height="56" fill="#2A1F18"/><text x="4" y="48" class="bone">chrome</text></g>
+        <g transform="translate(352,0)">  <rect width="80" height="56" fill="#5A4636"/><text x="4" y="48">chrome-hi</text></g>
+        <g transform="translate(440,0)">  <rect width="80" height="56" fill="#FFB000"/><text x="4" y="48" fill="#0B0807">amber</text></g>
+        <g transform="translate(528,0)">  <rect width="80" height="56" fill="#7A5400"/><text x="4" y="48">amber-dim</text></g>
+        <g transform="translate(616,0)">  <rect width="80" height="56" fill="#8A3B12"/><text x="4" y="48">rust</text></g>
+        <g transform="translate(704,0)">  <rect width="80" height="56" fill="#3A1808"/><text x="4" y="48">rust-dark</text></g>
+        <g transform="translate(792,0)">  <rect width="80" height="56" fill="#FF1F1F"/><text x="4" y="48">warn-red</text></g>
+        <g transform="translate(880,0)">  <rect width="80" height="56" fill="#3FB6C8"/><text x="4" y="48">cool-cyan</text></g>
+        <g transform="translate(968,0)">  <rect width="80" height="56" fill="#C8B89C"/><text x="4" y="48" fill="#0B0807">bone</text></g>
+        <g transform="translate(1056,0)"> <rect width="80" height="56" fill="#6A5E4E"/><text x="4" y="48">bone-dim</text></g>
+      </g>
+    </g>
+  </g>
+
+  <!-- =================================================================
+       SECTION: FRAME CHROME — corners, edges, hazard tape, rivets
+       ================================================================= -->
+  <g transform="translate(32,200)">
+    <text class="hdr" y="0">FRAME CHROME · 9-SLICE PANEL</text>
+
+    <!-- Full panel example: 480 x 200 -->
+    <g transform="translate(0,16)" clip-path="url(#chip-corners-lg)">
+      <rect width="480" height="200" fill="#0B0807"/>
+      <!-- inner recess -->
+      <rect x="12" y="12" width="456" height="176" fill="#000"/>
+      <!-- bevel highlight (top/left) -->
+      <path d="M 0 0 H 480 V 4 H 4 V 200 H 0 Z" fill="#5A4636" opacity="0.6"/>
+      <!-- bevel shadow (bottom/right) -->
+      <path d="M 480 0 V 200 H 0 V 196 H 476 V 0 Z" fill="#000" opacity="0.8"/>
+      <!-- hazard strip across top -->
+      <rect x="0" y="0" width="480" height="6" fill="url(#hazard-worn)"/>
+      <!-- stencil header -->
+      <text x="20" y="28" class="hdr">PANEL-A · DRAKE STD</text>
+      <text x="460" y="28" class="lbl-d" text-anchor="end">9-SLICE · CHIP-CORNER</text>
+      <!-- rivets -->
+      <use href="#rv" x="14" y="14"/>
+      <use href="#rv" x="466" y="14"/>
+      <use href="#rv" x="14" y="186"/>
+      <use href="#rv" x="466" y="186"/>
+      <!-- scuff overlay -->
+      <rect width="480" height="200" fill="#C8B89C" opacity="0.06" filter="url(#scuff)"/>
+      <!-- paint chip near corner -->
+      <path d="M 0 0 L 18 0 L 12 6 L 6 4 L 4 10 L 0 8 Z" fill="#3A1808"/>
+    </g>
+
+    <!-- 9-slice atlas key -->
+    <g transform="translate(520,16)">
+      <text class="lbl" y="-2">9-SLICE ATLAS REGIONS · 16 px insets</text>
+      <g transform="translate(0,8)">
+        <rect width="240" height="184" fill="#140E0A" stroke="#5A4636" stroke-width="1"/>
+        <line x1="16" y1="0" x2="16" y2="184" stroke="#FFB000" stroke-dasharray="2 3" opacity="0.6"/>
+        <line x1="224" y1="0" x2="224" y2="184" stroke="#FFB000" stroke-dasharray="2 3" opacity="0.6"/>
+        <line x1="0" y1="16" x2="240" y2="16" stroke="#FFB000" stroke-dasharray="2 3" opacity="0.6"/>
+        <line x1="0" y1="168" x2="240" y2="168" stroke="#FFB000" stroke-dasharray="2 3" opacity="0.6"/>
+        <text x="8" y="12" class="chip">TL</text>
+        <text x="228" y="12" class="chip">TR</text>
+        <text x="8" y="180" class="chip">BL</text>
+        <text x="228" y="180" class="chip">BR</text>
+        <text x="120" y="12" class="chip" text-anchor="middle">EDGE-T (tile X)</text>
+        <text x="120" y="180" class="chip" text-anchor="middle">EDGE-B (tile X)</text>
+        <text x="8" y="96" class="chip" transform="rotate(-90 8 96)">EDGE-L</text>
+        <text x="232" y="96" class="chip" transform="rotate(-90 232 96)">EDGE-R</text>
+        <text x="120" y="100" class="lbl-d" text-anchor="middle">CENTER (stretch)</text>
+      </g>
+    </g>
+
+    <!-- Hazard tape variants -->
+    <g transform="translate(776,16)">
+      <text class="lbl" y="-2">HAZARD TAPE</text>
+      <rect y="8"  width="240" height="14" fill="url(#hazard)"/>
+      <rect y="28" width="240" height="14" fill="url(#hazard-worn)"/>
+      <text x="0" y="60" class="lbl-d">tape-amber  (nominal)</text>
+      <text x="0" y="76" class="lbl-d">tape-rust   (low-priority frame trim)</text>
+
+      <text class="lbl" y="106">RIVETS</text>
+      <g transform="translate(0,118)">
+        <use href="#rv" x="10" y="10"/>
+        <use href="#rv" x="30" y="10"/>
+        <use href="#rv" x="50" y="10"/>
+        <use href="#rv" x="70" y="10"/>
+        <text x="100" y="14" class="chip">rivet-8px · sprite × 1</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- =================================================================
+       SECTION: BUTTONS & TOGGLES
+       ================================================================= -->
+  <g transform="translate(32,440)">
+    <text class="hdr" y="0">BUTTONS · TOGGLES</text>
+
+    <!-- Button states -->
+    <g transform="translate(0,20)">
+      <!-- IDLE -->
+      <g>
+        <rect width="140" height="56" fill="#140E0A" stroke="#3A2C20"/>
+        <rect x="0" y="0" width="140" height="3" fill="#5A4636" opacity="0.7"/>
+        <rect x="0" y="53" width="140" height="3" fill="#000"/>
+        <text x="70" y="34" class="mono-d" text-anchor="middle">IDLE</text>
+        <text x="70" y="74" class="chip" text-anchor="middle">btn-idle</text>
+      </g>
+      <!-- ARMED -->
+      <g transform="translate(156,0)">
+        <rect width="140" height="56" fill="#1C140E" stroke="#7A5400"/>
+        <rect x="0" y="0" width="140" height="3" fill="#FFB000" opacity="0.55"/>
+        <text x="70" y="34" class="mono" text-anchor="middle">ARMED</text>
+        <text x="70" y="74" class="chip" text-anchor="middle">btn-armed</text>
+      </g>
+      <!-- ACTIVE -->
+      <g transform="translate(312,0)">
+        <rect width="140" height="56" fill="#FFB000"/>
+        <rect x="0" y="0" width="140" height="3" fill="#FFD96B"/>
+        <rect x="0" y="53" width="140" height="3" fill="#7A5400"/>
+        <text x="70" y="34" font-size="14" fill="#0B0807" font-weight="700" text-anchor="middle">ACTIVE</text>
+        <rect width="140" height="56" fill="#000" opacity="0.06" filter="url(#scuff)"/>
+        <text x="70" y="74" class="chip" text-anchor="middle">btn-active</text>
+      </g>
+      <!-- WARN -->
+      <g transform="translate(468,0)">
+        <rect width="140" height="56" fill="#3A0808" stroke="#FF1F1F"/>
+        <rect x="0" y="0" width="140" height="3" fill="#FF1F1F"/>
+        <text x="70" y="34" font-size="14" fill="#FF1F1F" font-weight="700" text-anchor="middle">EJECT</text>
+        <text x="70" y="74" class="chip" text-anchor="middle">btn-danger</text>
+      </g>
+      <!-- DISABLED -->
+      <g transform="translate(624,0)">
+        <rect width="140" height="56" fill="#0B0807" stroke="#2A1F18"/>
+        <text x="70" y="34" font-size="14" fill="#3A2C20" text-anchor="middle">— LOCKED —</text>
+        <text x="70" y="74" class="chip" text-anchor="middle">btn-disabled</text>
+      </g>
+    </g>
+
+    <!-- Toggle switch -->
+    <g transform="translate(0,108)">
+      <text class="lbl" y="-2">TOGGLE · COVERED SWITCH · KEY-LOCK</text>
+      <g transform="translate(0,8)">
+        <!-- toggle OFF -->
+        <rect width="96" height="40" fill="#140E0A" stroke="#3A2C20"/>
+        <rect x="4" y="4" width="40" height="32" fill="#2A1F18" stroke="#5A4636"/>
+        <text x="60" y="26" class="mono-d">OFF</text>
+        <text x="0" y="58" class="chip">toggle-off</text>
+      </g>
+      <g transform="translate(112,8)">
+        <rect width="96" height="40" fill="#1C140E" stroke="#7A5400"/>
+        <rect x="52" y="4" width="40" height="32" fill="#FFB000"/>
+        <text x="20" y="26" class="mono">ON</text>
+        <text x="0" y="50" class="chip">toggle-on</text>
+      </g>
+      <!-- covered switch -->
+      <g transform="translate(224,8)">
+        <rect width="80" height="40" fill="#3A0808" stroke="#FF1F1F"/>
+        <path d="M 4 4 L 76 4 L 64 28 L 16 28 Z" fill="url(#hazard)"/>
+        <path d="M 4 4 L 76 4 L 64 28 L 16 28 Z" fill="#000" opacity="0.25" filter="url(#scuff)"/>
+        <text x="0" y="50" class="chip">cover-closed</text>
+      </g>
+      <g transform="translate(320,8)">
+        <rect width="80" height="40" fill="#140E0A" stroke="#7A5400"/>
+        <rect x="34" y="6" width="12" height="28" fill="#FFB000"/>
+        <circle cx="40" cy="12" r="4" fill="#FFD96B"/>
+        <text x="0" y="50" class="chip">cover-open</text>
+      </g>
+      <!-- keypad key -->
+      <g transform="translate(416,8)">
+        <rect width="40" height="40" fill="#1C140E" stroke="#5A4636"/>
+        <text x="20" y="26" class="mono" text-anchor="middle">7</text>
+        <text x="0" y="50" class="chip">key</text>
+      </g>
+      <g transform="translate(464,8)">
+        <rect width="40" height="40" fill="#1C140E" stroke="#5A4636"/>
+        <text x="20" y="26" class="mono" text-anchor="middle">8</text>
+      </g>
+      <g transform="translate(512,8)">
+        <rect width="40" height="40" fill="#1C140E" stroke="#5A4636"/>
+        <text x="20" y="26" class="mono" text-anchor="middle">9</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- =================================================================
+       SECTION: GAUGES & BARS
+       ================================================================= -->
+  <g transform="translate(32,640)">
+    <text class="hdr" y="0">GAUGES · BARS · METERS</text>
+
+    <!-- Segmented horizontal bar -->
+    <g transform="translate(0,16)">
+      <text class="lbl" y="-2">BAR · HORIZONTAL SEGMENTED · 20 SEG</text>
+      <g transform="translate(0,8)">
+        <rect width="320" height="32" fill="#0B0807" stroke="#2A1F18"/>
+        <g transform="translate(6,5)">
+          <!-- lit 12/20 -->
+          <g>
+            <use href="#seg-on"  x="0"   width="14" height="22"/>
+            <use href="#seg-on"  x="15"  width="14" height="22"/>
+            <use href="#seg-on"  x="30"  width="14" height="22"/>
+            <use href="#seg-on"  x="45"  width="14" height="22"/>
+            <use href="#seg-on"  x="60"  width="14" height="22"/>
+            <use href="#seg-on"  x="75"  width="14" height="22"/>
+            <use href="#seg-on"  x="90"  width="14" height="22"/>
+            <use href="#seg-on"  x="105" width="14" height="22"/>
+            <use href="#seg-on"  x="120" width="14" height="22"/>
+            <use href="#seg-on"  x="135" width="14" height="22"/>
+            <use href="#seg-on"  x="150" width="14" height="22"/>
+            <use href="#seg-on"  x="165" width="14" height="22"/>
+            <use href="#seg-off" x="180" width="14" height="22"/>
+            <use href="#seg-off" x="195" width="14" height="22"/>
+            <use href="#seg-off" x="210" width="14" height="22"/>
+            <use href="#seg-off" x="225" width="14" height="22"/>
+            <use href="#seg-off" x="240" width="14" height="22"/>
+            <use href="#seg-off" x="255" width="14" height="22"/>
+            <use href="#seg-off" x="270" width="14" height="22"/>
+            <use href="#seg-off" x="285" width="14" height="22"/>
+          </g>
+        </g>
+        <text x="0" y="52" class="chip">bar-h-20  ·  12/20 lit  ·  sprite atlas: seg-on/off/warn</text>
+      </g>
+    </g>
+
+    <!-- Threshold bar with red zone -->
+    <g transform="translate(0,108)">
+      <text class="lbl" y="-2">BAR · THRESHOLD (heat / overload)</text>
+      <g transform="translate(0,8)">
+        <rect width="320" height="32" fill="#0B0807" stroke="#2A1F18"/>
+        <g transform="translate(6,5)">
+          <use href="#seg-on"   x="0"   width="14" height="22"/>
+          <use href="#seg-on"   x="15"  width="14" height="22"/>
+          <use href="#seg-on"   x="30"  width="14" height="22"/>
+          <use href="#seg-on"   x="45"  width="14" height="22"/>
+          <use href="#seg-on"   x="60"  width="14" height="22"/>
+          <use href="#seg-on"   x="75"  width="14" height="22"/>
+          <use href="#seg-on"   x="90"  width="14" height="22"/>
+          <use href="#seg-on"   x="105" width="14" height="22"/>
+          <use href="#seg-on"   x="120" width="14" height="22"/>
+          <use href="#seg-on"   x="135" width="14" height="22"/>
+          <use href="#seg-on"   x="150" width="14" height="22"/>
+          <use href="#seg-on"   x="165" width="14" height="22"/>
+          <use href="#seg-on"   x="180" width="14" height="22"/>
+          <use href="#seg-on"   x="195" width="14" height="22"/>
+          <use href="#seg-warn" x="210" width="14" height="22"/>
+          <use href="#seg-warn" x="225" width="14" height="22"/>
+          <use href="#seg-warn" x="240" width="14" height="22"/>
+          <use href="#seg-off"  x="255" width="14" height="22"/>
+          <use href="#seg-off"  x="270" width="14" height="22"/>
+          <use href="#seg-off"  x="285" width="14" height="22"/>
+        </g>
+        <!-- threshold tick -->
+        <line x1="225" y1="0" x2="225" y2="40" stroke="#FF1F1F" stroke-dasharray="2 2"/>
+        <text x="0" y="52" class="chip">bar-h-thresh  ·  warn at 70%</text>
+      </g>
+    </g>
+
+    <!-- Vertical bar stack (cool-side cyan) -->
+    <g transform="translate(360,8)">
+      <text class="lbl" y="-2">BAR · VERTICAL · COOLANT</text>
+      <g transform="translate(0,8)">
+        <rect width="32" height="148" fill="#0B0807" stroke="#2A1F18"/>
+        <g transform="translate(5,4)">
+          <!-- 10 segments, 8 lit cyan from bottom -->
+          <rect y="0"   width="22" height="12" fill="#1C140E" stroke="#3A2C20" stroke-width="0.5"/>
+          <rect y="14"  width="22" height="12" fill="#1C140E" stroke="#3A2C20" stroke-width="0.5"/>
+          <rect y="28"  width="22" height="12" fill="#3FB6C8" stroke="#1B5F6A" stroke-width="0.5"/>
+          <rect y="42"  width="22" height="12" fill="#3FB6C8" stroke="#1B5F6A" stroke-width="0.5"/>
+          <rect y="56"  width="22" height="12" fill="#3FB6C8" stroke="#1B5F6A" stroke-width="0.5"/>
+          <rect y="70"  width="22" height="12" fill="#3FB6C8" stroke="#1B5F6A" stroke-width="0.5"/>
+          <rect y="84"  width="22" height="12" fill="#3FB6C8" stroke="#1B5F6A" stroke-width="0.5"/>
+          <rect y="98"  width="22" height="12" fill="#3FB6C8" stroke="#1B5F6A" stroke-width="0.5"/>
+          <rect y="112" width="22" height="12" fill="#3FB6C8" stroke="#1B5F6A" stroke-width="0.5"/>
+          <rect y="126" width="22" height="12" fill="#3FB6C8" stroke="#1B5F6A" stroke-width="0.5"/>
+        </g>
+        <text x="0" y="170" class="chip">bar-v · 80%</text>
+      </g>
+    </g>
+
+    <!-- Radial arc gauge -->
+    <g transform="translate(440,8)">
+      <text class="lbl" y="-2">RADIAL ARC · 220° SWEEP · SPEED</text>
+      <g transform="translate(70,80)">
+        <!-- background arc -->
+        <path d="M -60 32 A 68 68 0 1 1 60 32" fill="none" stroke="#1C140E" stroke-width="10"/>
+        <!-- ticks -->
+        <g stroke="#5A4636" stroke-width="1">
+          <line x1="-60" y1="32" x2="-66" y2="36"/>
+          <line x1="-42" y1="-12" x2="-48" y2="-16"/>
+          <line x1="0" y1="-36" x2="0" y2="-44"/>
+          <line x1="42" y1="-12" x2="48" y2="-16"/>
+          <line x1="60" y1="32" x2="66" y2="36"/>
+        </g>
+        <!-- filled arc (about 65%) -->
+        <path d="M -60 32 A 68 68 0 1 1 50 -22" fill="none" stroke="#FFB000" stroke-width="10"/>
+        <!-- needle -->
+        <g transform="rotate(40)">
+          <polygon points="0,4 0,-44 -2,4" fill="#FF1F1F"/>
+          <circle r="4" fill="#2A1F18" stroke="#5A4636"/>
+        </g>
+        <text x="0" y="22" font-size="20" font-weight="700" fill="#FFB000" text-anchor="middle">214</text>
+        <text x="0" y="38" class="lbl-d" text-anchor="middle">m/s</text>
+      </g>
+      <text x="0" y="170" class="chip">arc-220  ·  needle sprite × 1</text>
+    </g>
+
+    <!-- Dual-side power balance (cool/heat) -->
+    <g transform="translate(620,8)">
+      <text class="lbl" y="-2">DUAL-AXIS · COOL ↔ HEAT</text>
+      <g transform="translate(0,8)">
+        <rect width="200" height="32" fill="#0B0807" stroke="#2A1F18"/>
+        <rect x="100" y="4" width="60" height="24" fill="#FFB000"/>
+        <rect x="60" y="4" width="40" height="24" fill="#3FB6C8"/>
+        <line x1="100" y1="0" x2="100" y2="32" stroke="#5A4636"/>
+        <text x="10" y="22" class="chip cool">COOL</text>
+        <text x="190" y="22" class="chip" text-anchor="end" fill="#FFB000">HEAT</text>
+        <text x="0" y="52" class="chip">bar-bipolar</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- =================================================================
+       SECTION: STATUS PIPS, LEDS, ALERTS
+       ================================================================= -->
+  <g transform="translate(32,860)">
+    <text class="hdr" y="0">STATUS · LEDS · ALERTS · TABS</text>
+
+    <!-- LEDs -->
+    <g transform="translate(0,16)">
+      <text class="lbl" y="-2">LED · PIP · CHIP</text>
+      <g transform="translate(0,8)">
+        <circle cx="10" cy="10" r="6" fill="#FFB000"/><circle cx="10" cy="10" r="2" fill="#FFE9B0"/>
+        <circle cx="34" cy="10" r="6" fill="#7A5400"/>
+        <circle cx="58" cy="10" r="6" fill="#FF1F1F"/><circle cx="58" cy="10" r="2" fill="#FFB0B0"/>
+        <circle cx="82" cy="10" r="6" fill="#3A0808"/>
+        <circle cx="106" cy="10" r="6" fill="#3FB6C8"/><circle cx="106" cy="10" r="2" fill="#C8F0F8"/>
+        <circle cx="130" cy="10" r="6" fill="#1B5F6A"/>
+        <text x="0" y="40" class="chip">led: amber-on/off · red-on/off · cyan-on/off</text>
+      </g>
+      <!-- Status pills -->
+      <g transform="translate(0,64)">
+        <g>
+          <rect width="92" height="22" fill="#1C140E" stroke="#7A5400"/>
+          <text x="46" y="16" class="mono" text-anchor="middle" font-size="11">NOMINAL</text>
+        </g>
+        <g transform="translate(102,0)">
+          <rect width="92" height="22" fill="#3A2C20" stroke="#FFB000"/>
+          <text x="46" y="16" class="mono" text-anchor="middle" font-size="11">CAUTION</text>
+        </g>
+        <g transform="translate(204,0)">
+          <rect width="92" height="22" fill="#3A0808" stroke="#FF1F1F"/>
+          <text x="46" y="16" font-size="11" fill="#FF1F1F" text-anchor="middle" font-weight="700">DANGER</text>
+        </g>
+        <g transform="translate(306,0)">
+          <rect width="92" height="22" fill="#0B0807" stroke="#2A1F18"/>
+          <text x="46" y="16" font-size="11" fill="#5A4636" text-anchor="middle">OFFLINE</text>
+        </g>
+        <text x="0" y="42" class="chip">pill · 92×22 · 4 variants</text>
+      </g>
+    </g>
+
+    <!-- Alert banner -->
+    <g transform="translate(440,16)">
+      <text class="lbl" y="-2">ALERT BANNER · 600×40</text>
+      <g transform="translate(0,8)">
+        <rect width="600" height="40" fill="#3A0808" stroke="#FF1F1F"/>
+        <rect width="600" height="6" fill="url(#hazard)"/>
+        <rect y="34" width="600" height="6" fill="url(#hazard)"/>
+        <!-- icon -->
+        <g transform="translate(20,20)">
+          <polygon points="0,-10 10,8 -10,8" fill="#FF1F1F" stroke="#FFB000" stroke-width="1"/>
+          <text y="6" font-size="11" fill="#0B0807" font-weight="700" text-anchor="middle">!</text>
+        </g>
+        <text x="44" y="26" font-size="14" fill="#FF1F1F" font-weight="700" letter-spacing="2">HULL BREACH · SECTION C · EVAC ADVISED</text>
+        <text x="0" y="60" class="chip">alert-banner-danger · also: -caution (amber), -info (cyan)</text>
+      </g>
+    </g>
+
+    <!-- Tab strip -->
+    <g transform="translate(0,164)">
+      <text class="lbl" y="-2">TAB STRIP</text>
+      <g transform="translate(0,8)">
+        <!-- active -->
+        <path d="M 0 32 L 0 4 L 4 0 L 116 0 L 120 4 L 120 32 Z" fill="#FFB000"/>
+        <text x="60" y="22" font-size="12" font-weight="700" fill="#0B0807" text-anchor="middle">SHIELDS</text>
+        <!-- inactive -->
+        <g transform="translate(124,0)">
+          <path d="M 0 32 L 0 4 L 4 0 L 116 0 L 120 4 L 120 32 Z" fill="#1C140E" stroke="#5A4636"/>
+          <text x="60" y="22" font-size="12" fill="#7A5400" text-anchor="middle">WEAPONS</text>
+        </g>
+        <g transform="translate(248,0)">
+          <path d="M 0 32 L 0 4 L 4 0 L 116 0 L 120 4 L 120 32 Z" fill="#1C140E" stroke="#5A4636"/>
+          <text x="60" y="22" font-size="12" fill="#7A5400" text-anchor="middle">POWER</text>
+        </g>
+        <g transform="translate(372,0)">
+          <path d="M 0 32 L 0 4 L 4 0 L 116 0 L 120 4 L 120 32 Z" fill="#1C140E" stroke="#5A4636"/>
+          <text x="60" y="22" font-size="12" fill="#7A5400" text-anchor="middle">SCAN</text>
+        </g>
+        <line x1="0" y1="32" x2="800" y2="32" stroke="#FFB000" stroke-width="1"/>
+        <text x="0" y="56" class="chip">tab-active / tab-inactive  ·  120×32  ·  9-slice not required</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- =================================================================
+       SECTION: NUMERIC READOUTS
+       ================================================================= -->
+  <g transform="translate(32,1080)">
+    <text class="hdr" y="0">READOUTS · NUMERIC BLOCKS</text>
+
+    <g transform="translate(0,16)">
+      <text class="lbl" y="-2">PRIMARY READOUT BLOCK · 280×96</text>
+      <g transform="translate(0,8)">
+        <rect width="280" height="96" fill="#0B0807" stroke="#2A1F18"/>
+        <rect width="280" height="4" fill="url(#hazard-worn)"/>
+        <text x="10" y="24" class="lbl-d">SHIELD · FORE</text>
+        <text x="270" y="24" class="lbl-d" text-anchor="end">MJ</text>
+        <text x="10" y="72" class="big">84</text>
+        <text x="270" y="72" class="num" text-anchor="end" fill="#7A5400">/ 100</text>
+        <line x1="10" y1="80" x2="270" y2="80" stroke="#7A5400"/>
+        <text x="10" y="92" class="chip">readout-primary</text>
+      </g>
+    </g>
+
+    <g transform="translate(300,16)">
+      <text class="lbl" y="-2">COMPACT READOUT · 180×64</text>
+      <g transform="translate(0,8)">
+        <rect width="180" height="64" fill="#0B0807" stroke="#2A1F18"/>
+        <text x="10" y="18" class="lbl-d">FUEL</text>
+        <text x="10" y="48" class="num">62%</text>
+        <text x="170" y="48" class="chip" text-anchor="end" fill="#FFB000">▲ 0.4</text>
+        <text x="0" y="80" class="chip">readout-compact</text>
+      </g>
+    </g>
+
+    <g transform="translate(500,16)">
+      <text class="lbl" y="-2">TRIPLE-STACK · 180×96</text>
+      <g transform="translate(0,8)">
+        <rect width="180" height="96" fill="#0B0807" stroke="#2A1F18"/>
+        <g font-size="11">
+          <text x="10"  y="24" fill="#6A5E4E">SPD</text><text x="170" y="24" fill="#FFB000" text-anchor="end" font-weight="700">214 m/s</text>
+          <text x="10"  y="48" fill="#6A5E4E">ALT</text><text x="170" y="48" fill="#FFB000" text-anchor="end" font-weight="700">1.84 km</text>
+          <text x="10"  y="72" fill="#6A5E4E">G</text>  <text x="170" y="72" fill="#FF1F1F" text-anchor="end" font-weight="700">6.2</text>
+        </g>
+        <text x="0" y="116" class="chip">readout-stack-3</text>
+      </g>
+    </g>
+
+    <!-- Throttle slider -->
+    <g transform="translate(700,16)">
+      <text class="lbl" y="-2">THROTTLE · 60×120</text>
+      <g transform="translate(0,8)">
+        <rect width="60" height="120" fill="#0B0807" stroke="#2A1F18"/>
+        <line x1="30" y1="6" x2="30" y2="114" stroke="#5A4636"/>
+        <rect x="10" y="40" width="40" height="14" fill="#FFB000" stroke="#7A5400"/>
+        <rect x="10" y="40" width="40" height="3" fill="#FFD96B"/>
+        <!-- ticks -->
+        <g stroke="#5A4636">
+          <line x1="6" y1="12" x2="14" y2="12"/>
+          <line x1="6" y1="36" x2="14" y2="36"/>
+          <line x1="6" y1="60" x2="14" y2="60"/>
+          <line x1="6" y1="84" x2="14" y2="84"/>
+          <line x1="6" y1="108" x2="14" y2="108"/>
+        </g>
+        <text x="0" y="140" class="chip">throttle</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- =================================================================
+       SECTION: TACTICAL — RADAR / RETICLE / POWER TRIANGLE / SHIELD QUAD
+       ================================================================= -->
+  <g transform="translate(32,1240)">
+    <text class="hdr" y="0">TACTICAL · RADAR · POWER TRIANGLE · SHIELD QUADRANTS · RETICLE</text>
+
+    <!-- Radar scope -->
+    <g transform="translate(0,16)">
+      <text class="lbl" y="-2">RADAR · 220×220</text>
+      <g transform="translate(110,118)">
+        <circle r="106" fill="#000" stroke="#2A1F18" stroke-width="1"/>
+        <circle r="80"  fill="none" stroke="#1C140E"/>
+        <circle r="54"  fill="none" stroke="#1C140E"/>
+        <circle r="28"  fill="none" stroke="#1C140E"/>
+        <line x1="-106" y1="0" x2="106" y2="0" stroke="#1C140E"/>
+        <line x1="0" y1="-106" x2="0" y2="106" stroke="#1C140E"/>
+        <!-- sweep -->
+        <path d="M 0 0 L 0 -106 A 106 106 0 0 1 92 -52 Z" fill="#FFB000" opacity="0.18"/>
+        <line x1="0" y1="0" x2="92" y2="-52" stroke="#FFB000" stroke-width="1.5"/>
+        <!-- contacts -->
+        <g>
+          <circle cx="36" cy="-22" r="3" fill="#FFB000"/>
+          <circle cx="-48" cy="14" r="3" fill="#FFB000"/>
+          <circle cx="62" cy="48" r="3" fill="#FF1F1F"/>
+          <polygon points="0,-94 -4,-86 4,-86" fill="#3FB6C8"/>
+        </g>
+        <!-- center crosshair -->
+        <circle r="3" fill="none" stroke="#FFB000"/>
+        <line x1="-6" y1="0" x2="-2" y2="0" stroke="#FFB000"/>
+        <line x1="2" y1="0" x2="6" y2="0" stroke="#FFB000"/>
+        <line x1="0" y1="-6" x2="0" y2="-2" stroke="#FFB000"/>
+        <line x1="0" y1="2" x2="0" y2="6" stroke="#FFB000"/>
+      </g>
+      <text x="110" y="244" class="chip" text-anchor="middle">radar · sweep + contact sprites</text>
+    </g>
+
+    <!-- Power triangle -->
+    <g transform="translate(244,16)">
+      <text class="lbl" y="-2">POWER TRIANGLE · 220×220</text>
+      <g transform="translate(110,128)">
+        <polygon points="0,-90 84,54 -84,54" fill="none" stroke="#2A1F18" stroke-width="1"/>
+        <polygon points="0,-60 56,36 -56,36" fill="none" stroke="#1C140E"/>
+        <polygon points="0,-30 28,18 -28,18" fill="none" stroke="#1C140E"/>
+        <!-- current allocation point (weapons-heavy) -->
+        <polygon points="22,-30 60,40 -50,28" fill="#FFB000" opacity="0.22" stroke="#FFB000"/>
+        <circle cx="22" cy="-30" r="4" fill="#FFB000"/>
+        <!-- labels -->
+        <text x="0" y="-100" font-size="11" fill="#C8B89C" text-anchor="middle" letter-spacing="2">WEAPONS</text>
+        <text x="-96" y="68" font-size="11" fill="#C8B89C" text-anchor="middle" letter-spacing="2">ENGINES</text>
+        <text x="96" y="68" font-size="11" fill="#C8B89C" text-anchor="middle" letter-spacing="2">SHIELDS</text>
+        <text x="22" y="-20" font-size="9" fill="#0B0807" font-weight="700" text-anchor="middle">●</text>
+      </g>
+      <text x="110" y="244" class="chip" text-anchor="middle">tri · drag-point sprite</text>
+    </g>
+
+    <!-- Shield quadrants -->
+    <g transform="translate(488,16)">
+      <text class="lbl" y="-2">SHIELD QUADRANTS · 220×220</text>
+      <g transform="translate(110,118)">
+        <!-- 4 arc segments -->
+        <path d="M 0 0 L 0 -90 A 90 90 0 0 1 90 0 Z" fill="#FFB000" opacity="0.65" stroke="#7A5400"/>
+        <path d="M 0 0 L 90 0 A 90 90 0 0 1 0 90 Z" fill="#FFB000" opacity="0.35" stroke="#7A5400"/>
+        <path d="M 0 0 L 0 90 A 90 90 0 0 1 -90 0 Z" fill="#FF1F1F" opacity="0.55" stroke="#7A0F0F"/>
+        <path d="M 0 0 L -90 0 A 90 90 0 0 1 0 -90 Z" fill="#FFB000" opacity="0.85" stroke="#7A5400"/>
+        <!-- ship silhouette (very abstract) -->
+        <polygon points="-14,-22 14,-22 20,6 0,28 -20,6" fill="#0B0807" stroke="#5A4636"/>
+        <!-- labels -->
+        <text x="0" y="-100" font-size="10" fill="#C8B89C" text-anchor="middle">FORE 84</text>
+        <text x="104" y="4" font-size="10" fill="#C8B89C" text-anchor="middle">STBD 41</text>
+        <text x="0" y="108" font-size="10" fill="#FF1F1F" text-anchor="middle">AFT 12</text>
+        <text x="-104" y="4" font-size="10" fill="#C8B89C" text-anchor="middle">PORT 96</text>
+      </g>
+      <text x="110" y="244" class="chip" text-anchor="middle">quad · 4 arc sprites · alpha-blend</text>
+    </g>
+
+    <!-- Targeting reticle -->
+    <g transform="translate(732,16)">
+      <text class="lbl" y="-2">RETICLE · 220×220</text>
+      <g transform="translate(110,118)">
+        <!-- brackets -->
+        <path d="M -60 -60 L -60 -40 M -60 -60 L -40 -60" stroke="#FFB000" stroke-width="2"/>
+        <path d="M  60 -60 L  60 -40 M  60 -60 L  40 -60" stroke="#FFB000" stroke-width="2"/>
+        <path d="M -60  60 L -60  40 M -60  60 L -40  60" stroke="#FFB000" stroke-width="2"/>
+        <path d="M  60  60 L  60  40 M  60  60 L  40  60" stroke="#FFB000" stroke-width="2"/>
+        <!-- lead indicator -->
+        <circle cx="14" cy="-8" r="10" fill="none" stroke="#FF1F1F" stroke-width="1.5" stroke-dasharray="3 2"/>
+        <line x1="0" y1="0" x2="14" y2="-8" stroke="#FF1F1F" stroke-dasharray="2 2"/>
+        <!-- center -->
+        <circle r="2" fill="#FFB000"/>
+        <line x1="-14" y1="0" x2="-4" y2="0" stroke="#FFB000"/>
+        <line x1="4" y1="0" x2="14" y2="0" stroke="#FFB000"/>
+        <line x1="0" y1="-14" x2="0" y2="-4" stroke="#FFB000"/>
+        <line x1="0" y1="4" x2="0" y2="14" stroke="#FFB000"/>
+        <!-- range tag -->
+        <text x="70" y="-50" font-size="10" fill="#FFB000">1.42 km</text>
+        <text x="70" y="-38" font-size="10" fill="#FF1F1F">HOSTILE</text>
+      </g>
+      <text x="110" y="244" class="chip" text-anchor="middle">reticle · bracket + lead-indicator</text>
+    </g>
+  </g>
+
+  <!-- =================================================================
+       SECTION: ICONS
+       ================================================================= -->
+  <g transform="translate(32,1520)">
+    <text class="hdr" y="0">ICONS · 32×32 · MONO-AMBER</text>
+    <g transform="translate(0,16)" fill="none" stroke="#FFB000" stroke-width="2">
+      <!-- shield -->
+      <g><path d="M 16 4 L 28 8 V 18 C 28 24 22 28 16 30 C 10 28 4 24 4 18 V 8 Z" /></g>
+      <g transform="translate(48,0)"><!-- weapon / crosshair -->
+        <circle cx="16" cy="16" r="10"/>
+        <line x1="16" y1="2" x2="16" y2="8"/>
+        <line x1="16" y1="24" x2="16" y2="30"/>
+        <line x1="2" y1="16" x2="8" y2="16"/>
+        <line x1="24" y1="16" x2="30" y2="16"/>
+      </g>
+      <g transform="translate(96,0)"><!-- missile -->
+        <path d="M 6 26 L 16 4 L 26 26 L 22 24 L 16 28 L 10 24 Z"/>
+      </g>
+      <g transform="translate(144,0)"><!-- power bolt -->
+        <path d="M 18 2 L 6 18 H 14 L 10 30 L 26 12 H 18 Z"/>
+      </g>
+      <g transform="translate(192,0)"><!-- fuel drop -->
+        <path d="M 16 4 C 22 12 26 18 26 22 A 10 10 0 0 1 6 22 C 6 18 10 12 16 4 Z"/>
+      </g>
+      <g transform="translate(240,0)"><!-- quantum / atom -->
+        <ellipse cx="16" cy="16" rx="13" ry="5"/>
+        <ellipse cx="16" cy="16" rx="13" ry="5" transform="rotate(60 16 16)"/>
+        <ellipse cx="16" cy="16" rx="13" ry="5" transform="rotate(-60 16 16)"/>
+        <circle cx="16" cy="16" r="2" fill="#FFB000"/>
+      </g>
+      <g transform="translate(288,0)"><!-- scanner radar -->
+        <path d="M 4 28 A 24 24 0 0 1 28 4"/>
+        <path d="M 10 28 A 18 18 0 0 1 28 10"/>
+        <path d="M 16 28 A 12 12 0 0 1 28 16"/>
+        <circle cx="6" cy="26" r="1.5" fill="#FFB000"/>
+      </g>
+      <g transform="translate(336,0)"><!-- mining laser -->
+        <path d="M 4 28 L 12 20 L 18 26 L 28 16"/>
+        <path d="M 22 16 L 28 16 L 28 22"/>
+      </g>
+      <g transform="translate(384,0)"><!-- cargo crate -->
+        <rect x="4" y="8" width="24" height="20"/>
+        <line x1="4" y1="14" x2="28" y2="14"/>
+        <line x1="16" y1="8" x2="16" y2="14"/>
+      </g>
+      <g transform="translate(432,0)"><!-- comms -->
+        <path d="M 4 22 A 14 14 0 0 1 28 22"/>
+        <path d="M 9 22 A 9 9 0 0 1 23 22"/>
+        <circle cx="16" cy="22" r="2" fill="#FFB000"/>
+      </g>
+      <g transform="translate(480,0)"><!-- signal bars -->
+        <rect x="4" y="22" width="4" height="6"/>
+        <rect x="12" y="16" width="4" height="12"/>
+        <rect x="20" y="10" width="4" height="18"/>
+      </g>
+      <g transform="translate(528,0)"><!-- thermometer -->
+        <path d="M 12 4 V 20 A 6 6 0 1 0 20 20 V 4 Z"/>
+        <line x1="16" y1="8" x2="16" y2="18"/>
+      </g>
+      <g transform="translate(576,0)"><!-- engine flame -->
+        <path d="M 16 4 C 10 12 8 18 12 26 C 14 22 18 22 20 26 C 24 18 22 12 16 4 Z"/>
+      </g>
+      <g transform="translate(624,0)"><!-- gear -->
+        <path d="M 16 4 V 8 M 16 24 V 28 M 4 16 H 8 M 24 16 H 28
+                 M 7 7 L 10 10 M 22 22 L 25 25 M 7 25 L 10 22 M 22 10 L 25 7"/>
+        <circle cx="16" cy="16" r="6"/>
+      </g>
+      <g transform="translate(672,0)"><!-- waypoint diamond -->
+        <path d="M 16 4 L 28 16 L 16 28 L 4 16 Z"/>
+        <circle cx="16" cy="16" r="2" fill="#FFB000"/>
+      </g>
+      <g transform="translate(720,0)"><!-- lock -->
+        <rect x="6" y="14" width="20" height="14"/>
+        <path d="M 10 14 V 10 A 6 6 0 0 1 22 10 V 14"/>
+      </g>
+    </g>
+    <g transform="translate(0,72)" font-size="8" fill="#6A5E4E">
+      <text x="16"  text-anchor="middle">shield</text>
+      <text x="64"  text-anchor="middle">target</text>
+      <text x="112" text-anchor="middle">missile</text>
+      <text x="160" text-anchor="middle">power</text>
+      <text x="208" text-anchor="middle">fuel</text>
+      <text x="256" text-anchor="middle">quantum</text>
+      <text x="304" text-anchor="middle">scanner</text>
+      <text x="352" text-anchor="middle">mining</text>
+      <text x="400" text-anchor="middle">cargo</text>
+      <text x="448" text-anchor="middle">comms</text>
+      <text x="496" text-anchor="middle">signal</text>
+      <text x="544" text-anchor="middle">temp</text>
+      <text x="592" text-anchor="middle">engine</text>
+      <text x="640" text-anchor="middle">systems</text>
+      <text x="688" text-anchor="middle">waypoint</text>
+      <text x="736" text-anchor="middle">locked</text>
+    </g>
+  </g>
+
+  <!-- Bottom band -->
+  <g transform="translate(0,1664)">
+    <rect width="1280" height="36" fill="#140E0A"/>
+    <rect width="1280" height="4" fill="url(#hazard-worn)"/>
+    <text x="32" y="26" class="lbl-d">DRAKE MIL · BATTLE-WORN · CONCEPT PASS 1 · NOT FOR PRODUCTION</text>
+    <text x="1248" y="26" class="lbl-d" text-anchor="end">SC-TERM // SANNIS</text>
+  </g>
+</svg>

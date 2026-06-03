@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.16)
 # ──────────────────────────────────────────────────────────────────────────────
 #  Star Citizen Terminal — Top-level CMake
 #  Hardware : Seeed Studio reTerminal D1001 (ESP32-P4NRW32 + ESP32-C6)
-#  Firmware : ESP-IDF ≥ 5.3
+#  Firmware : ESP-IDF 6.0.1
 # ──────────────────────────────────────────────────────────────────────────────
 
 set(EXTRA_COMPONENT_DIRS "${CMAKE_CURRENT_LIST_DIR}/components")

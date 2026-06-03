@@ -5,6 +5,6 @@ idf_component_register(
         "include"
     REQUIRES
         sc_network
-        json
+        espressif__cjson
         esp_timer
 )

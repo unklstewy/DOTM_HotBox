@@ -66,6 +66,10 @@ static esp_err_t ws_connect(const char *host, uint16_t port);
 
 esp_err_t sc_network_init(void)
 {
+    /* Suppress verbose Wi-Fi messages until we resume work on the network stack */
+    esp_log_level_set("wifi", ESP_LOG_ERROR);
+    esp_log_level_set(TAG, ESP_LOG_ERROR);
+
     s_net_evg = xEventGroupCreate();
     if (!s_net_evg) return ESP_ERR_NO_MEM;
 
@@ -175,8 +179,14 @@ static esp_err_t wifi_connect(void)
     nvs_handle_t h;
     esp_err_t ret = nvs_open(NVS_NS_CONFIG, NVS_READONLY, &h);
     if (ret == ESP_ERR_NVS_NOT_FOUND) {
-        ESP_LOGW(TAG, "NVS namespace '%s' not found; Wi-Fi not provisioned yet", NVS_NS_CONFIG);
-        return ESP_ERR_NOT_FOUND;
+    ESP_LOGW(TAG, "NVS namespace '%s' not found", NVS_NS_CONFIG);
+#if defined(CONFIG_SC_NETWORK_DEV_FALLBACK) && CONFIG_SC_NETWORK_DEV_FALLBACK
+    ESP_LOGW(TAG, "Using dev fallback Wi-Fi credentials");
+    goto wifi_fallback;
+#else
+    ESP_LOGW(TAG, "Wi-Fi not provisioned yet");
+    return ESP_ERR_NOT_FOUND;
+#endif
     }
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to open NVS namespace '%s': %s", NVS_NS_CONFIG, esp_err_to_name(ret));
@@ -192,6 +202,7 @@ static esp_err_t wifi_connect(void)
     if (ret != ESP_OK || len <= 1) {
         nvs_close(h);
 #if defined(CONFIG_SC_NETWORK_DEV_FALLBACK) && CONFIG_SC_NETWORK_DEV_FALLBACK
+wifi_fallback:
         strlcpy(ssid, CONFIG_SC_NETWORK_DEV_SSID, sizeof(ssid));
         strlcpy(psk,  CONFIG_SC_NETWORK_DEV_PSK,  sizeof(psk));
         if (ssid[0] == '\0') {

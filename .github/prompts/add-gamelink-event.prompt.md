@@ -23,18 +23,28 @@ In `components/sc_gamelink/include/sc_gamelink.h`:
 #define SC_GAMELINK_EVT_<EVENT_NAME_UPPER>   "<event_name>"
 ```
 
-## 2. Define/Extend the Event Payload Struct
-If this event has unique fields, add a member to `sc_gamelink_event_payload_t`:
+## 2. Define/Extend Typed Payload in `sc_gamelink.h`
+If this event has unique fields, add a dedicated payload type and union member:
 ```c
-typedef union {
-    // existing members ...
-    struct {
-        char state[16];    // e.g. "up" | "down" | "deploying"
-    } <event_name>;
-} sc_gamelink_event_payload_t;
+typedef struct {
+    char state[16];    // e.g. "up" | "down" | "deploying"
+} sc_gamelink_<event_name>_payload_t;
+
+typedef struct {
+    // ...
+    union {
+        // existing members ...
+        sc_gamelink_<event_name>_payload_t <event_name>;
+        char raw[SC_GAMELINK_MAX_PAYLOAD_LEN];
+    } payload;
+} sc_gamelink_event_t;
 ```
 
 If the event shares an existing payload shape, reuse it.
+
+Also update `components/sc_gamelink/sc_gamelink.c`:
+- add a parser helper `sc_gamelink_parse_<event_name>()`
+- call it from `sc_gamelink_dispatch()` in the event_id switch/if chain
 
 ## 3. Register a Handler
 In the component or screen that cares about this event, call:
@@ -65,7 +75,7 @@ Open `tools/pc_bridge/event_parser.py` and add the new event to the parser:
 ```python
 # In parse_log_line():
 elif "GearStateChanged" in line:          # adjust log keyword
-    emit_event("gear_state_changed", {"state": extract_gear_state(line)})
+    return _emit("gear_state_changed", {"state": extract_gear_state(line)})
 ```
 
 ## 6. Add to ship JSON (optional)
