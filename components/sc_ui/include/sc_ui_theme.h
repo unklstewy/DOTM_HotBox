@@ -25,6 +25,12 @@ typedef struct {
     lv_color_t divider;
 } sc_theme_colors_t;
 
+typedef enum {
+    SC_THEME_DEFAULT = 0,
+    SC_THEME_DRAKE_MILITARY,
+    SC_THEME_ORIGIN_LUX
+} sc_theme_id_t;
+
 extern sc_theme_colors_t sc_theme;
 
 /* ── Brand Palette ───────────────────────────────────────────────────────── */
@@ -44,6 +50,11 @@ void sc_ui_theme_init_default(void);
 void sc_ui_theme_init_drake_military(void);
 void sc_ui_theme_init_origin_lux(void);
 void sc_ui_theme_set(const sc_theme_colors_t *colors);
+
+/* ── Dynamic Styling API ─────────────────────────────────────────────────── */
+lv_obj_t *sc_ui_theme_draw_panel(lv_obj_t *parent);
+void sc_ui_theme_style_btn(lv_obj_t *btn, lv_color_t state_color);
+void sc_ui_theme_style_tab(lv_obj_t *tab, bool is_active);
 
 /* ── Radius / Padding ────────────────────────────────────────────────────── */
 #define SC_UI_BTN_RADIUS    (8)

@@ -27,6 +27,7 @@ static const char *TAG = "sc_ui_console";
 /* ── State ───────────────────────────────────────────────────────────────── */
 static lv_obj_t *s_root = NULL;
 static lv_obj_t *s_tileview = NULL;
+static lv_obj_t *s_tab_bar = NULL;
 
 /* Max buttons total across all consoles */
 #define MAX_BUTTONS (128)
@@ -35,10 +36,17 @@ static lv_obj_t *s_tileview = NULL;
 typedef struct
 {
     char action_id[32];
+    char label_text[32];
     lv_obj_t *btn;
     lv_obj_t *label;
     int console_idx;
     char state_event[48]; /* gamelink event name, or ""  */
+    /* Layout Geometry */
+    int row;
+    int col;
+    int width;
+    int height;
+    
     /* State colours from JSON */
     char state_keys[4][16]; /* e.g. "up", "down"           */
     lv_color_t state_colors[4];
@@ -49,9 +57,18 @@ typedef struct
 static console_btn_t s_buttons[MAX_BUTTONS];
 static int s_btn_count = 0;
 
-static char s_console_titles[MAX_CONSOLES][64];
+typedef struct {
+    char title[64];
+    int grid_cols;
+    int grid_rows;
+} console_layout_t;
+
+static console_layout_t s_consoles[MAX_CONSOLES];
 static int s_console_count = 0;
 static int s_initial_tile_idx = 0;
+
+static lv_coord_t s_grid_col_dscs[MAX_CONSOLES][16];
+static lv_coord_t s_grid_row_dscs[MAX_CONSOLES][16];
 
 /* ── Button event callback ───────────────────────────────────────────────── */
 
@@ -73,6 +90,30 @@ static void settings_btn_cb(lv_event_t *e)
     sc_ui_router_push(SC_UI_SCREEN_SETTINGS);
 }
 
+static void tab_btn_cb(lv_event_t *e)
+{
+    int idx = (int)(intptr_t)lv_event_get_user_data(e);
+    lv_obj_set_tile_id(s_tileview, idx, 0, LV_ANIM_ON);
+}
+
+static void tileview_scroll_cb(lv_event_t *e)
+{
+    if (!s_tab_bar) return;
+    
+    lv_obj_t *active_tile = lv_tileview_get_tile_active(s_tileview);
+    if (!active_tile) return;
+    
+    int active_idx = lv_obj_get_index(active_tile);
+
+    /* Update tab styles */
+    for (int i = 0; i < s_console_count; i++) {
+        lv_obj_t *tab = lv_obj_get_child(s_tab_bar, i);
+        if (tab) {
+            sc_ui_theme_style_tab(tab, (i == active_idx));
+        }
+    }
+}
+
 /* ── Parse colour from JSON hex string ────────────────────────────────────── */
 
 static lv_color_t parse_hex_color(const char *hex)
@@ -89,17 +130,24 @@ lv_obj_t *sc_ui_screen_console_create(lv_obj_t *parent)
 {
     lv_lock();
 
+    if (s_root) {
+        lv_obj_delete(s_root);
+        s_root = NULL;
+    }
+
     s_root = lv_obj_create(parent);
     lv_obj_set_size(s_root, 800, 1280);
     lv_obj_set_style_bg_color(s_root, SC_COL_BG, 0);
     lv_obj_set_style_bg_opa(s_root, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(s_root, 0, 0);
-    lv_obj_set_style_pad_all(s_root, 0, 0); /* Tileview will fill it */
-    lv_obj_remove_flag(s_root, LV_OBJ_FLAG_SCROLLABLE);
 
-    s_tileview = lv_tileview_create(s_root);
-    lv_obj_set_size(s_tileview, LV_PCT(100), LV_PCT(100));
+    lv_obj_t *content = sc_ui_theme_draw_panel(s_root);
+    lv_obj_set_flex_flow(content, LV_FLEX_FLOW_COLUMN);
+
+    s_tileview = lv_tileview_create(content);
+    lv_obj_set_width(s_tileview, LV_PCT(100));
+    lv_obj_set_flex_grow(s_tileview, 1);
     lv_obj_set_style_bg_opa(s_tileview, LV_OPA_TRANSP, 0);
+    lv_obj_add_event_cb(s_tileview, tileview_scroll_cb, LV_EVENT_VALUE_CHANGED, NULL);
 
     /* Populate tiles from loaded consoles */
     for (int i = 0; i < s_console_count; i++)
@@ -109,43 +157,28 @@ lv_obj_t *sc_ui_screen_console_create(lv_obj_t *parent)
         lv_obj_set_flex_flow(tile, LV_FLEX_FLOW_COLUMN);
         lv_obj_remove_flag(tile, LV_OBJ_FLAG_SCROLLABLE);
 
-        /* Title bar for this console */
-        lv_obj_t *title_bar = lv_obj_create(tile);
-        lv_obj_set_width(title_bar, LV_PCT(100));
-        lv_obj_set_style_bg_opa(title_bar, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_border_width(title_bar, 0, 0);
-        lv_obj_set_style_pad_all(title_bar, 0, 0);
-        lv_obj_set_style_pad_bottom(title_bar, SC_UI_PAD_MEDIUM, 0);
-        lv_obj_set_layout(title_bar, LV_LAYOUT_FLEX);
-        lv_obj_set_flex_flow(title_bar, LV_FLEX_FLOW_ROW);
-        lv_obj_set_flex_align(title_bar, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-        lv_obj_remove_flag(title_bar, LV_OBJ_FLAG_SCROLLABLE);
-
-        lv_obj_t *title = lv_label_create(title_bar);
-        lv_label_set_text(title, s_console_titles[i]);
-        lv_obj_set_style_text_color(title, SC_COL_ACCENT, 0);
-        lv_obj_set_style_text_font(title, SC_FONT_TITLE, 0);
-
-        lv_obj_t *settings_btn = lv_button_create(title_bar);
-        lv_obj_set_size(settings_btn, 60, 60);
-        lv_obj_set_style_bg_color(settings_btn, SC_COL_BG_PANEL, 0);
-        lv_obj_set_style_radius(settings_btn, SC_UI_BTN_RADIUS, 0);
-        lv_obj_add_event_cb(settings_btn, settings_btn_cb, LV_EVENT_CLICKED, NULL);
-
-        lv_obj_t *settings_lbl = lv_label_create(settings_btn);
-        lv_label_set_text(settings_lbl, LV_SYMBOL_SETTINGS);
-        lv_obj_set_style_text_color(settings_lbl, SC_COL_TEXT, 0);
-        lv_obj_align(settings_lbl, LV_ALIGN_CENTER, 0, 0);
-
         /* Button grid */
         lv_obj_t *grid = lv_obj_create(tile);
-        lv_obj_set_size(grid, LV_PCT(100), LV_SIZE_CONTENT);
+        lv_obj_set_size(grid, LV_PCT(100), LV_PCT(100));
         lv_obj_set_style_bg_opa(grid, LV_OPA_TRANSP, 0);
         lv_obj_set_style_border_width(grid, 0, 0);
         lv_obj_set_style_pad_all(grid, SC_UI_PAD_SMALL, 0);
-        lv_obj_set_style_pad_gap(grid, SC_UI_PAD_SMALL, 0);
-        lv_obj_set_flex_flow(grid, LV_FLEX_FLOW_ROW_WRAP);
         lv_obj_remove_flag(grid, LV_OBJ_FLAG_SCROLLABLE);
+
+        lv_obj_set_layout(grid, LV_LAYOUT_GRID);
+
+        int cols = s_consoles[i].grid_cols;
+        int rows = s_consoles[i].grid_rows;
+        if (cols <= 0) cols = 4;
+        if (rows <= 0) rows = 5;
+
+        for(int c=0; c < cols && c < 15; c++) s_grid_col_dscs[i][c] = LV_GRID_FR(1);
+        s_grid_col_dscs[i][cols] = LV_GRID_TEMPLATE_LAST;
+        
+        for(int r=0; r < rows && r < 15; r++) s_grid_row_dscs[i][r] = LV_GRID_FR(1);
+        s_grid_row_dscs[i][rows] = LV_GRID_TEMPLATE_LAST;
+
+        lv_obj_set_grid_dsc_array(grid, s_grid_col_dscs[i], s_grid_row_dscs[i]);
 
         /* Add buttons belonging to this console */
         for (int b = 0; b < s_btn_count; b++)
@@ -154,14 +187,14 @@ lv_obj_t *sc_ui_screen_console_create(lv_obj_t *parent)
             if (cb->console_idx != i) continue;
 
             lv_obj_t *btn = lv_button_create(grid);
-            lv_obj_set_size(btn, 160, 80);
-            lv_obj_set_style_bg_color(btn, SC_COL_BG_PANEL, 0);
-            lv_obj_set_style_bg_color(btn, SC_COL_ACCENT, LV_STATE_PRESSED);
-            lv_obj_set_style_radius(btn, SC_UI_BTN_RADIUS, 0);
+            lv_obj_set_grid_cell(btn, LV_GRID_ALIGN_STRETCH, cb->col, cb->width,
+                                      LV_GRID_ALIGN_STRETCH, cb->row, cb->height);
+
+            sc_ui_theme_style_btn(btn, SC_COL_BG_PANEL);
             lv_obj_add_event_cb(btn, btn_released_cb, LV_EVENT_RELEASED, cb);
 
             lv_obj_t *lbl = lv_label_create(btn);
-            lv_label_set_text(lbl, cb->action_id); /* overwritten by load() */
+            lv_label_set_text(lbl, cb->label_text[0] ? cb->label_text : cb->action_id);
             lv_obj_set_style_text_color(lbl, SC_COL_TEXT, 0);
             lv_obj_set_style_text_font(lbl, SC_FONT_MEDIUM, 0);
             lv_obj_align(lbl, LV_ALIGN_CENTER, 0, 0);
@@ -170,6 +203,45 @@ lv_obj_t *sc_ui_screen_console_create(lv_obj_t *parent)
             cb->label = lbl;
         }
     }
+
+    /* Tab bar */
+    s_tab_bar = lv_obj_create(content);
+    lv_obj_set_size(s_tab_bar, LV_PCT(100), 100);
+    lv_obj_set_style_bg_color(s_tab_bar, SC_COL_BG_PANEL, 0);
+    lv_obj_set_style_border_color(s_tab_bar, SC_COL_DIVIDER, 0);
+    lv_obj_set_style_border_width(s_tab_bar, 2, 0);
+    lv_obj_set_style_border_side(s_tab_bar, LV_BORDER_SIDE_TOP, 0);
+    lv_obj_set_style_pad_all(s_tab_bar, SC_UI_PAD_SMALL, 0);
+    lv_obj_set_style_pad_gap(s_tab_bar, SC_UI_PAD_SMALL, 0);
+    lv_obj_set_flex_flow(s_tab_bar, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(s_tab_bar, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_remove_flag(s_tab_bar, LV_OBJ_FLAG_SCROLLABLE);
+
+    /* Create tab buttons */
+    for (int i = 0; i < s_console_count; i++) {
+        lv_obj_t *tab = lv_button_create(s_tab_bar);
+        lv_obj_set_height(tab, LV_PCT(100));
+        lv_obj_set_flex_grow(tab, 1);
+        lv_obj_add_event_cb(tab, tab_btn_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
+        
+        lv_obj_t *lbl = lv_label_create(tab);
+        lv_label_set_text(lbl, s_consoles[i].title);
+        lv_obj_set_style_text_font(lbl, SC_FONT_MEDIUM, 0);
+        lv_obj_align(lbl, LV_ALIGN_CENTER, 0, 0);
+        
+        sc_ui_theme_style_tab(tab, (i == s_initial_tile_idx));
+    }
+
+    /* Settings Button at far right */
+    lv_obj_t *settings_btn = lv_button_create(s_tab_bar);
+    lv_obj_set_size(settings_btn, 80, LV_PCT(100));
+    sc_ui_theme_style_tab(settings_btn, false);
+    lv_obj_add_event_cb(settings_btn, settings_btn_cb, LV_EVENT_CLICKED, NULL);
+
+    lv_obj_t *settings_lbl = lv_label_create(settings_btn);
+    lv_label_set_text(settings_lbl, LV_SYMBOL_SETTINGS);
+    lv_obj_set_style_text_font(settings_lbl, SC_FONT_TITLE, 0);
+    lv_obj_align(settings_lbl, LV_ALIGN_CENTER, 0, 0);
 
     if (s_console_count > 0 && s_initial_tile_idx < s_console_count) {
         lv_obj_set_tile_id(s_tileview, s_initial_tile_idx, 0, LV_ANIM_OFF);
@@ -202,9 +274,14 @@ void sc_ui_screen_console_load(const sc_terminal_config_t *cfg)
         return;
     }
 
+    memset(s_buttons, 0, sizeof(s_buttons));
+    memset(s_consoles, 0, sizeof(s_consoles));
     s_btn_count = 0;
     s_console_count = 0;
     s_initial_tile_idx = 0;
+
+    static sc_hid_action_t hid_actions[SC_HID_MAX_ACTIONS];
+    int hid_count = 0;
 
     cJSON *consoles = cJSON_GetObjectItem(root, "consoles");
     cJSON *c = NULL;
@@ -219,9 +296,17 @@ void sc_ui_screen_console_load(const sc_terminal_config_t *cfg)
 
         cJSON *disp_name = cJSON_GetObjectItem(c, "display_name");
         if (cJSON_IsString(disp_name)) {
-            strlcpy(s_console_titles[s_console_count], disp_name->valuestring, sizeof(s_console_titles[0]));
+            strlcpy(s_consoles[s_console_count].title, disp_name->valuestring, sizeof(s_consoles[0].title));
         } else {
-            strlcpy(s_console_titles[s_console_count], "Console", sizeof(s_console_titles[0]));
+            strlcpy(s_consoles[s_console_count].title, "Console", sizeof(s_consoles[0].title));
+        }
+
+        cJSON *layout_obj = cJSON_GetObjectItem(c, "layout");
+        if (cJSON_IsString(layout_obj) && strncmp(layout_obj->valuestring, "grid_", 5) == 0) {
+            sscanf(layout_obj->valuestring, "grid_%dx%d", &s_consoles[s_console_count].grid_cols, &s_consoles[s_console_count].grid_rows);
+        } else {
+            s_consoles[s_console_count].grid_cols = 4;
+            s_consoles[s_console_count].grid_rows = 5;
         }
 
         cJSON *actions = cJSON_GetObjectItem(c, "actions");
@@ -233,6 +318,16 @@ void sc_ui_screen_console_load(const sc_terminal_config_t *cfg)
             console_btn_t *cb = &s_buttons[s_btn_count];
             memset(cb, 0, sizeof(*cb));
             cb->console_idx = s_console_count;
+
+            cJSON *row_json = cJSON_GetObjectItem(action, "row");
+            cJSON *col_json = cJSON_GetObjectItem(action, "col");
+            cJSON *w_json = cJSON_GetObjectItem(action, "width");
+            cJSON *h_json = cJSON_GetObjectItem(action, "height");
+
+            cb->row = cJSON_IsNumber(row_json) ? row_json->valueint : 0;
+            cb->col = cJSON_IsNumber(col_json) ? col_json->valueint : 0;
+            cb->width = cJSON_IsNumber(w_json) ? w_json->valueint : 1;
+            cb->height = cJSON_IsNumber(h_json) ? h_json->valueint : 1;
 
             cJSON *id = cJSON_GetObjectItem(action, "id");
             cJSON *label = cJSON_GetObjectItem(action, "label");
@@ -249,8 +344,7 @@ void sc_ui_screen_console_load(const sc_terminal_config_t *cfg)
                 lv_label_set_text(cb->label, label->valuestring);
                 lv_unlock();
             } else if (!cb->label && cJSON_IsString(label)) {
-                /* Temporarily store in action_id so create() uses it */
-                strlcpy(cb->action_id, label->valuestring, sizeof(cb->action_id));
+                strlcpy(cb->label_text, label->valuestring, sizeof(cb->label_text));
             }
 
             /* Parse gamelink state config */
@@ -261,10 +355,20 @@ void sc_ui_screen_console_load(const sc_terminal_config_t *cfg)
                 {
                     strlcpy(cb->state_event, evt_item->valuestring,
                             sizeof(cb->state_event));
-                    /* Register gamelink handler for this button */
-                    sc_gamelink_handler_register(cb->state_event,
-                                                 (sc_gamelink_handler_fn_t)sc_ui_screen_console_on_event,
-                                                 NULL);
+                    
+                    /* Register gamelink handler for this event if not already registered for this console load */
+                    bool already_registered = false;
+                    for (int h = 0; h < s_btn_count; h++) {
+                        if (strcmp(s_buttons[h].state_event, cb->state_event) == 0) {
+                            already_registered = true;
+                            break;
+                        }
+                    }
+                    if (!already_registered) {
+                        sc_gamelink_handler_register(cb->state_event,
+                                                     (sc_gamelink_handler_fn_t)sc_ui_screen_console_on_event,
+                                                     NULL);
+                    }
                 }
                 cJSON *values = cJSON_GetObjectItem(state, "values");
                 if (cJSON_IsObject(values))
@@ -316,12 +420,18 @@ void sc_ui_screen_console_load(const sc_terminal_config_t *cfg)
                         ha.keycodes[ki++] = (uint8_t)k->valueint;
                     }
                 }
-                sc_hid_action_table_load(&ha, 1);
+                if (hid_count < SC_HID_MAX_ACTIONS) {
+                    hid_actions[hid_count++] = ha;
+                }
             }
 
             s_btn_count++;
         }
         s_console_count++;
+    }
+
+    if (hid_count > 0) {
+        sc_hid_action_table_load(hid_actions, hid_count);
     }
 
     cJSON_Delete(root);
@@ -376,7 +486,7 @@ void sc_ui_screen_console_on_event(const sc_gamelink_event_t *evt,
             {
                 lv_lock();
                 lv_label_set_text(cb->label, cb->state_labels[s]);
-                lv_obj_set_style_bg_color(cb->btn, cb->state_colors[s], 0);
+                sc_ui_theme_style_btn(cb->btn, cb->state_colors[s]);
                 lv_unlock();
                 break;
             }

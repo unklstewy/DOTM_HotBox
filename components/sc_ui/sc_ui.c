@@ -15,6 +15,7 @@
 #include "sc_ui_screen_settings.h"
 #include "sc_ui_screen_pairing.h"
 #include "sc_ui_screen_calibration.h"
+#include "sc_ui_screen_bootmenu.h"
 
 #include "lvgl.h"
 #include "esp_idf_version.h"
@@ -37,6 +38,10 @@
 #include "esp_err.h"
 #include "esp_heap_caps.h"
 #include "esp_timer.h"
+#include "esp_system.h"
+#include "esp_adc/adc_oneshot.h"
+#include "esp_adc/adc_cali.h"
+#include "esp_adc/adc_cali_scheme.h"
 
 static const char *TAG = "sc_ui";
 
@@ -64,6 +69,11 @@ static const char *TAG = "sc_ui";
 #define SC_UI_TOUCH_RST        (GPIO_NUM_NC)   /* on IO expander */
 #define SC_UI_TOUCH_INT        (GPIO_NUM_16)
 #define SC_UI_TOUCH_I2C_FREQ   (400000)
+
+/* Power and Battery */
+#define SC_UI_PWR_BUTTON       (GPIO_NUM_3)
+#define SC_UI_PWR_IN_VOLT      (GPIO_NUM_15)
+#define SC_UI_EN_READ_VBAT     (GPIO_NUM_6)
 
 #define SC_UI_DSI_PHY_LDO_CHAN       (3)
 #define SC_UI_DSI_PHY_LDO_MV         (2500)
@@ -110,6 +120,16 @@ static sc_ui_screen_id_t s_screen_stack[SC_UI_SCREEN_STACK_DEPTH];
 static int               s_screen_sp = -1;   /* stack pointer */
 static const sc_terminal_config_t *s_cfg = NULL;
 
+/* ── Power & Battery State ───────────────────────────────────────────────── */
+static adc_oneshot_unit_handle_t s_adc_handle = NULL;
+static adc_cali_handle_t         s_adc_cali = NULL;
+static adc_channel_t             s_adc_chan = 0;
+static esp_timer_handle_t        s_pwr_timer = NULL;
+static uint32_t                  s_btn_press_ms = 0;
+static uint32_t                  s_last_release_ms = 0;
+static int                       s_battery_pct = 100;
+static lv_obj_t                 *s_battery_label = NULL;
+
 /* ── Forward declarations ────────────────────────────────────────────────── */
 static void sc_ui_lvgl_task(void *arg);
 static void sc_ui_lvgl_tick_cb(void *arg);
@@ -120,6 +140,8 @@ static esp_err_t sc_ui_io_expander_init(void);
 static esp_err_t sc_ui_display_init(void);
 static esp_err_t sc_ui_touch_init(void);
 static esp_err_t sc_ui_backlight_init(void);
+static void sc_ui_power_init(void);
+static void sc_ui_pwr_timer_cb(void *arg);
 static lv_obj_t *sc_ui_screen_create(sc_ui_screen_id_t id);
 static esp_err_t sc_ui_screen_show(sc_ui_screen_id_t id);
 
@@ -130,6 +152,7 @@ esp_err_t sc_ui_init(const sc_terminal_config_t *cfg)
     s_cfg = cfg;
     ESP_LOGI(TAG, "UI init start");
 
+    sc_ui_power_init();
     sc_ui_theme_init_default();
 
     ESP_LOGI(TAG, "Init PCA9535 IO expander (LCD power/reset/backlight gates)");
@@ -197,6 +220,13 @@ esp_err_t sc_ui_init(const sc_terminal_config_t *cfg)
     ESP_ERROR_CHECK(esp_timer_create(&tick_args, &s_lvgl_tick_timer));
     ESP_ERROR_CHECK(esp_timer_start_periodic(s_lvgl_tick_timer,
                                              SC_UI_LVGL_TICK_MS * 1000));
+    
+    /* Create global battery indicator */
+    s_battery_label = lv_label_create(lv_layer_top());
+    lv_obj_align(s_battery_label, LV_ALIGN_TOP_RIGHT, -10, 10);
+    lv_label_set_text(s_battery_label, "BATT --%");
+    lv_obj_set_style_text_color(s_battery_label, lv_color_hex(0x808080), 0);
+    
     ESP_LOGI(TAG, "LVGL tick timer started");
 
     /* Start LVGL task */
@@ -215,10 +245,8 @@ esp_err_t sc_ui_init(const sc_terminal_config_t *cfg)
     /* Navigate to initial screen */
     if (!cfg->touch_cal.is_calibrated) {
         sc_ui_router_push(SC_UI_SCREEN_CALIBRATION);
-    } else if (cfg->bridge_host[0] == '\0' || cfg->ship_id[0] == '\0') {
-        sc_ui_router_push(SC_UI_SCREEN_PAIRING);
     } else {
-        sc_ui_router_push(SC_UI_SCREEN_CONSOLE);
+        sc_ui_router_push(SC_UI_SCREEN_BOOTMENU);
     }
 
     ESP_LOGI(TAG, "UI subsystem started (%dx%d)",
@@ -313,6 +341,8 @@ static lv_obj_t *sc_ui_screen_create(sc_ui_screen_id_t id)
             return sc_ui_screen_theme_selector_create(NULL);
         case SC_UI_SCREEN_CALIBRATION:
             return sc_ui_screen_calibration_create(NULL);
+        case SC_UI_SCREEN_BOOTMENU:
+            return sc_ui_screen_bootmenu_create(NULL);
         default:
             ESP_LOGW(TAG, "Unknown screen id: %d", id);
             return NULL;
@@ -352,6 +382,133 @@ static void sc_ui_lvgl_tick_cb(void *arg)
 {
     (void)arg;
     lv_tick_inc(SC_UI_LVGL_TICK_MS);
+}
+
+/* ── Power & Battery ─────────────────────────────────────────────────────── */
+
+static void sc_ui_power_init(void)
+{
+    /* Power button config */
+    gpio_config_t btn_cfg = {
+        .pin_bit_mask = (1ULL << SC_UI_PWR_BUTTON),
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_ENABLE,
+        .intr_type = GPIO_INTR_DISABLE
+    };
+    gpio_config(&btn_cfg);
+
+    /* Battery enable config */
+    gpio_config_t en_cfg = {
+        .pin_bit_mask = (1ULL << SC_UI_EN_READ_VBAT),
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE
+    };
+    gpio_config(&en_cfg);
+    gpio_set_level(SC_UI_EN_READ_VBAT, 0);
+
+    /* ADC config */
+    adc_unit_t unit;
+    if (adc_oneshot_io_to_channel(SC_UI_PWR_IN_VOLT, &unit, &s_adc_chan) == ESP_OK) {
+        adc_oneshot_unit_init_cfg_t init_config = {
+            .unit_id = unit,
+            .ulp_mode = ADC_ULP_MODE_DISABLE,
+        };
+        ESP_ERROR_CHECK(adc_oneshot_new_unit(&init_config, &s_adc_handle));
+
+        adc_oneshot_chan_cfg_t config = {
+            .bitwidth = ADC_BITWIDTH_DEFAULT,
+            .atten = ADC_ATTEN_DB_12, /* 12dB attenuation for voltages > 3V */
+        };
+        ESP_ERROR_CHECK(adc_oneshot_config_channel(s_adc_handle, s_adc_chan, &config));
+
+        adc_cali_curve_fitting_config_t cali_config = {
+            .unit_id = unit,
+            .atten = ADC_ATTEN_DB_12,
+            .bitwidth = ADC_BITWIDTH_DEFAULT,
+        };
+        adc_cali_create_scheme_curve_fitting(&cali_config, &s_adc_cali);
+    }
+
+    const esp_timer_create_args_t pwr_timer_args = {
+        .callback = &sc_ui_pwr_timer_cb,
+        .name = "sc_ui_pwr"
+    };
+    ESP_ERROR_CHECK(esp_timer_create(&pwr_timer_args, &s_pwr_timer));
+    ESP_ERROR_CHECK(esp_timer_start_periodic(s_pwr_timer, 50000)); /* 50ms polling */
+}
+
+static void sc_ui_pwr_timer_cb(void *arg)
+{
+    static uint32_t s_ticks = 0;
+    uint32_t now = esp_log_timestamp();
+    int btn_state = gpio_get_level(SC_UI_PWR_BUTTON);
+
+    /* Button logic (Active High) */
+    if (btn_state == 1) {
+        if (s_btn_press_ms == 0) {
+            s_btn_press_ms = now;
+        } else if (now - s_btn_press_ms > 2000) {
+            /* Long press detected -> Power Off */
+            ESP_LOGW(TAG, "Long press detected! Powering off.");
+            if (s_io_expander) {
+                esp_io_expander_set_level(s_io_expander, SC_UI_EXP_PWR_HOLD, 0);
+            }
+            /* Prevent log spam */
+            s_btn_press_ms = now + 10000;
+        }
+    } else {
+        if (s_btn_press_ms > 0 && s_btn_press_ms <= now) {
+            uint32_t duration = now - s_btn_press_ms;
+            s_btn_press_ms = 0;
+            if (duration < 500 && duration > 20) {
+                /* Short press */
+                if (now - s_last_release_ms < 400) {
+                    /* Double tap detected -> Reset */
+                    ESP_LOGW(TAG, "Double tap detected! Restarting...");
+                    esp_restart();
+                } else {
+                    s_last_release_ms = now;
+                }
+            }
+        } else {
+            s_btn_press_ms = 0;
+        }
+    }
+
+    /* Battery reading every 5 seconds */
+    s_ticks++;
+    if (s_ticks % 100 == 0 && s_adc_handle) {
+        gpio_set_level(SC_UI_EN_READ_VBAT, 1);
+        
+        /* The timer runs in a high priority task, we don't want to block too long, but we need the ADC to stabilize */
+        int raw, mv = 0;
+        if (adc_oneshot_read(s_adc_handle, s_adc_chan, &raw) == ESP_OK) {
+            if (s_adc_cali) {
+                adc_cali_raw_to_voltage(s_adc_cali, raw, &mv);
+            }
+        }
+        gpio_set_level(SC_UI_EN_READ_VBAT, 0);
+
+        if (mv > 0) {
+            /* Assuming voltage divider (e.g., 2:1) */
+            int batt_mv = mv * 2; /* Needs to be adjusted based on real divider */
+            
+            /* Rough Lipo curve: 3.2V (0%) to 4.2V (100%) */
+            int pct = (batt_mv - 3200) / 10;
+            if (pct > 100) pct = 100;
+            if (pct < 0) pct = 0;
+            s_battery_pct = pct;
+
+            if (s_battery_label) {
+                lv_lock();
+                lv_label_set_text_fmt(s_battery_label, "BATT %d%%", s_battery_pct);
+                lv_unlock();
+            }
+        }
+    }
 }
 
 /* ── LVGL flush callback ─────────────────────────────────────────────────── */
@@ -401,7 +558,9 @@ static void sc_ui_lvgl_touch_cb(lv_indev_t *indev, lv_indev_data_t *data)
         int32_t raw_x = (int32_t)pt[0].x;
         int32_t raw_y = (int32_t)pt[0].y;
         
-        if (s_cfg && s_cfg->touch_cal.is_calibrated) {
+        bool calibrating = (s_screen_sp >= 0 && s_screen_stack[s_screen_sp] == SC_UI_SCREEN_CALIBRATION);
+        
+        if (s_cfg && s_cfg->touch_cal.is_calibrated && !calibrating) {
             if (s_cfg->touch_cal.swap_xy) {
                 int32_t tmp = raw_x; raw_x = raw_y; raw_y = tmp;
             }

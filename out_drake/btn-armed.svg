@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 56" width="140" height="56"><defs>
+    
+    <filter id="grunge" x="-2%" y="-2%" width="104%" height="104%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" />
+      <feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.08 0" />
+      <feComposite in2="SourceGraphic" operator="in" />
+    </filter>
+
+    <filter id="scuff" x="-2%" y="-2%" width="104%" height="104%">
+      <feTurbulence type="turbulence" baseFrequency="0.04 0.7" numOctaves="2" seed="3" />
+      <feColorMatrix values="0 0 0 0 0.78  0 0 0 0 0.72  0 0 0 0 0.61  0 0 0 0.05 0" />
+      <feComposite in2="SourceGraphic" operator="in" />
+    </filter>
+
+    
+    <clipPath id="chip-corners-lg">
+      <path d="M 6 0 H 234 L 240 6 V 234 L 234 240 H 6 L 0 234 V 6 Z                M 0 14 L 8 14 L 8 6 L 14 0 L 6 0 Z                M 232 0 L 226 0 L 232 6 L 240 6 L 240 14 L 232 14 Z" />
+    </clipPath>
+
+    
+    <pattern id="hazard" patternUnits="userSpaceOnUse" width="24" height="12" patternTransform="rotate(0)">
+      <rect width="24" height="12" fill="#FFB000" />
+      <path d="M -6 12 L 6 0 L 12 0 L 0 12 Z  M 12 12 L 24 0 L 30 0 L 18 12 Z" fill="#0B0807" />
+    </pattern>
+
+    <pattern id="hazard-worn" patternUnits="userSpaceOnUse" width="24" height="12">
+      <rect width="24" height="12" fill="#8A3B12" />
+      <path d="M -6 12 L 6 0 L 12 0 L 0 12 Z  M 12 12 L 24 0 L 30 0 L 18 12 Z" fill="#140E0A" />
+      <rect x="2" y="3" width="3" height="2" fill="#3A1808" opacity="0.7" />
+      <rect x="16" y="7" width="4" height="1" fill="#3A1808" opacity="0.6" />
+    </pattern>
+
+    
+    <radialGradient id="rivet" cx="35%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#7A6B58" />
+      <stop offset="60%" stop-color="#2A1F18" />
+      <stop offset="100%" stop-color="#0B0807" />
+    </radialGradient>
+    <symbol id="rv" viewBox="-4 -4 8 8" overflow="visible">
+      <circle r="3" fill="url(#rivet)" stroke="#000" stroke-width="0.5" />
+      <circle r="0.8" cx="-0.8" cy="-0.8" fill="#C8B89C" opacity="0.4" />
+    </symbol>
+
+    
+
+    
+    <symbol id="seg-on" viewBox="0 0 14 22">
+      <path d="M 1 1 H 11 L 13 5 V 21 H 3 L 1 17 Z" fill="#FFB000" stroke="#7A5400" stroke-width="0.5" />
+      <path d="M 2 2 H 10 L 12 5 V 7 H 2 Z" fill="#FFD96B" opacity="0.5" />
+    </symbol>
+    <symbol id="seg-off" viewBox="0 0 14 22">
+      <path d="M 1 1 H 11 L 13 5 V 21 H 3 L 1 17 Z" fill="#1C140E" stroke="#3A2C20" stroke-width="0.5" />
+    </symbol>
+    <symbol id="seg-warn" viewBox="0 0 14 22">
+      <path d="M 1 1 H 11 L 13 5 V 21 H 3 L 1 17 Z" fill="#FF1F1F" stroke="#7A0F0F" stroke-width="0.5" />
+    </symbol>
+
+    
+    <style>
+      .lbl    { font-size: 11px; fill: #C8B89C; letter-spacing: 1px; }
+      .lbl-d  { font-size: 10px; fill: #6A5E4E; letter-spacing: 1px; }
+      .hdr    { font-size: 16px; fill: #FFB000; letter-spacing: 3px; font-weight: 700; }
+      .title  { font-size: 22px; fill: #FFB000; letter-spacing: 4px; font-weight: 700; }
+      .mono   { font-size: 14px; fill: #FFB000; }
+      .mono-d { font-size: 14px; fill: #7A5400; }
+      .big    { font-size: 42px; fill: #FFB000; font-weight: 700; letter-spacing: 2px; }
+      .num    { font-size: 28px; fill: #FFB000; font-weight: 700; }
+      .warn   { fill: #FF1F1F; }
+      .bone   { fill: #C8B89C; }
+      .cool   { fill: #3FB6C8; }
+      .chip   { font-size: 9px; fill: #6A5E4E; }
+    </style>
+  </defs>
+
+  
+  <g>
+        <rect width="140" height="56" fill="#1C140E" stroke="#7A5400" />
+        <rect x="0" y="0" width="140" height="3" fill="#FFB000" opacity="0.55" />
+        <text x="70" y="34" class="mono" text-anchor="middle">ARMED</text>
+        <text x="70" y="74" class="chip" text-anchor="middle">btn-armed</text>
+      </g>
+      
+      </svg>

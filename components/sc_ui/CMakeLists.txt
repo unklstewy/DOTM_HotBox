@@ -6,6 +6,7 @@ idf_component_register(
         "screens/sc_ui_screen_settings.c"
         "screens/sc_ui_screen_pairing.c"
         "screens/sc_ui_screen_calibration.c"
+        "screens/sc_ui_screen_bootmenu.c"
         "screens/sc_ui_screen_drake.c"
         "screens/sc_ui_screen_origin.c"
         "screens/sc_ui_screen_theme_selector.c"
@@ -25,7 +26,13 @@ idf_component_register(
         sc_gamelink
         esp_timer
         nvs_flash
+        esp_adc
 )
 
-target_add_binary_data(${COMPONENT_LIB} "assets/mockup_drake.bin" BINARY)
-target_add_binary_data(${COMPONENT_LIB} "assets/mockup_origin.bin" BINARY)
+file(GLOB SPRITE_SRCS 
+    "assets/sprites/drake/*.c"
+    "assets/sprites/origin/*.c"
+)
+target_sources(${COMPONENT_LIB} PRIVATE ${SPRITE_SRCS})
+
+

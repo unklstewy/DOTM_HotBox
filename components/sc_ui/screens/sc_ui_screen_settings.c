@@ -39,6 +39,10 @@ static void calibrate_btn_cb(lv_event_t *e) {
     sc_ui_router_push(SC_UI_SCREEN_CALIBRATION);
 }
 
+static void back_btn_cb(lv_event_t *e) {
+    sc_ui_router_pop();
+}
+
 /* ── Create ──────────────────────────────────────────────────────────────── */
 lv_obj_t *sc_ui_screen_settings_create(lv_obj_t *parent)
 {
@@ -97,6 +101,13 @@ lv_obj_t *sc_ui_screen_settings_create(lv_obj_t *parent)
     lv_obj_add_event_cb(cal_btn, calibrate_btn_cb, LV_EVENT_RELEASED, NULL);
     lv_obj_t *cal_lbl = lv_label_create(cal_btn);
     lv_label_set_text(cal_lbl, "Calibrate Touch");
+
+    /* Back button */
+    lv_obj_t *back_btn = lv_button_create(s_root);
+    lv_obj_set_style_bg_color(back_btn, SC_COL_ARMED, 0);
+    lv_obj_add_event_cb(back_btn, back_btn_cb, LV_EVENT_RELEASED, NULL);
+    lv_obj_t *back_lbl = lv_label_create(back_btn);
+    lv_label_set_text(back_lbl, "Back to Console");
 
     lv_unlock();
     return s_root;

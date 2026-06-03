@@ -116,7 +116,7 @@ static void screen_click_event_cb(lv_event_t *e)
         if (cfg->bridge_host[0] == '\0' || cfg->ship_id[0] == '\0') {
             sc_ui_router_push(SC_UI_SCREEN_PAIRING);
         } else {
-            sc_ui_router_push(SC_UI_SCREEN_CONSOLE);
+            sc_ui_router_home();
         }
     }
 }
@@ -132,7 +132,7 @@ lv_obj_t *sc_ui_screen_calibration_create(void *user_data)
     lv_obj_add_event_cb(s_scr, screen_click_event_cb, LV_EVENT_CLICKED, NULL);
 
     s_label = lv_label_create(s_scr);
-    lv_obj_set_style_text_color(s_label, sc_ui_theme_get_color(SC_UI_COLOR_TEXT_PRIMARY), 0);
+    lv_obj_set_style_text_color(s_label, SC_COL_TEXT, 0);
     lv_obj_set_style_text_align(s_label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(s_label, LV_ALIGN_CENTER, 0, 0);
 
@@ -140,7 +140,7 @@ lv_obj_t *sc_ui_screen_calibration_create(void *user_data)
     s_crosshair = lv_obj_create(s_scr);
     lv_obj_set_size(s_crosshair, 40, 40);
     lv_obj_set_style_bg_opa(s_crosshair, 0, 0);
-    lv_obj_set_style_border_color(s_crosshair, sc_ui_theme_get_color(SC_UI_COLOR_ACCENT_PRIMARY), 0);
+    lv_obj_set_style_border_color(s_crosshair, SC_COL_ACCENT, 0);
     lv_obj_set_style_border_width(s_crosshair, 2, 0);
     lv_obj_set_style_radius(s_crosshair, LV_RADIUS_CIRCLE, 0);
     
@@ -148,13 +148,13 @@ lv_obj_t *sc_ui_screen_calibration_create(void *user_data)
     static lv_point_precise_t h_line_pts[] = {{0, 20}, {40, 20}};
     lv_obj_t *h_line = lv_line_create(s_crosshair);
     lv_line_set_points(h_line, h_line_pts, 2);
-    lv_obj_set_style_line_color(h_line, sc_ui_theme_get_color(SC_UI_COLOR_ACCENT_PRIMARY), 0);
+    lv_obj_set_style_line_color(h_line, SC_COL_ACCENT, 0);
     lv_obj_set_style_line_width(h_line, 2, 0);
     
     static lv_point_precise_t v_line_pts[] = {{20, 0}, {20, 40}};
     lv_obj_t *v_line = lv_line_create(s_crosshair);
     lv_line_set_points(v_line, v_line_pts, 2);
-    lv_obj_set_style_line_color(v_line, sc_ui_theme_get_color(SC_UI_COLOR_ACCENT_PRIMARY), 0);
+    lv_obj_set_style_line_color(v_line, SC_COL_ACCENT, 0);
     lv_obj_set_style_line_width(v_line, 2, 0);
 
     // Disable clicking on the crosshair so clicks pass to the screen background
