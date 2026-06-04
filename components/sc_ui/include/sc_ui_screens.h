@@ -27,6 +27,7 @@ extern "C" {
 #include "sc_ui_screen_pairing.h"
 
 #include "sc_ui_screen_drake.h"
+#include "sc_ui_screen_splash.h"
 #include "sc_ui_screen_origin.h"
 #include "sc_ui_screen_theme_selector.h"
 

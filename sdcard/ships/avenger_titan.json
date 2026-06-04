@@ -1,0 +1,39 @@
+{
+    "ship_id": "avenger_titan",
+    "ship_name": "Aegis Avenger Titan",
+    "manufacturer": "Aegis Dynamics",
+    "consoles": [
+        {
+            "console_id": "pilot_console",
+            "display_name": "Avenger Systems Screen",
+            "position": "pilot",
+            "layout": "grid_4x5",
+            "actions": [
+                {
+                    "id": "toggle_power",
+                    "label": "POWER",
+                    "description": "Toggle main power",
+                    "icon": "btn_momentary",
+                    "row": 0,
+                    "col": 0,
+                    "width": 1,
+                    "height": 1,
+                    "widget_type": "btn_momentary",
+                    "hid": { "consumer_usage": 0, "hold_ms": 0, "gamepad_button": 1 }
+                },
+                {
+                    "id": "quantum_drive",
+                    "label": "QD",
+                    "description": "Engage quantum drive",
+                    "icon": "btn_momentary",
+                    "row": 0,
+                    "col": 1,
+                    "width": 1,
+                    "height": 1,
+                    "widget_type": "btn_momentary",
+                    "hid": { "consumer_usage": 0, "hold_ms": 0, "gamepad_button": 2 }
+                }
+            ]
+        }
+    ]
+}

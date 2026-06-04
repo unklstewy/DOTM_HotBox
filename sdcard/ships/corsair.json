@@ -1,0 +1,27 @@
+{
+    "ship_id": "corsair",
+    "ship_name": "Drake Corsair",
+    "manufacturer": "Drake Interplanetary",
+    "consoles": [
+        {
+            "console_id": "copilot",
+            "display_name": "Copilot Console",
+            "position": "copilot",
+            "layout": "grid_4x5",
+            "actions": [
+                {
+                    "id": "quantum_drive",
+                    "label": "QD ENG",
+                    "description": "Engage quantum drive",
+                    "icon": "btn_momentary",
+                    "row": 0,
+                    "col": 0,
+                    "width": 1,
+                    "height": 1,
+                    "widget_type": "btn_momentary",
+                    "hid": { "consumer_usage": 0, "hold_ms": 0, "gamepad_button": 1 }
+                }
+            ]
+        }
+    ]
+}

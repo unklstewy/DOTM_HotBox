@@ -1,11 +1,9 @@
 /*
- * sc_ui_theme.c — Theme palette, atlas load/unload, and widget draw helpers.
- * All sprite access goes through sc_ui_sprites_get(); zero SD reads at draw time.
+ * sc_ui_theme.c — Theme palette and widget drawing helper factories.
+ * Queries and resolves custom scaled sprites from the boot-time vector cache.
  */
 #include "sc_ui_theme.h"
 #include "sc_ui_sprites.h"
-#include "sc_ui_atlas_drake.h"
-#include "sc_ui_atlas_origin.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -18,17 +16,23 @@ static sc_theme_id_t s_active_theme = SC_THEME_DEFAULT;
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
 
-/** Apply an atlas sprite as the background image of obj. */
+/** Apply a sprite as the background image of obj, scaling it to object bounds if possible. */
 static inline void s_set_sprite(lv_obj_t *obj, sc_ui_sprite_id_t id)
 {
-    const lv_image_dsc_t *dsc = sc_ui_sprites_get(id);
+    console_btn_t *cb = lv_obj_get_user_data(obj);
+    uint16_t w = cb ? cb->pixel_w : 0;
+    uint16_t h = cb ? cb->pixel_h : 0;
+    const lv_image_dsc_t *dsc = sc_ui_sprites_get_scaled(id, w, h);
     if (dsc) lv_obj_set_style_bg_image_src(obj, dsc, 0);
 }
 
-/** Apply an atlas sprite as the src of an lv_image object. */
+/** Apply a sprite as the src of an lv_image object, scaling it if possible. */
 static inline void s_set_img(lv_obj_t *obj, sc_ui_sprite_id_t id)
 {
-    const lv_image_dsc_t *dsc = sc_ui_sprites_get(id);
+    console_btn_t *cb = lv_obj_get_user_data(obj);
+    uint16_t w = cb ? cb->pixel_w : 0;
+    uint16_t h = cb ? cb->pixel_h : 0;
+    const lv_image_dsc_t *dsc = sc_ui_sprites_get_scaled(id, w, h);
     if (dsc) lv_image_set_src(obj, dsc);
 }
 
@@ -51,8 +55,6 @@ void sc_ui_theme_init_default(void)
 
 void sc_ui_theme_init_drake_military(void)
 {
-    sc_ui_sprites_unload();   /* release any previous atlas */
-
     s_active_theme    = SC_THEME_DRAKE_MILITARY;
     sc_theme.armed    = lv_color_hex(0xFF1F1F);
     sc_theme.ready    = lv_color_hex(0xFFB000);
@@ -64,19 +66,10 @@ void sc_ui_theme_init_drake_military(void)
     sc_theme.text     = lv_color_hex(0xC8B89C);
     sc_theme.text_dim = lv_color_hex(0x6A5E4E);
     sc_theme.divider  = lv_color_hex(0x2A1F18);
-
-    esp_err_t ret = sc_ui_sprites_load(SC_ATLAS_DRAKE_PATH,
-                                        &SC_ATLAS_DRAKE_META,
-                                        SC_ATLAS_DRAKE_DESC);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Drake atlas load failed: %s", esp_err_to_name(ret));
-    }
 }
 
 void sc_ui_theme_init_origin_lux(void)
 {
-    sc_ui_sprites_unload();
-
     s_active_theme    = SC_THEME_ORIGIN_LUX;
     sc_theme.armed    = lv_color_hex(0xFF5A6A);
     sc_theme.ready    = lv_color_hex(0x6EC4FF);
@@ -88,13 +81,6 @@ void sc_ui_theme_init_origin_lux(void)
     sc_theme.text     = lv_color_hex(0xE8EEF6);
     sc_theme.text_dim = lv_color_hex(0x7C8AA0);
     sc_theme.divider  = lv_color_hex(0x243349);
-
-    esp_err_t ret = sc_ui_sprites_load(SC_ATLAS_ORIGIN_PATH,
-                                        &SC_ATLAS_ORIGIN_META,
-                                        SC_ATLAS_ORIGIN_DESC);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Origin atlas load failed: %s", esp_err_to_name(ret));
-    }
 }
 
 void sc_ui_theme_set(const sc_theme_colors_t *colors)
@@ -230,7 +216,11 @@ void sc_ui_theme_style_btn(lv_obj_t *btn, lv_color_t state_color)
     if (is_armed)       id = SC_SPRITE_BTN_DANGER;
     else if (is_active) id = SC_SPRITE_BTN_MOMENTARY_ACTIVE;
 
-    const lv_image_dsc_t *dsc = sc_ui_sprites_get(id);
+    console_btn_t *cb = lv_obj_get_user_data(btn);
+    uint16_t w = cb ? cb->pixel_w : 0;
+    uint16_t h = cb ? cb->pixel_h : 0;
+
+    const lv_image_dsc_t *dsc = sc_ui_sprites_get_scaled(id, w, h);
     if (dsc) {
         lv_obj_set_style_bg_image_src(btn, dsc, 0);
         if (is_active) {
@@ -247,7 +237,17 @@ void sc_ui_theme_style_btn_latching(lv_obj_t *btn, bool is_on)
     lv_obj_set_style_border_width(btn, 0, 0);
     lv_obj_set_style_radius(btn, 0, 0);
     lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, 0);
-    s_set_sprite(btn, is_on ? SC_SPRITE_BTN_LATCHING_ON : SC_SPRITE_BTN_LATCHING_OFF);
+
+    sc_ui_sprite_id_t id = is_on ? SC_SPRITE_BTN_LATCHING_ON : SC_SPRITE_BTN_LATCHING_OFF;
+
+    console_btn_t *cb = lv_obj_get_user_data(btn);
+    uint16_t w = cb ? cb->pixel_w : 0;
+    uint16_t h = cb ? cb->pixel_h : 0;
+
+    const lv_image_dsc_t *dsc = sc_ui_sprites_get_scaled(id, w, h);
+    if (dsc) {
+        lv_obj_set_style_bg_image_src(btn, dsc, 0);
+    }
 }
 
 void sc_ui_theme_style_tab(lv_obj_t *tab, bool is_active)
@@ -274,25 +274,48 @@ void sc_ui_theme_style_tab(lv_obj_t *tab, bool is_active)
 
 /* ── Axis widgets ────────────────────────────────────────────────────────── */
 
-lv_obj_t *sc_ui_theme_draw_axis_joystick(lv_obj_t *parent)
+lv_obj_t *sc_ui_theme_draw_axis_joystick(lv_obj_t *parent, console_btn_t *cb)
 {
+    uint16_t w = cb ? cb->pixel_w : 0;
+    uint16_t h = cb ? cb->pixel_h : 0;
+
+    uint16_t base_w = w > 0 ? w : SC_UI_AXIS_W;
+    uint16_t base_h = h > 0 ? h : SC_UI_AXIS_H;
+
+    double scale_x = (double)base_w / 120.0;
+    double scale_y = (double)base_h / 120.0;
+    uint16_t thumb_w = (uint16_t)(40.0 * scale_x + 0.5);
+    uint16_t thumb_h = (uint16_t)(40.0 * scale_y + 0.5);
+
     lv_obj_t *base = lv_image_create(parent);
-    s_set_img(base, SC_SPRITE_AXIS_JOYSTICK_BASE);
-    lv_obj_set_size(base, SC_UI_AXIS_W, SC_UI_AXIS_H);
+    if (cb) lv_obj_set_user_data(base, cb);
+    lv_image_set_src(base, sc_ui_sprites_get_scaled(SC_SPRITE_AXIS_JOYSTICK_BASE, base_w, base_h));
+    lv_obj_set_size(base, base_w, base_h);
 
     lv_obj_t *thumb = lv_image_create(base);
-    s_set_img(thumb, SC_SPRITE_AXIS_JOYSTICK_THUMB);
+    lv_image_set_src(thumb, sc_ui_sprites_get_scaled(SC_SPRITE_AXIS_JOYSTICK_THUMB, thumb_w, thumb_h));
     lv_obj_align(thumb, LV_ALIGN_CENTER, 0, 0);
     return base;
 }
 
-lv_obj_t *sc_ui_theme_draw_axis_dpad(lv_obj_t *parent)
+lv_obj_t *sc_ui_theme_draw_axis_dpad(lv_obj_t *parent, console_btn_t *cb)
 {
-    lv_obj_t *base = lv_image_create(parent);
-    s_set_img(base, SC_SPRITE_AXIS_DPAD_BASE);
-    lv_obj_set_size(base, SC_UI_AXIS_W, SC_UI_AXIS_H);
+    uint16_t w = cb ? cb->pixel_w : 0;
+    uint16_t h = cb ? cb->pixel_h : 0;
 
-    /* Directional highlight images (hidden by default) */
+    uint16_t base_w = w > 0 ? w : SC_UI_AXIS_W;
+    uint16_t base_h = h > 0 ? h : SC_UI_AXIS_H;
+
+    double scale_x = (double)base_w / 120.0;
+    double scale_y = (double)base_h / 120.0;
+    uint16_t arrow_w = (uint16_t)(40.0 * scale_x + 0.5);
+    uint16_t arrow_h = (uint16_t)(36.0 * scale_y + 0.5);
+
+    lv_obj_t *base = lv_image_create(parent);
+    if (cb) lv_obj_set_user_data(base, cb);
+    lv_image_set_src(base, sc_ui_sprites_get_scaled(SC_SPRITE_AXIS_DPAD_BASE, base_w, base_h));
+    lv_obj_set_size(base, base_w, base_h);
+
     sc_ui_sprite_id_t dirs[] = {
         SC_SPRITE_AXIS_DPAD_UP, SC_SPRITE_AXIS_DPAD_DOWN,
         SC_SPRITE_AXIS_DPAD_LEFT, SC_SPRITE_AXIS_DPAD_RIGHT
@@ -303,7 +326,7 @@ lv_obj_t *sc_ui_theme_draw_axis_dpad(lv_obj_t *parent)
     };
     for (int i = 0; i < 4; i++) {
         lv_obj_t *arrow = lv_image_create(base);
-        s_set_img(arrow, dirs[i]);
+        lv_image_set_src(arrow, sc_ui_sprites_get_scaled(dirs[i], arrow_w, arrow_h));
         lv_obj_align(arrow, aligns[i], 0, 0);
         lv_obj_add_flag(arrow, LV_OBJ_FLAG_HIDDEN);
     }
@@ -322,26 +345,50 @@ void sc_ui_theme_dpad_set_dir(lv_obj_t *dpad, lv_dir_t dir)
     }
 }
 
-lv_obj_t *sc_ui_theme_draw_axis_haat(lv_obj_t *parent)
+lv_obj_t *sc_ui_theme_draw_axis_haat(lv_obj_t *parent, console_btn_t *cb)
 {
+    uint16_t w = cb ? cb->pixel_w : 0;
+    uint16_t h = cb ? cb->pixel_h : 0;
+
+    uint16_t base_w = w > 0 ? w : SC_UI_AXIS_W;
+    uint16_t base_h = h > 0 ? h : SC_UI_AXIS_H;
+
+    double scale_x = (double)base_w / 120.0;
+    double scale_y = (double)base_h / 120.0;
+    uint16_t cursor_w = (uint16_t)(24.0 * scale_x + 0.5);
+    uint16_t cursor_h = (uint16_t)(24.0 * scale_y + 0.5);
+
     lv_obj_t *base = lv_image_create(parent);
-    s_set_img(base, SC_SPRITE_AXIS_HAAT_BASE);
-    lv_obj_set_size(base, SC_UI_AXIS_W, SC_UI_AXIS_H);
+    if (cb) lv_obj_set_user_data(base, cb);
+    lv_image_set_src(base, sc_ui_sprites_get_scaled(SC_SPRITE_AXIS_HAAT_BASE, base_w, base_h));
+    lv_obj_set_size(base, base_w, base_h);
 
     lv_obj_t *cursor = lv_image_create(base);
-    s_set_img(cursor, SC_SPRITE_AXIS_HAAT_CURSOR);
+    lv_image_set_src(cursor, sc_ui_sprites_get_scaled(SC_SPRITE_AXIS_HAAT_CURSOR, cursor_w, cursor_h));
     lv_obj_align(cursor, LV_ALIGN_CENTER, 0, 0);
     return base;
 }
 
-lv_obj_t *sc_ui_theme_draw_axis_throttle(lv_obj_t *parent)
+lv_obj_t *sc_ui_theme_draw_axis_throttle(lv_obj_t *parent, console_btn_t *cb)
 {
+    uint16_t w = cb ? cb->pixel_w : 0;
+    uint16_t h = cb ? cb->pixel_h : 0;
+
+    uint16_t track_w = w > 0 ? w : SC_UI_THROTTLE_W;
+    uint16_t track_h = h > 0 ? h : SC_UI_THROTTLE_H;
+
+    double scale_x = (double)track_w / 44.0;
+    double scale_y = (double)track_h / 120.0;
+    uint16_t grip_w = (uint16_t)(60.0 * scale_x + 0.5);
+    uint16_t grip_h = (uint16_t)(20.0 * scale_y + 0.5);
+
     lv_obj_t *track = lv_image_create(parent);
-    s_set_img(track, SC_SPRITE_AXIS_THROTTLE_TRACK);
-    lv_obj_set_size(track, SC_UI_THROTTLE_W, SC_UI_THROTTLE_H);
+    if (cb) lv_obj_set_user_data(track, cb);
+    lv_image_set_src(track, sc_ui_sprites_get_scaled(SC_SPRITE_AXIS_THROTTLE_TRACK, track_w, track_h));
+    lv_obj_set_size(track, track_w, track_h);
 
     lv_obj_t *grip = lv_image_create(track);
-    s_set_img(grip, SC_SPRITE_AXIS_THROTTLE_GRIP);
+    lv_image_set_src(grip, sc_ui_sprites_get_scaled(SC_SPRITE_AXIS_THROTTLE_GRIP, grip_w, grip_h));
     lv_obj_align(grip, LV_ALIGN_BOTTOM_MID, 0, 0);
     return track;
 }
@@ -350,34 +397,64 @@ void sc_ui_theme_throttle_set_pct(lv_obj_t *throttle, uint8_t pct)
 {
     lv_obj_t *grip = lv_obj_get_child(throttle, 0);
     if (!grip) return;
-    /* Map 0–100% to pixel offset: 0% = bottom, 100% = top */
-    int range = SC_UI_THROTTLE_H - 20; /* 20 = grip height */
+    
+    // Get track dimensions
+    lv_coord_t track_h = lv_obj_get_height(throttle);
+    lv_coord_t grip_h = lv_obj_get_height(grip);
+    if (track_h <= 0) track_h = SC_UI_THROTTLE_H;
+    if (grip_h <= 0) grip_h = 20;
+
+    int range = track_h - grip_h;
     int ofs   = range - (int)((uint32_t)pct * range / 100u);
     lv_obj_align(grip, LV_ALIGN_TOP_MID, 0, ofs);
 }
 
-lv_obj_t *sc_ui_theme_draw_axis_yaw(lv_obj_t *parent)
+lv_obj_t *sc_ui_theme_draw_axis_yaw(lv_obj_t *parent, console_btn_t *cb)
 {
+    uint16_t w = cb ? cb->pixel_w : 0;
+    uint16_t h = cb ? cb->pixel_h : 0;
+
+    uint16_t base_w = w > 0 ? w : SC_UI_AXIS_W;
+    uint16_t base_h = h > 0 ? h : SC_UI_AXIS_H;
+
+    double scale_x = (double)base_w / 120.0;
+    double scale_y = (double)base_h / 120.0;
+    uint16_t needle_w = (uint16_t)(10.0 * scale_x + 0.5);
+    uint16_t needle_h = (uint16_t)(56.0 * scale_y + 0.5);
+
     lv_obj_t *ring = lv_image_create(parent);
-    s_set_img(ring, SC_SPRITE_AXIS_YAW_RING);
-    lv_obj_set_size(ring, SC_UI_AXIS_W, SC_UI_AXIS_H);
+    if (cb) lv_obj_set_user_data(ring, cb);
+    lv_image_set_src(ring, sc_ui_sprites_get_scaled(SC_SPRITE_AXIS_YAW_RING, base_w, base_h));
+    lv_obj_set_size(ring, base_w, base_h);
 
     lv_obj_t *needle = lv_image_create(ring);
-    s_set_img(needle, SC_SPRITE_AXIS_YAW_NEEDLE);
+    lv_image_set_src(needle, sc_ui_sprites_get_scaled(SC_SPRITE_AXIS_YAW_NEEDLE, needle_w, needle_h));
     lv_obj_align(needle, LV_ALIGN_CENTER, 0, 0);
-    lv_image_set_pivot(needle, 5, 56); /* base of needle */
+    lv_image_set_pivot(needle, needle_w / 2, needle_h);
     return ring;
 }
 
-lv_obj_t *sc_ui_theme_draw_axis_rudder(lv_obj_t *parent)
+lv_obj_t *sc_ui_theme_draw_axis_rudder(lv_obj_t *parent, console_btn_t *cb)
 {
+    uint16_t w = cb ? cb->pixel_w : 0;
+    uint16_t h = cb ? cb->pixel_h : 0;
+
+    uint16_t track_w = w > 0 ? w : 256;
+    uint16_t track_h = h > 0 ? h : 32;
+
+    double scale_x = (double)track_w / 256.0;
+    double scale_y = (double)track_h / 32.0;
+    uint16_t pedal_w = (uint16_t)(56.0 * scale_x + 0.5);
+    uint16_t pedal_h = (uint16_t)(40.0 * scale_y + 0.5);
+
     lv_obj_t *track = lv_image_create(parent);
-    s_set_img(track, SC_SPRITE_AXIS_RUDDER_TRACK);
-    lv_obj_set_size(track, 256, 32);
+    if (cb) lv_obj_set_user_data(track, cb);
+    lv_image_set_src(track, sc_ui_sprites_get_scaled(SC_SPRITE_AXIS_RUDDER_TRACK, track_w, track_h));
+    lv_obj_set_size(track, track_w, track_h);
 
     lv_obj_t *pedal = lv_image_create(track);
-    s_set_img(pedal, SC_SPRITE_AXIS_RUDDER_PEDAL);
-    lv_obj_align(pedal, LV_ALIGN_LEFT_MID, 100, 0); /* default centre */
+    lv_image_set_src(pedal, sc_ui_sprites_get_scaled(SC_SPRITE_AXIS_RUDDER_PEDAL, pedal_w, pedal_h));
+    lv_obj_align(pedal, LV_ALIGN_LEFT_MID, (track_w - pedal_w) / 2, 0);
     return track;
 }
 
@@ -385,70 +462,118 @@ void sc_ui_theme_rudder_set_pct(lv_obj_t *rudder, uint8_t pct)
 {
     lv_obj_t *pedal = lv_obj_get_child(rudder, 0);
     if (!pedal) return;
-    /* 0% = left, 50% = centre, 100% = right */
-    int range = 256 - 56;
+    
+    // Get dimensions
+    lv_coord_t track_w = lv_obj_get_width(rudder);
+    lv_coord_t pedal_w = lv_obj_get_width(pedal);
+    if (track_w <= 0) track_w = 256;
+    if (pedal_w <= 0) pedal_w = 56;
+
+    int range = track_w - pedal_w;
     int x     = (int)((uint32_t)pct * range / 100u);
     lv_obj_align(pedal, LV_ALIGN_LEFT_MID, x, 0);
 }
 
 /* ── Knob ─────────────────────────────────────────────────────────────────── */
 
-lv_obj_t *sc_ui_theme_draw_knob(lv_obj_t *parent)
+lv_obj_t *sc_ui_theme_draw_knob(lv_obj_t *parent, console_btn_t *cb)
 {
+    uint16_t w = cb ? cb->pixel_w : 0;
+    uint16_t h = cb ? cb->pixel_h : 0;
+
+    uint16_t base_w = w > 0 ? w : SC_UI_KNOB_W;
+    uint16_t base_h = h > 0 ? h : SC_UI_KNOB_H;
+
     lv_obj_t *ring = lv_image_create(parent);
-    s_set_img(ring, SC_SPRITE_KNOB_RING);
-    lv_obj_set_size(ring, SC_UI_KNOB_W, SC_UI_KNOB_H);
+    if (cb) lv_obj_set_user_data(ring, cb);
+    lv_image_set_src(ring, sc_ui_sprites_get_scaled(SC_SPRITE_KNOB_RING, base_w, base_h));
+    lv_obj_set_size(ring, base_w, base_h);
 
     lv_obj_t *cap = lv_image_create(ring);
-    s_set_img(cap, SC_SPRITE_KNOB_CAP);
+    lv_image_set_src(cap, sc_ui_sprites_get_scaled(SC_SPRITE_KNOB_CAP, base_w, base_h));
     lv_obj_align(cap, LV_ALIGN_CENTER, 0, 0);
-    lv_image_set_pivot(cap, SC_UI_KNOB_W / 2, SC_UI_KNOB_H / 2);
+    lv_image_set_pivot(cap, base_w / 2, base_h / 2);
     return ring;
 }
 
 /* ── Jog wheel ───────────────────────────────────────────────────────────── */
 
-lv_obj_t *sc_ui_theme_draw_jog_wheel(lv_obj_t *parent)
+lv_obj_t *sc_ui_theme_draw_jog_wheel(lv_obj_t *parent, console_btn_t *cb)
 {
+    uint16_t w = cb ? cb->pixel_w : 0;
+    uint16_t h = cb ? cb->pixel_h : 0;
+
+    uint16_t base_w = w > 0 ? w : SC_UI_JOG_W;
+    uint16_t base_h = h > 0 ? h : SC_UI_JOG_H;
+
     lv_obj_t *img = lv_image_create(parent);
-    s_set_img(img, SC_SPRITE_JOG_WHEEL_F0);
-    lv_obj_set_size(img, SC_UI_JOG_W, SC_UI_JOG_H);
+    if (cb) lv_obj_set_user_data(img, cb);
+    lv_image_set_src(img, sc_ui_sprites_get_scaled(SC_SPRITE_JOG_WHEEL_F0, base_w, base_h));
+    lv_obj_set_size(img, base_w, base_h);
     return img;
 }
 
 void sc_ui_theme_jog_set_angle(lv_obj_t *jog, uint16_t angle_deg)
 {
+    console_btn_t *cb = lv_obj_get_user_data(jog);
+    uint16_t w = cb ? cb->pixel_w : 0;
+    uint16_t h = cb ? cb->pixel_h : 0;
+    
     sc_ui_sprite_id_t frame = sc_ui_sprites_jog_frame(angle_deg);
-    const lv_image_dsc_t *dsc = sc_ui_sprites_get(frame);
+    const lv_image_dsc_t *dsc = sc_ui_sprites_get_scaled(frame, w, h);
     if (dsc) lv_image_set_src(jog, dsc);
 }
 
 /* ── Sliders ─────────────────────────────────────────────────────────────── */
 
-lv_obj_t *sc_ui_theme_draw_slider_h(lv_obj_t *parent)
+lv_obj_t *sc_ui_theme_draw_slider_h(lv_obj_t *parent, console_btn_t *cb)
 {
     lv_obj_t *sl = lv_slider_create(parent);
-    lv_obj_set_style_bg_image_src(sl, sc_ui_sprites_get(SC_SPRITE_SLIDER_TRACK_H), 0);
+    if (cb) lv_obj_set_user_data(sl, cb);
+
+    uint16_t w = cb ? cb->pixel_w : 0;
+    uint16_t h = cb ? cb->pixel_h : 0;
+
+    uint16_t track_w = w > 0 ? w : 120;
+    uint16_t track_h = h > 0 ? h : 24;
+
+    double scale_x = (double)track_w / 120.0;
+    double scale_y = (double)track_h / 24.0;
+    uint16_t thumb_w = (uint16_t)(40.0 * scale_x + 0.5);
+    uint16_t thumb_h = (uint16_t)(24.0 * scale_y + 0.5);
+
+    lv_obj_set_style_bg_image_src(sl, sc_ui_sprites_get_scaled(SC_SPRITE_SLIDER_TRACK_H, track_w, track_h), 0);
     lv_obj_set_style_bg_opa(sl, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(sl, 0, 0);
 
-    /* Knob (thumb) */
-    lv_obj_set_style_bg_image_src(sl, sc_ui_sprites_get(SC_SPRITE_SLIDER_THUMB),
-                                   LV_PART_KNOB);
+    lv_obj_set_style_bg_image_src(sl, sc_ui_sprites_get_scaled(SC_SPRITE_SLIDER_THUMB, thumb_w, thumb_h), LV_PART_KNOB);
     lv_obj_set_style_bg_opa(sl, LV_OPA_TRANSP, LV_PART_KNOB);
     lv_obj_set_style_border_width(sl, 0, LV_PART_KNOB);
     return sl;
 }
 
-lv_obj_t *sc_ui_theme_draw_slider_v(lv_obj_t *parent)
+lv_obj_t *sc_ui_theme_draw_slider_v(lv_obj_t *parent, console_btn_t *cb)
 {
     lv_obj_t *sl = lv_slider_create(parent);
+    if (cb) lv_obj_set_user_data(sl, cb);
     lv_slider_set_mode(sl, LV_SLIDER_MODE_NORMAL);
-    lv_obj_set_style_bg_image_src(sl, sc_ui_sprites_get(SC_SPRITE_SLIDER_TRACK_V), 0);
+
+    uint16_t w = cb ? cb->pixel_w : 0;
+    uint16_t h = cb ? cb->pixel_h : 0;
+
+    uint16_t track_w = w > 0 ? w : 24;
+    uint16_t track_h = h > 0 ? h : 120;
+
+    double scale_x = (double)track_w / 24.0;
+    double scale_y = (double)track_h / 120.0;
+    uint16_t thumb_w = (uint16_t)(24.0 * scale_x + 0.5);
+    uint16_t thumb_h = (uint16_t)(40.0 * scale_y + 0.5);
+
+    lv_obj_set_style_bg_image_src(sl, sc_ui_sprites_get_scaled(SC_SPRITE_SLIDER_TRACK_V, track_w, track_h), 0);
     lv_obj_set_style_bg_opa(sl, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(sl, 0, 0);
-    lv_obj_set_style_bg_image_src(sl, sc_ui_sprites_get(SC_SPRITE_SLIDER_THUMB),
-                                   LV_PART_KNOB);
+
+    lv_obj_set_style_bg_image_src(sl, sc_ui_sprites_get_scaled(SC_SPRITE_SLIDER_THUMB, thumb_w, thumb_h), LV_PART_KNOB);
     lv_obj_set_style_bg_opa(sl, LV_OPA_TRANSP, LV_PART_KNOB);
     lv_obj_set_style_border_width(sl, 0, LV_PART_KNOB);
     return sl;

@@ -119,7 +119,7 @@ esp_err_t sc_ui_init(const sc_terminal_config_t *cfg)
     if (!cfg->touch_cal.is_calibrated) {
         sc_ui_router_push(SC_UI_SCREEN_CALIBRATION);
     } else {
-        sc_ui_router_push(SC_UI_SCREEN_BOOTMENU);
+        sc_ui_router_push(SC_UI_SCREEN_SPLASH);
     }
 
     ESP_LOGI(TAG, "UI subsystem started (%dx%d)",
@@ -202,6 +202,8 @@ static lv_obj_t *sc_ui_screen_create(sc_ui_screen_id_t id)
             return sc_ui_screen_calibration_create(NULL);
         case SC_UI_SCREEN_BOOTMENU:
             return sc_ui_screen_bootmenu_create(NULL);
+        case SC_UI_SCREEN_SPLASH:
+            return sc_ui_screen_splash_create(NULL);
         default:
             ESP_LOGW(TAG, "Unknown screen id: %d", id);
             return NULL;
@@ -233,7 +235,10 @@ static void sc_ui_lvgl_task(void *arg)
         lv_unlock();
         if (delay_ms == LV_NO_TIMER_READY || delay_ms > 30) delay_ms = 30;
         if (delay_ms < SC_UI_LVGL_TICK_MS)                  delay_ms = SC_UI_LVGL_TICK_MS;
-        vTaskDelay(pdMS_TO_TICKS(delay_ms));
+        
+        uint32_t ticks = pdMS_TO_TICKS(delay_ms);
+        if (ticks == 0) ticks = 1; /* prevent starving the IDLE task and triggering task watchdog */
+        vTaskDelay(ticks);
     }
 }
 

@@ -50,7 +50,7 @@ except ImportError:
 
 # ── Atlas constants ────────────────────────────────────────────────────────── #
 ATLAS_W    = 576
-ATLAS_H    = 544
+ATLAS_H    = 576
 CHROMA_KEY = (0, 0, 1)   # RGB — the transparent sentinel colour (near-black)
 SVG_DPI    = 96           # cairosvg rasterization DPI (1 SVG px = 1 CSS px)
 
@@ -107,51 +107,62 @@ SPRITE_NAMES = [
 # Sprites are placed at fixed positions; the packer blits each rasterized crop
 # to the correct position rather than using a dynamic shelf packer.
 ATLAS_LAYOUT = {
+    # Row 0: Buttons Row 1 (y: 0..56)
     "btn_momentary_idle":    (  0,   0, 140,  56),
     "btn_momentary_armed":   (140,   0, 140,  56),
     "btn_momentary_active":  (280,   0, 140,  56),
+    "btn_danger":            (420,   0, 140,  56),
+
+    # Row 1: Buttons Row 2 (y: 56..112)
     "btn_latching_off":      (  0,  56, 140,  56),
     "btn_latching_on":       (140,  56, 140,  56),
     "btn_inactive":          (280,  56, 140,  56),
-    "btn_danger":            (420,   0, 140,  56),
-    "slider_track_h":        (  0,  96, 120,  24),
-    "slider_track_v":        (120,  96,  24, 120),
-    "slider_thumb":          (144,  96,  40,  24),
-    "axis_joystick_base":    (  0, 112, 120, 120),
-    "axis_joystick_thumb":   (120, 112,  40,  40),
-    "axis_dpad_base":        (160, 112, 120, 120),
-    "axis_dpad_up":          (280, 112,  40,  36),
-    "axis_dpad_down":        (320, 112,  40,  36),
-    "axis_dpad_left":        (360, 112,  36,  40),
-    "axis_dpad_right":       (396, 112,  36,  40),
-    "axis_haat_base":        (  0, 232, 120, 120),
-    "axis_haat_cursor":      (120, 232,  24,  24),
-    "axis_throttle_track":   (144, 232,  44, 120),
-    "axis_throttle_grip":    (188, 232,  60,  20),
-    "axis_yaw_ring":         (248, 232, 120, 120),
-    "axis_yaw_needle":       (368, 232,  10,  56),
-    "axis_rudder_track":     (  0, 352, 256,  32),
-    "axis_rudder_pedal":     (256, 352,  56,  40),
-    "knob_ring":             (  0, 408,  64,  64),
-    "knob_cap":              ( 64, 408,  64,  64),
-    "jog_wheel_f0":          (  0, 312,  96,  96),
-    "jog_wheel_f1":          ( 96, 312,  96,  96),
-    "jog_wheel_f2":          (192, 312,  96,  96),
-    "jog_wheel_f3":          (288, 312,  96,  96),
-    "jog_wheel_f4":          (384, 312,  96,  96),
-    # F5-F7 placeholders — will be computed as rotations of F0-F2
-    "jog_wheel_f5":          (  0, 408,   0,   0),
-    "jog_wheel_f6":          (  0, 408,   0,   0),
-    "jog_wheel_f7":          (  0, 408,   0,   0),
-    "panel_tl":              (128, 472,  16,  16),
-    "panel_tr":              (144, 472,  16,  16),
-    "panel_bl":              (160, 472,  16,  16),
-    "panel_br":              (176, 472,  16,  16),
-    "panel_edge_t":          (192, 472,  64,   8),
-    "panel_edge_b":          (256, 472,  64,   8),
-    "panel_edge_l":          (320, 472,   8,  64),
-    "panel_edge_r":          (328, 472,   8,  64),
-    "panel_center":          (336, 472,  64,  64),
+
+    # Row 2: Sliders & Throttle (y: 112..232)
+    "slider_track_v":        (  0, 112,  24, 120),
+    "axis_throttle_track":   ( 24, 112,  44, 120),
+    "slider_track_h":        ( 68, 112, 120,  24),
+    "slider_thumb":          (188, 112,  40,  24),
+    "axis_throttle_grip":    (228, 112,  60,  20),
+
+    # Row 3: Jog Wheels (y: 232..328)
+    "jog_wheel_f0":          (  0, 232,  96,  96),
+    "jog_wheel_f1":          ( 96, 232,  96,  96),
+    "jog_wheel_f2":          (192, 232,  96,  96),
+    "jog_wheel_f3":          (288, 232,  96,  96),
+    "jog_wheel_f4":          (384, 232,  96,  96),
+    "jog_wheel_f5":          (  0,   0,   0,   0),  # Placeholder
+    "jog_wheel_f6":          (  0,   0,   0,   0),  # Placeholder
+    "jog_wheel_f7":          (  0,   0,   0,   0),  # Placeholder
+
+    # Row 4: Joystick, D-Pad, HAAT (y: 328..448)
+    "axis_joystick_base":    (  0, 328, 120, 120),
+    "axis_joystick_thumb":   (120, 328,  40,  40),
+    "axis_dpad_base":        (160, 328, 120, 120),
+    "axis_dpad_up":          (280, 328,  40,  36),
+    "axis_dpad_down":        (320, 328,  40,  36),
+    "axis_dpad_left":        (360, 328,  36,  40),
+    "axis_dpad_right":       (396, 328,  36,  40),
+    "axis_haat_base":        (432, 328, 120, 120),
+    "axis_haat_cursor":      (552, 328,  24,  24),
+
+    # Row 5: Yaw, Rudder, Knobs, Panels (y: 448..576)
+    "axis_yaw_ring":         (  0, 448, 120, 120),
+    "axis_yaw_needle":       (120, 448,  10,  56),
+    "axis_rudder_track":     (130, 448, 256,  32),
+    "axis_rudder_pedal":     (386, 448,  56,  40),
+    "knob_ring":             (442, 448,  64,  64),
+    "knob_cap":              (506, 448,  64,  64),
+
+    "panel_tl":              (130, 512,  16,  16),
+    "panel_tr":              (146, 512,  16,  16),
+    "panel_bl":              (160, 512,  16,  16),
+    "panel_br":              (176, 512,  16,  16),
+    "panel_edge_t":          (194, 512,  64,   8),
+    "panel_edge_b":          (258, 512,  64,   8),
+    "panel_edge_l":          (322, 512,   8,  64),
+    "panel_edge_r":          (330, 512,   8,  64),
+    "panel_center":          (338, 512,  64,  64),
 }
 
 

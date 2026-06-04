@@ -83,6 +83,32 @@ typedef enum {
     SC_WIDGET_COUNT
 } sc_widget_type_t;
 
+typedef struct
+{
+    char action_id[32];
+    char label_text[32];
+    lv_obj_t *widget;        /* root widget object (any type) */
+    lv_obj_t *label;         /* text label child, if applicable */
+    int console_idx;
+    char state_event[48];    /* gamelink event name, or ""  */
+    /* Layout Geometry */
+    int row;
+    int col;
+    int width;
+    int height;
+    /* Widget type */
+    sc_widget_type_t widget_type;
+    bool latching_state;     /* current ON/OFF for latching buttons */
+    /* State colours from JSON */
+    char state_keys[4][16];
+    lv_color_t state_colors[4];
+    char state_labels[4][16];
+    uint8_t state_count;
+    /* Custom computed rasterized bounds */
+    int pixel_w;
+    int pixel_h;
+} console_btn_t;
+
 /* ── Theme API ───────────────────────────────────────────────────────────── */
 
 /**
@@ -182,7 +208,7 @@ void sc_ui_theme_style_tab(lv_obj_t *tab, bool is_active);
  * Returns the base lv_obj_t.  The thumb sub-object is the first child.
  * Caller positions thumb by setting child coordinates on touch events.
  */
-lv_obj_t *sc_ui_theme_draw_axis_joystick(lv_obj_t *parent);
+lv_obj_t *sc_ui_theme_draw_axis_joystick(lv_obj_t *parent, console_btn_t *cb);
 
 /**
  * @brief Create a sprite-backed D-Pad widget.
@@ -190,7 +216,7 @@ lv_obj_t *sc_ui_theme_draw_axis_joystick(lv_obj_t *parent);
  * Returns the base container.  Call sc_ui_theme_dpad_set_dir() to highlight
  * the active direction.
  */
-lv_obj_t *sc_ui_theme_draw_axis_dpad(lv_obj_t *parent);
+lv_obj_t *sc_ui_theme_draw_axis_dpad(lv_obj_t *parent, console_btn_t *cb);
 
 /**
  * @brief Highlight a D-Pad direction (pass LV_DIR_NONE to clear all).
@@ -203,14 +229,14 @@ void sc_ui_theme_dpad_set_dir(lv_obj_t *dpad, lv_dir_t dir);
  * Returns the base container.  A cursor child object is positioned by the
  * caller according to axis values (range -1.0 to +1.0 → pixel offset).
  */
-lv_obj_t *sc_ui_theme_draw_axis_haat(lv_obj_t *parent);
+lv_obj_t *sc_ui_theme_draw_axis_haat(lv_obj_t *parent, console_btn_t *cb);
 
 /**
  * @brief Create a throttle (vertical linear axis) widget.
  *
  * Returns the track object.  Call sc_ui_theme_throttle_set_pct() to move grip.
  */
-lv_obj_t *sc_ui_theme_draw_axis_throttle(lv_obj_t *parent);
+lv_obj_t *sc_ui_theme_draw_axis_throttle(lv_obj_t *parent, console_btn_t *cb);
 
 /** @brief Set throttle position 0–100 %. */
 void sc_ui_theme_throttle_set_pct(lv_obj_t *throttle, uint8_t pct);
@@ -221,14 +247,14 @@ void sc_ui_theme_throttle_set_pct(lv_obj_t *throttle, uint8_t pct);
  * Returns the ring container.  The needle child is rotated by the caller via
  * lv_image_set_angle() in tenths of a degree.
  */
-lv_obj_t *sc_ui_theme_draw_axis_yaw(lv_obj_t *parent);
+lv_obj_t *sc_ui_theme_draw_axis_yaw(lv_obj_t *parent, console_btn_t *cb);
 
 /**
  * @brief Create a Rudder pedal horizontal axis widget.
  *
  * Returns the track object.  Call sc_ui_theme_rudder_set_pct() to position pedal.
  */
-lv_obj_t *sc_ui_theme_draw_axis_rudder(lv_obj_t *parent);
+lv_obj_t *sc_ui_theme_draw_axis_rudder(lv_obj_t *parent, console_btn_t *cb);
 
 /** @brief Set rudder pedal position 0–100 % (50 % = centre). */
 void sc_ui_theme_rudder_set_pct(lv_obj_t *rudder, uint8_t pct);
@@ -238,14 +264,14 @@ void sc_ui_theme_rudder_set_pct(lv_obj_t *rudder, uint8_t pct);
  *
  * Returns the ring container.  Rotate the cap child via lv_image_set_angle().
  */
-lv_obj_t *sc_ui_theme_draw_knob(lv_obj_t *parent);
+lv_obj_t *sc_ui_theme_draw_knob(lv_obj_t *parent, console_btn_t *cb);
 
 /**
  * @brief Create a jog / shuttle wheel widget (8-frame sprite strip).
  *
  * Returns the base image object.  Call sc_ui_theme_jog_set_angle() to update.
  */
-lv_obj_t *sc_ui_theme_draw_jog_wheel(lv_obj_t *parent);
+lv_obj_t *sc_ui_theme_draw_jog_wheel(lv_obj_t *parent, console_btn_t *cb);
 
 /**
  * @brief Update jog wheel to the frame matching angle_deg.
@@ -261,12 +287,12 @@ void sc_ui_theme_jog_set_angle(lv_obj_t *jog, uint16_t angle_deg);
  * Returns the track object.  The thumb child object is positioned by LVGL's
  * slider widget internally; set value with lv_slider_set_value().
  */
-lv_obj_t *sc_ui_theme_draw_slider_h(lv_obj_t *parent);
+lv_obj_t *sc_ui_theme_draw_slider_h(lv_obj_t *parent, console_btn_t *cb);
 
 /**
  * @brief Create a vertical slider widget.
  */
-lv_obj_t *sc_ui_theme_draw_slider_v(lv_obj_t *parent);
+lv_obj_t *sc_ui_theme_draw_slider_v(lv_obj_t *parent, console_btn_t *cb);
 
 #ifdef __cplusplus
 }

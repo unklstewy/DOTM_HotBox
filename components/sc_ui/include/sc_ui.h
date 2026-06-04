@@ -40,6 +40,7 @@ typedef enum {
     SC_UI_SCREEN_THEME_SELECTOR, /**< Theme selector gallery            */
     SC_UI_SCREEN_CALIBRATION,    /**< Touch calibration routine         */
     SC_UI_SCREEN_BOOTMENU,       /**< Startup boot menu screen          */
+    SC_UI_SCREEN_SPLASH,         /**< Startup splash and loading screen */
     SC_UI_SCREEN_COUNT
 } sc_ui_screen_id_t;
 

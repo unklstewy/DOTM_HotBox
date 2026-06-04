@@ -1,0 +1,289 @@
+{
+    "templates": [
+        {
+            "ship_id": "misc_prospector",
+            "ship_name": "MISC Prospector",
+            "manufacturer": "Musashi Industrial & Starflight Concern",
+            "consoles": [
+                {
+                    "console_id": "mining_operations",
+                    "display_name": "Mining Operations Console",
+                    "position": "pilot",
+                    "layout": "grid_6x6",
+                    "actions": [
+                        {
+                            "id": "mining_laser_power",
+                            "label": "LASER PWR",
+                            "description": "Toggle Mining Laser Power",
+                            "icon": "btn_latching",
+                            "row": 0,
+                            "col": 0,
+                            "width": 1,
+                            "height": 1,
+                            "widget_type": "btn_latching",
+                            "hid": { "consumer_usage": 0, "hold_ms": 0, "gamepad_button": 1 },
+                            "state": {
+                                "gamelink_event": "mining_laser_active",
+                                "values": {
+                                    "active": { "label": "LASER ON", "color": "#FF8800" },
+                                    "idle": { "label": "LASER OFF", "color": "#00FF88" }
+                                }
+                            }
+                        },
+                        {
+                            "id": "mining_laser_mode",
+                            "label": "MODE SEL",
+                            "description": "Switch between Fracture and Extraction modes",
+                            "icon": "btn_momentary",
+                            "row": 0,
+                            "col": 1,
+                            "width": 1,
+                            "height": 1,
+                            "widget_type": "btn_momentary",
+                            "hid": { "consumer_usage": 0, "hold_ms": 0, "gamepad_button": 2 },
+                            "state": {
+                                "gamelink_event": "mining_laser_mode",
+                                "values": {
+                                    "fracture": { "label": "FRACTURE", "color": "#FF4444" },
+                                    "extraction": { "label": "EXTRACT", "color": "#00AAFF" }
+                                }
+                            }
+                        },
+                        {
+                            "id": "laser_throttle",
+                            "label": "LASER OUT",
+                            "description": "Adjust laser intensity",
+                            "icon": "slider_v",
+                            "row": 1,
+                            "col": 1,
+                            "width": 1,
+                            "height": 2,
+                            "widget_type": "slider_v",
+                            "hid": { "consumer_usage": 0, "hold_ms": 0, "gamepad_button": 3 }
+                        },
+                        {
+                            "id": "laser_override",
+                            "label": "OVERRIDE",
+                            "description": "Safety override bypass",
+                            "icon": "btn_danger",
+                            "row": 0,
+                            "col": 5,
+                            "width": 1,
+                            "height": 1,
+                            "widget_type": "btn_danger",
+                            "hid": { "consumer_usage": 0, "hold_ms": 500, "gamepad_button": 4 }
+                        },
+                        {
+                            "id": "consumable_1",
+                            "label": "CONS 1",
+                            "description": "Activate Mining Consumable 1",
+                            "icon": "btn_momentary",
+                            "row": 3,
+                            "col": 0,
+                            "width": 1,
+                            "height": 1,
+                            "widget_type": "btn_momentary",
+                            "hid": { "consumer_usage": 0, "hold_ms": 0, "gamepad_button": 5 }
+                        },
+                        {
+                            "id": "consumable_2",
+                            "label": "CONS 2",
+                            "description": "Activate Mining Consumable 2",
+                            "icon": "btn_momentary",
+                            "row": 3,
+                            "col": 1,
+                            "width": 1,
+                            "height": 1,
+                            "widget_type": "btn_momentary",
+                            "hid": { "consumer_usage": 0, "hold_ms": 0, "gamepad_button": 6 }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "ship_id": "rsi_scorpius",
+            "ship_name": "RSI Scorpius",
+            "manufacturer": "Roberts Space Industries",
+            "consoles": [
+                {
+                    "console_id": "turret_control",
+                    "display_name": "Copilot Turret Console",
+                    "position": "copilot",
+                    "layout": "grid_6x6",
+                    "actions": [
+                        {
+                            "id": "turret_power",
+                            "label": "TURRET ON",
+                            "description": "Power up weapon turret systems",
+                            "icon": "btn_latching",
+                            "row": 0,
+                            "col": 0,
+                            "width": 1,
+                            "height": 1,
+                            "widget_type": "btn_latching",
+                            "hid": { "consumer_usage": 0, "hold_ms": 0, "gamepad_button": 1 }
+                        },
+                        {
+                            "id": "gyro_lock",
+                            "label": "GYRO",
+                            "description": "Toggle turret stabilization",
+                            "icon": "btn_momentary",
+                            "row": 0,
+                            "col": 1,
+                            "width": 1,
+                            "height": 1,
+                            "widget_type": "btn_momentary",
+                            "hid": { "consumer_usage": 0, "hold_ms": 0, "gamepad_button": 2 },
+                            "state": {
+                                "gamelink_event": "gyro_locked",
+                                "values": {
+                                    "true": { "label": "LOCKED", "color": "#00FF88" },
+                                    "false": { "label": "UNLOCKED", "color": "#FFb000" }
+                                }
+                            }
+                        },
+                        {
+                            "id": "turret_joystick",
+                            "label": "AIM STICK",
+                            "description": "Precision aiming controls",
+                            "icon": "axis_joystick",
+                            "row": 1,
+                            "col": 1,
+                            "width": 2,
+                            "height": 2,
+                            "widget_type": "axis_joystick",
+                            "hid": { "consumer_usage": 0, "hold_ms": 0, "gamepad_button": 3 }
+                        },
+                        {
+                            "id": "fire_weapons",
+                            "label": "FIRE",
+                            "description": "Fire turret guns",
+                            "icon": "btn_momentary",
+                            "row": 1,
+                            "col": 3,
+                            "width": 2,
+                            "height": 2,
+                            "widget_type": "btn_momentary",
+                            "hid": { "consumer_usage": 0, "hold_ms": 0, "gamepad_button": 4 }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "ship_id": "drake_cutlass_red",
+            "ship_name": "Drake Cutlass Red",
+            "manufacturer": "Drake Interplanetary",
+            "consoles": [
+                {
+                    "console_id": "medical_bay",
+                    "display_name": "Medical Bay Console",
+                    "position": "pilot",
+                    "layout": "grid_4x5",
+                    "actions": [
+                        {
+                            "id": "med_power",
+                            "label": "MED PWR",
+                            "description": "Power up medical bay systems",
+                            "icon": "btn_latching",
+                            "row": 0,
+                            "col": 0,
+                            "width": 1,
+                            "height": 1,
+                            "widget_type": "btn_latching",
+                            "hid": { "consumer_usage": 0, "hold_ms": 0, "gamepad_button": 1 }
+                        },
+                        {
+                            "id": "bio_monitor",
+                            "label": "MONITOR",
+                            "description": "Cycle patient telemetry display",
+                            "icon": "btn_momentary",
+                            "row": 0,
+                            "col": 1,
+                            "width": 1,
+                            "height": 1,
+                            "widget_type": "btn_momentary",
+                            "hid": { "consumer_usage": 0, "hold_ms": 0, "gamepad_button": 2 }
+                        },
+                        {
+                            "id": "oxygen_purge",
+                            "label": "OXY PURGE",
+                            "description": "Emergency oxygen line flush",
+                            "icon": "btn_danger",
+                            "row": 0,
+                            "col": 3,
+                            "width": 1,
+                            "height": 1,
+                            "widget_type": "btn_danger",
+                            "hid": { "consumer_usage": 0, "hold_ms": 1000, "gamepad_button": 3 }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "ship_id": "avenger_titan",
+            "ship_name": "Aegis Avenger Titan",
+            "manufacturer": "Aegis Dynamics",
+            "consoles": [
+                {
+                    "console_id": "pilot_console",
+                    "display_name": "Avenger Systems Screen",
+                    "position": "pilot",
+                    "layout": "grid_4x5",
+                    "actions": [
+                        {
+                            "id": "toggle_power",
+                            "label": "POWER",
+                            "row": 0,
+                            "col": 0,
+                            "width": 1,
+                            "height": 1,
+                            "widget_type": "btn_momentary",
+                            "hid": { "consumer_usage": 0, "hold_ms": 0, "gamepad_button": 1 }
+                        },
+                        {
+                            "id": "quantum_drive",
+                            "label": "QD",
+                            "row": 0,
+                            "col": 1,
+                            "width": 1,
+                            "height": 1,
+                            "widget_type": "btn_momentary",
+                            "hid": { "consumer_usage": 0, "hold_ms": 0, "gamepad_button": 2 }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "ship_id": "caterpillar",
+            "ship_name": "Drake Caterpillar",
+            "manufacturer": "Drake Interplanetary",
+            "consoles": [
+                {
+                    "console_id": "engineering",
+                    "display_name": "Engineering Panel",
+                    "position": "engineering",
+                    "layout": "grid_4x5",
+                    "actions": []
+                }
+            ]
+        },
+        {
+            "ship_id": "corsair",
+            "ship_name": "Drake Corsair",
+            "manufacturer": "Drake Interplanetary",
+            "consoles": [
+                {
+                    "console_id": "copilot",
+                    "display_name": "Copilot Console",
+                    "position": "copilot",
+                    "layout": "grid_4x5",
+                    "actions": []
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,27 @@
+{
+    "ship_id": "caterpillar",
+    "ship_name": "Drake Caterpillar",
+    "manufacturer": "Drake Interplanetary",
+    "consoles": [
+        {
+            "console_id": "engineering",
+            "display_name": "Engineering Panel",
+            "position": "engineering",
+            "layout": "grid_4x5",
+            "actions": [
+                {
+                    "id": "power_plant",
+                    "label": "PWR PLT",
+                    "description": "Toggle main power plant",
+                    "icon": "btn_latching",
+                    "row": 0,
+                    "col": 0,
+                    "width": 1,
+                    "height": 1,
+                    "widget_type": "btn_latching",
+                    "hid": { "consumer_usage": 0, "hold_ms": 0, "gamepad_button": 1 }
+                }
+            ]
+        }
+    ]
+}

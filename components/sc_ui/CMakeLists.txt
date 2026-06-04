@@ -8,6 +8,7 @@ idf_component_register(
         "screens/sc_ui_screen_pairing.c"
         "screens/sc_ui_screen_calibration.c"
         "screens/sc_ui_screen_bootmenu.c"
+        "screens/sc_ui_screen_splash.c"
         "screens/sc_ui_screen_drake.c"
         "screens/sc_ui_screen_origin.c"
         "screens/sc_ui_screen_theme_selector.c"

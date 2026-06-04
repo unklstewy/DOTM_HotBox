@@ -34,7 +34,7 @@ extern "C" {
 
 static const sc_ui_atlas_meta_t SC_ATLAS_DRAKE_META = {
     .width       = 576,
-    .height      = 544,
+    .height      = 576,
     .color_depth = 16,      /* RGB565 */
     .chroma_key  = 0x0001,  /* near-black transparent sentinel */
 };
@@ -61,63 +61,61 @@ static const sc_ui_sprite_rect_t SC_ATLAS_DRAKE_DESC[SC_SPRITE_COUNT] = {
     [SC_SPRITE_BTN_DANGER]           = { 420,   0, 140,  56 },
 
     /* ── Sliders ─────────────────────────────────────────── */
-    [SC_SPRITE_SLIDER_TRACK_H]       = {   0,  96, 120,  24 }, /* stretch-x */
-    [SC_SPRITE_SLIDER_TRACK_V]       = { 120,  96,  24, 120 }, /* stretch-y */
-    [SC_SPRITE_SLIDER_THUMB]         = { 144,  96,  40,  24 }, /* shared    */
+    [SC_SPRITE_SLIDER_TRACK_H]       = {  68, 112, 120,  24 }, /* stretch-x */
+    [SC_SPRITE_SLIDER_TRACK_V]       = {   0, 112,  24, 120 }, /* stretch-y */
+    [SC_SPRITE_SLIDER_THUMB]         = { 188, 112,  40,  24 }, /* shared    */
 
     /* ── Axes — Joystick ─────────────────────────────────── */
-    [SC_SPRITE_AXIS_JOYSTICK_BASE]   = {   0, 112, 120, 120 },
-    [SC_SPRITE_AXIS_JOYSTICK_THUMB]  = { 120, 112,  40,  40 },
+    [SC_SPRITE_AXIS_JOYSTICK_BASE]   = {   0, 328, 120, 120 },
+    [SC_SPRITE_AXIS_JOYSTICK_THUMB]  = { 120, 328,  40,  40 },
 
     /* ── Axes — D-Pad ────────────────────────────────────── */
-    [SC_SPRITE_AXIS_DPAD_BASE]       = { 160, 112, 120, 120 },
-    [SC_SPRITE_AXIS_DPAD_UP]         = { 280, 112,  40,  36 },
-    [SC_SPRITE_AXIS_DPAD_DOWN]       = { 320, 112,  40,  36 },
-    [SC_SPRITE_AXIS_DPAD_LEFT]       = { 360, 112,  36,  40 },
-    [SC_SPRITE_AXIS_DPAD_RIGHT]      = { 396, 112,  36,  40 },
+    [SC_SPRITE_AXIS_DPAD_BASE]       = { 160, 328, 120, 120 },
+    [SC_SPRITE_AXIS_DPAD_UP]         = { 280, 328,  40,  36 },
+    [SC_SPRITE_AXIS_DPAD_DOWN]       = { 320, 328,  40,  36 },
+    [SC_SPRITE_AXIS_DPAD_LEFT]       = { 360, 328,  36,  40 },
+    [SC_SPRITE_AXIS_DPAD_RIGHT]      = { 396, 328,  36,  40 },
 
     /* ── Axes — HAAT (2-D trackpad / head-actuated) ──────── */
-    [SC_SPRITE_AXIS_HAAT_BASE]       = {   0, 232, 120, 120 },
-    [SC_SPRITE_AXIS_HAAT_CURSOR]     = { 120, 232,  24,  24 },
+    [SC_SPRITE_AXIS_HAAT_BASE]       = { 432, 328, 120, 120 },
+    [SC_SPRITE_AXIS_HAAT_CURSOR]     = { 552, 328,  24,  24 },
 
     /* ── Axes — Throttle (vertical linear) ───────────────── */
-    [SC_SPRITE_AXIS_THROTTLE_TRACK]  = { 144, 232,  44, 120 },
-    [SC_SPRITE_AXIS_THROTTLE_GRIP]   = { 188, 232,  60,  20 },
+    [SC_SPRITE_AXIS_THROTTLE_TRACK]  = {  24, 112,  44, 120 },
+    [SC_SPRITE_AXIS_THROTTLE_GRIP]   = { 228, 112,  60,  20 },
 
     /* ── Axes — Yaw (rotary arc) ─────────────────────────── */
-    [SC_SPRITE_AXIS_YAW_RING]        = { 248, 232, 120, 120 },
-    [SC_SPRITE_AXIS_YAW_NEEDLE]      = { 368, 232,  10,  56 },
+    [SC_SPRITE_AXIS_YAW_RING]        = {   0, 448, 120, 120 },
+    [SC_SPRITE_AXIS_YAW_NEEDLE]      = { 120, 448,  10,  56 },
 
     /* ── Axes — Rudder (horizontal bar/pedal) ────────────── */
-    [SC_SPRITE_AXIS_RUDDER_TRACK]    = {   0, 352, 256,  32 },
-    [SC_SPRITE_AXIS_RUDDER_PEDAL]    = { 256, 352,  56,  40 },
+    [SC_SPRITE_AXIS_RUDDER_TRACK]    = { 130, 448, 256,  32 },
+    [SC_SPRITE_AXIS_RUDDER_PEDAL]    = { 386, 448,  56,  40 },
 
     /* ── Knobs ───────────────────────────────────────────── */
-    [SC_SPRITE_KNOB_RING]            = {   0, 408,  64,  64 },
-    [SC_SPRITE_KNOB_CAP]             = {  64, 408,  64,  64 },
+    [SC_SPRITE_KNOB_RING]            = { 442, 448,  64,  64 },
+    [SC_SPRITE_KNOB_CAP]             = { 506, 448,  64,  64 },
 
     /* ── Jog Wheel Frames (96×96, 8-frame strip) ─────────── */
-    [SC_SPRITE_JOG_WHEEL_F0]         = {   0, 312,  96,  96 },
-    [SC_SPRITE_JOG_WHEEL_F1]         = {  96, 312,  96,  96 },
-    [SC_SPRITE_JOG_WHEEL_F2]         = { 192, 312,  96,  96 },
-    [SC_SPRITE_JOG_WHEEL_F3]         = { 288, 312,  96,  96 },
-    [SC_SPRITE_JOG_WHEEL_F4]         = { 384, 312,  96,  96 }, /* flips to 0 after */
-    [SC_SPRITE_JOG_WHEEL_F5]         = {   0, 408,   0,   0 }, /* NOTE: reuse F0 area rotated */
-    [SC_SPRITE_JOG_WHEEL_F6]         = {   0, 408,   0,   0 }, /* placeholder — see note */
-    [SC_SPRITE_JOG_WHEEL_F7]         = {   0, 408,   0,   0 }, /* placeholder — see note */
-    /* NOTE: F5-F7 share F0-F2 reflected via lv_image_set_angle(). Update coords
-     * when the packer generates all 8 frames in the atlas. */
+    [SC_SPRITE_JOG_WHEEL_F0]         = {   0, 232,  96,  96 },
+    [SC_SPRITE_JOG_WHEEL_F1]         = {  96, 232,  96,  96 },
+    [SC_SPRITE_JOG_WHEEL_F2]         = { 192, 232,  96,  96 },
+    [SC_SPRITE_JOG_WHEEL_F3]         = { 288, 232,  96,  96 },
+    [SC_SPRITE_JOG_WHEEL_F4]         = { 384, 232,  96,  96 }, /* flips to 0 after */
+    [SC_SPRITE_JOG_WHEEL_F5]         = {   0,   0,   0,   0 }, /* Placeholder */
+    [SC_SPRITE_JOG_WHEEL_F6]         = {   0,   0,   0,   0 }, /* Placeholder */
+    [SC_SPRITE_JOG_WHEEL_F7]         = {   0,   0,   0,   0 }, /* Placeholder */
 
     /* ── 9-slice Panel ───────────────────────────────────── */
-    [SC_SPRITE_PANEL_TL]             = { 128, 472,  16,  16 },
-    [SC_SPRITE_PANEL_TR]             = { 144, 472,  16,  16 },
-    [SC_SPRITE_PANEL_BL]             = { 160, 472,  16,  16 },
-    [SC_SPRITE_PANEL_BR]             = { 176, 472,  16,  16 },
-    [SC_SPRITE_PANEL_EDGE_T]         = { 192, 472,  64,   8 }, /* tile-x */
-    [SC_SPRITE_PANEL_EDGE_B]         = { 256, 472,  64,   8 }, /* tile-x */
-    [SC_SPRITE_PANEL_EDGE_L]         = { 320, 472,   8,  64 }, /* tile-y */
-    [SC_SPRITE_PANEL_EDGE_R]         = { 328, 472,   8,  64 }, /* tile-y */
-    [SC_SPRITE_PANEL_CENTER]         = { 336, 472,  64,  64 }, /* tile-xy */
+    [SC_SPRITE_PANEL_TL]             = { 130, 512,  16,  16 },
+    [SC_SPRITE_PANEL_TR]             = { 146, 512,  16,  16 },
+    [SC_SPRITE_PANEL_BL]             = { 160, 512,  16,  16 },
+    [SC_SPRITE_PANEL_BR]             = { 176, 512,  16,  16 },
+    [SC_SPRITE_PANEL_EDGE_T]         = { 194, 512,  64,   8 }, /* tile-x */
+    [SC_SPRITE_PANEL_EDGE_B]         = { 258, 512,  64,   8 }, /* tile-x */
+    [SC_SPRITE_PANEL_EDGE_L]         = { 322, 512,   8,  64 }, /* tile-y */
+    [SC_SPRITE_PANEL_EDGE_R]         = { 330, 512,   8,  64 }, /* tile-y */
+    [SC_SPRITE_PANEL_CENTER]         = { 338, 512,  64,  64 }, /* tile-xy */
 };
 
 /* Compile-time size guard */

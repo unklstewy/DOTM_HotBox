@@ -318,6 +318,51 @@ static esp_err_t get_fs_list_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+static esp_err_t get_fs_read_handler(httpd_req_t *req)
+{
+    char query[256] = {0};
+    char req_path[256] = {0};
+    
+    if (httpd_req_get_url_query_str(req, query, sizeof(query)) == ESP_OK) {
+        char param[256];
+        if (httpd_query_key_value(query, "path", param, sizeof(param)) == ESP_OK) {
+            url_decode(req_path, param);
+        }
+    }
+    
+    char fullpath[512];
+    snprintf(fullpath, sizeof(fullpath), "/sdcard%s", req_path);
+    
+    FILE *f = fopen(fullpath, "rb");
+    if (!f) {
+        httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, "File not found");
+        return ESP_FAIL;
+    }
+    
+    if (strstr(fullpath, ".json")) {
+        httpd_resp_set_type(req, "application/json");
+    } else {
+        httpd_resp_set_type(req, "application/octet-stream");
+    }
+    
+    char *buf = malloc(4096);
+    if (!buf) {
+        fclose(f);
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Out of memory");
+        return ESP_FAIL;
+    }
+    
+    size_t read_bytes;
+    while ((read_bytes = fread(buf, 1, 4096, f)) > 0) {
+        httpd_resp_send_chunk(req, buf, read_bytes);
+    }
+    httpd_resp_send_chunk(req, NULL, 0);
+    
+    fclose(f);
+    free(buf);
+    return ESP_OK;
+}
+
 static esp_err_t post_fs_upload_handler(httpd_req_t *req)
 {
     char target_path[256] = {0};
@@ -505,6 +550,9 @@ esp_err_t sc_web_start(void)
 
     httpd_uri_t api_fs_list = { .uri = "/api/fs/list", .method = HTTP_GET, .handler = get_fs_list_handler, .user_ctx = NULL };
     httpd_register_uri_handler(s_server, &api_fs_list);
+
+    httpd_uri_t api_fs_read = { .uri = "/api/fs/read", .method = HTTP_GET, .handler = get_fs_read_handler, .user_ctx = NULL };
+    httpd_register_uri_handler(s_server, &api_fs_read);
 
     httpd_uri_t api_fs_upload = { .uri = "/api/fs/upload", .method = HTTP_POST, .handler = post_fs_upload_handler, .user_ctx = NULL };
     httpd_register_uri_handler(s_server, &api_fs_upload);

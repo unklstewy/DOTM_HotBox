@@ -35,28 +35,7 @@ static lv_obj_t *s_tab_bar = NULL;
 #define MAX_BUTTONS (128)
 #define MAX_CONSOLES (8)
 
-typedef struct
-{
-    char action_id[32];
-    char label_text[32];
-    lv_obj_t *widget;        /* root widget object (any type) */
-    lv_obj_t *label;         /* text label child, if applicable */
-    int console_idx;
-    char state_event[48];    /* gamelink event name, or ""  */
-    /* Layout Geometry */
-    int row;
-    int col;
-    int width;
-    int height;
-    /* Widget type */
-    sc_widget_type_t widget_type;
-    bool latching_state;     /* current ON/OFF for latching buttons */
-    /* State colours from JSON */
-    char state_keys[4][16];
-    lv_color_t state_colors[4];
-    char state_labels[4][16];
-    uint8_t state_count;
-} console_btn_t;
+#include "sc_ui_theme.h"
 
 static console_btn_t s_buttons[MAX_BUTTONS];
 static int s_btn_count = 0;
@@ -121,44 +100,46 @@ static lv_obj_t *create_widget(lv_obj_t *grid, console_btn_t *cb)
     switch (cb->widget_type) {
         case SC_WIDGET_BTN_LATCHING:
             w = lv_button_create(grid);
+            lv_obj_set_user_data(w, cb);
             sc_ui_theme_style_btn_latching(w, cb->latching_state);
             lv_obj_add_event_cb(w, btn_released_cb, LV_EVENT_RELEASED, cb);
             break;
         case SC_WIDGET_SLIDER_H:
-            w = sc_ui_theme_draw_slider_h(grid);
+            w = sc_ui_theme_draw_slider_h(grid, cb);
             break;
         case SC_WIDGET_SLIDER_V:
-            w = sc_ui_theme_draw_slider_v(grid);
+            w = sc_ui_theme_draw_slider_v(grid, cb);
             break;
         case SC_WIDGET_AXIS_JOYSTICK:
-            w = sc_ui_theme_draw_axis_joystick(grid);
+            w = sc_ui_theme_draw_axis_joystick(grid, cb);
             break;
         case SC_WIDGET_AXIS_DPAD:
-            w = sc_ui_theme_draw_axis_dpad(grid);
+            w = sc_ui_theme_draw_axis_dpad(grid, cb);
             lv_obj_add_event_cb(w, btn_released_cb, LV_EVENT_RELEASED, cb);
             break;
         case SC_WIDGET_AXIS_HAAT:
-            w = sc_ui_theme_draw_axis_haat(grid);
+            w = sc_ui_theme_draw_axis_haat(grid, cb);
             break;
         case SC_WIDGET_AXIS_THROTTLE:
-            w = sc_ui_theme_draw_axis_throttle(grid);
+            w = sc_ui_theme_draw_axis_throttle(grid, cb);
             break;
         case SC_WIDGET_AXIS_YAW:
-            w = sc_ui_theme_draw_axis_yaw(grid);
+            w = sc_ui_theme_draw_axis_yaw(grid, cb);
             break;
         case SC_WIDGET_AXIS_RUDDER:
-            w = sc_ui_theme_draw_axis_rudder(grid);
+            w = sc_ui_theme_draw_axis_rudder(grid, cb);
             break;
         case SC_WIDGET_KNOB:
-            w = sc_ui_theme_draw_knob(grid);
+            w = sc_ui_theme_draw_knob(grid, cb);
             break;
         case SC_WIDGET_JOG_WHEEL:
-            w = sc_ui_theme_draw_jog_wheel(grid);
+            w = sc_ui_theme_draw_jog_wheel(grid, cb);
             lv_obj_add_event_cb(w, btn_released_cb, LV_EVENT_RELEASED, cb);
             break;
         case SC_WIDGET_BTN_MOMENTARY:
         default:
             w = lv_button_create(grid);
+            lv_obj_set_user_data(w, cb);
             sc_ui_theme_style_btn(w, SC_COL_BG_PANEL);
             lv_obj_add_event_cb(w, btn_released_cb, LV_EVENT_RELEASED, cb);
             break;
@@ -529,6 +510,28 @@ void sc_ui_screen_console_load(const sc_terminal_config_t *cfg)
 
     if (hid_count > 0) {
         sc_hid_action_table_load(hid_actions, hid_count);
+    }
+
+    sc_ui_sprite_rect_t r_tl = {0};
+    sc_ui_sprites_get_rect(SC_SPRITE_PANEL_TL, &r_tl);
+    int pad_x = r_tl.w > 0 ? r_tl.w : 16;
+    int pad_y = r_tl.h > 0 ? r_tl.h : 16;
+
+    int total_w = 800 - 2 * pad_x - 32;
+    int total_h = 1280 - 2 * pad_y - 100 - 32;
+
+    for (int b = 0; b < s_btn_count; b++) {
+        console_btn_t *cb = &s_buttons[b];
+        int cols = s_consoles[cb->console_idx].grid_cols;
+        int rows = s_consoles[cb->console_idx].grid_rows;
+        if (cols <= 0) cols = 4;
+        if (rows <= 0) rows = 5;
+
+        int cell_w = total_w / cols;
+        int cell_h = total_h / rows;
+
+        cb->pixel_w = cell_w * cb->width;
+        cb->pixel_h = cell_h * cb->height;
     }
 
     cJSON_Delete(root);

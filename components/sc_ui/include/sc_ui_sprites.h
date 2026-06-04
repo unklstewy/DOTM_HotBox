@@ -193,6 +193,18 @@ size_t sc_ui_sprites_atlas_size(void);
  */
 sc_ui_sprite_id_t sc_ui_sprites_jog_frame(uint16_t angle_deg);
 
+/**
+ * @brief Pre-calculate and rasterize all needed SVG sprites for the given ship JSON layout.
+ *        Reports loading progress using a callback.
+ */
+esp_err_t sc_ui_sprites_rasterize_all(const char *ship_id, void (*progress_cb)(int pct));
+
+/**
+ * @brief Retrieve a cached rasterized sprite image descriptor.
+ *        If w and h are 0, returns the original default size.
+ */
+const lv_image_dsc_t *sc_ui_sprites_get_scaled(sc_ui_sprite_id_t id, uint16_t w, uint16_t h);
+
 #ifdef __cplusplus
 }
 #endif

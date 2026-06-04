@@ -1,0 +1,70 @@
+{
+    "ship_id": "rsi_scorpius",
+    "ship_name": "RSI Scorpius",
+    "manufacturer": "Roberts Space Industries",
+    "consoles": [
+        {
+            "console_id": "turret_control",
+            "display_name": "Copilot Turret Console",
+            "position": "copilot",
+            "layout": "grid_6x6",
+            "actions": [
+                {
+                    "id": "turret_power",
+                    "label": "TURRET ON",
+                    "description": "Power up weapon turret systems",
+                    "icon": "btn_latching",
+                    "row": 0,
+                    "col": 0,
+                    "width": 1,
+                    "height": 1,
+                    "widget_type": "btn_latching",
+                    "hid": { "consumer_usage": 0, "hold_ms": 0, "gamepad_button": 1 }
+                },
+                {
+                    "id": "gyro_lock",
+                    "label": "GYRO",
+                    "description": "Toggle turret stabilization",
+                    "icon": "btn_momentary",
+                    "row": 0,
+                    "col": 1,
+                    "width": 1,
+                    "height": 1,
+                    "widget_type": "btn_momentary",
+                    "hid": { "consumer_usage": 0, "hold_ms": 0, "gamepad_button": 2 },
+                    "state": {
+                        "gamelink_event": "gyro_locked",
+                        "values": {
+                            "true": { "label": "LOCKED", "color": "#00FF88" },
+                            "false": { "label": "UNLOCKED", "color": "#FFb000" }
+                        }
+                    }
+                },
+                {
+                    "id": "turret_joystick",
+                    "label": "AIM STICK",
+                    "description": "Precision aiming controls",
+                    "icon": "axis_joystick",
+                    "row": 1,
+                    "col": 1,
+                    "width": 2,
+                    "height": 2,
+                    "widget_type": "axis_joystick",
+                    "hid": { "consumer_usage": 0, "hold_ms": 0, "gamepad_button": 3 }
+                },
+                {
+                    "id": "fire_weapons",
+                    "label": "FIRE",
+                    "description": "Fire turret guns",
+                    "icon": "btn_momentary",
+                    "row": 1,
+                    "col": 3,
+                    "width": 2,
+                    "height": 2,
+                    "widget_type": "btn_momentary",
+                    "hid": { "consumer_usage": 0, "hold_ms": 0, "gamepad_button": 4 }
+                }
+            ]
+        }
+    ]
+}

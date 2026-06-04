@@ -1,0 +1,51 @@
+{
+    "ship_id": "drake_cutlass_red",
+    "ship_name": "Drake Cutlass Red",
+    "manufacturer": "Drake Interplanetary",
+    "consoles": [
+        {
+            "console_id": "medical_bay",
+            "display_name": "Medical Bay Console",
+            "position": "pilot",
+            "layout": "grid_4x5",
+            "actions": [
+                {
+                    "id": "med_power",
+                    "label": "MED PWR",
+                    "description": "Power up medical bay systems",
+                    "icon": "btn_latching",
+                    "row": 0,
+                    "col": 0,
+                    "width": 1,
+                    "height": 1,
+                    "widget_type": "btn_latching",
+                    "hid": { "consumer_usage": 0, "hold_ms": 0, "gamepad_button": 1 }
+                },
+                {
+                    "id": "bio_monitor",
+                    "label": "MONITOR",
+                    "description": "Cycle patient telemetry display",
+                    "icon": "btn_momentary",
+                    "row": 0,
+                    "col": 1,
+                    "width": 1,
+                    "height": 1,
+                    "widget_type": "btn_momentary",
+                    "hid": { "consumer_usage": 0, "hold_ms": 0, "gamepad_button": 2 }
+                },
+                {
+                    "id": "oxygen_purge",
+                    "label": "OXY PURGE",
+                    "description": "Emergency oxygen line flush",
+                    "icon": "btn_danger",
+                    "row": 0,
+                    "col": 3,
+                    "width": 1,
+                    "height": 1,
+                    "widget_type": "btn_danger",
+                    "hid": { "consumer_usage": 0, "hold_ms": 1000, "gamepad_button": 3 }
+                }
+            ]
+        }
+    ]
+}

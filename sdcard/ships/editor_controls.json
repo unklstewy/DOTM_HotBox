@@ -1,0 +1,17 @@
+{
+  "widget_types": [
+    { "type": "btn_momentary", "name": "Momentary Button", "default_width": 1, "default_height": 1 },
+    { "type": "btn_latching", "name": "Latching Button", "default_width": 1, "default_height": 1 },
+    { "type": "btn_danger", "name": "Danger Button", "default_width": 1, "default_height": 1 },
+    { "type": "slider_h", "name": "Horizontal Slider", "default_width": 2, "default_height": 1 },
+    { "type": "slider_v", "name": "Vertical Slider", "default_width": 1, "default_height": 2 },
+    { "type": "axis_joystick", "name": "Joystick Axis", "default_width": 2, "default_height": 2 },
+    { "type": "axis_dpad", "name": "D-Pad Axis", "default_width": 2, "default_height": 2 },
+    { "type": "axis_haat", "name": "HAT Switch Axis", "default_width": 2, "default_height": 2 },
+    { "type": "axis_throttle", "name": "Throttle Axis", "default_width": 1, "default_height": 2 },
+    { "type": "axis_yaw", "name": "Yaw Ring Axis", "default_width": 2, "default_height": 2 },
+    { "type": "axis_rudder", "name": "Rudder Pedals", "default_width": 3, "default_height": 1 },
+    { "type": "knob", "name": "Rotary Knob", "default_width": 1, "default_height": 1 },
+    { "type": "jog_wheel", "name": "Jog Wheel", "default_width": 2, "default_height": 2 }
+  ]
+}
