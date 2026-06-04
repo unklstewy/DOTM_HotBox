@@ -1,15 +1,17 @@
 /*
- * sc_ui_screen_console.c — Ship console MFD layout renderer
+ * sc_ui_screen_console.c — Game/media controller MFD layout renderer
  *
- * Reads all consoles from the active ship JSON (loaded by sc_config), builds
- * a swipeable tileview where each tile is one console's grid of touch buttons,
- * and wires each button to sc_hid_action_send().
+ * Reads all consoles from the active ship JSON, builds a swipeable tileview
+ * where each tile is one console's grid of typed widgets (buttons, axes,
+ * sliders, knobs, jog wheels) backed by the PSRAM sprite atlas.
  *
+ * All HID output is routed through sc_hid_action_send().
  * Button states update in response to sc_gamelink events.
  */
 
 #include "sc_ui_screen_console.h"
 #include "sc_ui_theme.h"
+#include "sc_ui_sprites.h"
 #include "sc_config.h"
 #include "sc_hid.h"
 #include "sc_gamelink.h"
@@ -37,18 +39,20 @@ typedef struct
 {
     char action_id[32];
     char label_text[32];
-    lv_obj_t *btn;
-    lv_obj_t *label;
+    lv_obj_t *widget;        /* root widget object (any type) */
+    lv_obj_t *label;         /* text label child, if applicable */
     int console_idx;
-    char state_event[48]; /* gamelink event name, or ""  */
+    char state_event[48];    /* gamelink event name, or ""  */
     /* Layout Geometry */
     int row;
     int col;
     int width;
     int height;
-    
+    /* Widget type */
+    sc_widget_type_t widget_type;
+    bool latching_state;     /* current ON/OFF for latching buttons */
     /* State colours from JSON */
-    char state_keys[4][16]; /* e.g. "up", "down"           */
+    char state_keys[4][16];
     lv_color_t state_colors[4];
     char state_labels[4][16];
     uint8_t state_count;
@@ -74,15 +78,92 @@ static lv_coord_t s_grid_row_dscs[MAX_CONSOLES][16];
 
 static void btn_released_cb(lv_event_t *e)
 {
-    const console_btn_t *btn = (const console_btn_t *)lv_event_get_user_data(e);
-    if (!btn)
-        return;
-    ESP_LOGD(TAG, "Button pressed: %s", btn->action_id);
-    esp_err_t ret = sc_hid_action_send(btn->action_id);
-    if (ret != ESP_OK)
-    {
+    console_btn_t *cb = (console_btn_t *)lv_event_get_user_data(e);
+    if (!cb) return;
+    ESP_LOGD(TAG, "Widget action: %s", cb->action_id);
+
+    /* Handle latching toggle state flip */
+    if (cb->widget_type == SC_WIDGET_BTN_LATCHING && cb->widget) {
+        cb->latching_state = !cb->latching_state;
+        lv_lock();
+        sc_ui_theme_style_btn_latching(cb->widget, cb->latching_state);
+        lv_unlock();
+    }
+
+    esp_err_t ret = sc_hid_action_send(cb->action_id);
+    if (ret != ESP_OK) {
         ESP_LOGW(TAG, "HID send failed: %s", esp_err_to_name(ret));
     }
+}
+
+/** Parse widget_type string from JSON, default to BTN_MOMENTARY. */
+static sc_widget_type_t parse_widget_type(const char *s)
+{
+    if (!s) return SC_WIDGET_BTN_MOMENTARY;
+    if (strcmp(s, "btn_latching")    == 0) return SC_WIDGET_BTN_LATCHING;
+    if (strcmp(s, "slider_h")        == 0) return SC_WIDGET_SLIDER_H;
+    if (strcmp(s, "slider_v")        == 0) return SC_WIDGET_SLIDER_V;
+    if (strcmp(s, "axis_joystick")   == 0) return SC_WIDGET_AXIS_JOYSTICK;
+    if (strcmp(s, "axis_dpad")       == 0) return SC_WIDGET_AXIS_DPAD;
+    if (strcmp(s, "axis_haat")       == 0) return SC_WIDGET_AXIS_HAAT;
+    if (strcmp(s, "axis_throttle")   == 0) return SC_WIDGET_AXIS_THROTTLE;
+    if (strcmp(s, "axis_yaw")        == 0) return SC_WIDGET_AXIS_YAW;
+    if (strcmp(s, "axis_rudder")     == 0) return SC_WIDGET_AXIS_RUDDER;
+    if (strcmp(s, "knob")            == 0) return SC_WIDGET_KNOB;
+    if (strcmp(s, "jog_wheel")       == 0) return SC_WIDGET_JOG_WHEEL;
+    return SC_WIDGET_BTN_MOMENTARY;
+}
+
+/** Create the correct LVGL widget tree for a given type inside a grid cell. */
+static lv_obj_t *create_widget(lv_obj_t *grid, console_btn_t *cb)
+{
+    lv_obj_t *w = NULL;
+    switch (cb->widget_type) {
+        case SC_WIDGET_BTN_LATCHING:
+            w = lv_button_create(grid);
+            sc_ui_theme_style_btn_latching(w, cb->latching_state);
+            lv_obj_add_event_cb(w, btn_released_cb, LV_EVENT_RELEASED, cb);
+            break;
+        case SC_WIDGET_SLIDER_H:
+            w = sc_ui_theme_draw_slider_h(grid);
+            break;
+        case SC_WIDGET_SLIDER_V:
+            w = sc_ui_theme_draw_slider_v(grid);
+            break;
+        case SC_WIDGET_AXIS_JOYSTICK:
+            w = sc_ui_theme_draw_axis_joystick(grid);
+            break;
+        case SC_WIDGET_AXIS_DPAD:
+            w = sc_ui_theme_draw_axis_dpad(grid);
+            lv_obj_add_event_cb(w, btn_released_cb, LV_EVENT_RELEASED, cb);
+            break;
+        case SC_WIDGET_AXIS_HAAT:
+            w = sc_ui_theme_draw_axis_haat(grid);
+            break;
+        case SC_WIDGET_AXIS_THROTTLE:
+            w = sc_ui_theme_draw_axis_throttle(grid);
+            break;
+        case SC_WIDGET_AXIS_YAW:
+            w = sc_ui_theme_draw_axis_yaw(grid);
+            break;
+        case SC_WIDGET_AXIS_RUDDER:
+            w = sc_ui_theme_draw_axis_rudder(grid);
+            break;
+        case SC_WIDGET_KNOB:
+            w = sc_ui_theme_draw_knob(grid);
+            break;
+        case SC_WIDGET_JOG_WHEEL:
+            w = sc_ui_theme_draw_jog_wheel(grid);
+            lv_obj_add_event_cb(w, btn_released_cb, LV_EVENT_RELEASED, cb);
+            break;
+        case SC_WIDGET_BTN_MOMENTARY:
+        default:
+            w = lv_button_create(grid);
+            sc_ui_theme_style_btn(w, SC_COL_BG_PANEL);
+            lv_obj_add_event_cb(w, btn_released_cb, LV_EVENT_RELEASED, cb);
+            break;
+    }
+    return w;
 }
 
 static void settings_btn_cb(lv_event_t *e)
@@ -180,27 +261,30 @@ lv_obj_t *sc_ui_screen_console_create(lv_obj_t *parent)
 
         lv_obj_set_grid_dsc_array(grid, s_grid_col_dscs[i], s_grid_row_dscs[i]);
 
-        /* Add buttons belonging to this console */
+        /* Add widgets belonging to this console */
         for (int b = 0; b < s_btn_count; b++)
         {
             console_btn_t *cb = &s_buttons[b];
             if (cb->console_idx != i) continue;
 
-            lv_obj_t *btn = lv_button_create(grid);
-            lv_obj_set_grid_cell(btn, LV_GRID_ALIGN_STRETCH, cb->col, cb->width,
-                                      LV_GRID_ALIGN_STRETCH, cb->row, cb->height);
+            lv_obj_t *w = create_widget(grid, cb);
+            if (!w) continue;
 
-            sc_ui_theme_style_btn(btn, SC_COL_BG_PANEL);
-            lv_obj_add_event_cb(btn, btn_released_cb, LV_EVENT_RELEASED, cb);
+            lv_obj_set_grid_cell(w, LV_GRID_ALIGN_STRETCH, cb->col, cb->width,
+                                     LV_GRID_ALIGN_STRETCH, cb->row, cb->height);
+            cb->widget = w;
 
-            lv_obj_t *lbl = lv_label_create(btn);
-            lv_label_set_text(lbl, cb->label_text[0] ? cb->label_text : cb->action_id);
-            lv_obj_set_style_text_color(lbl, SC_COL_TEXT, 0);
-            lv_obj_set_style_text_font(lbl, SC_FONT_MEDIUM, 0);
-            lv_obj_align(lbl, LV_ALIGN_CENTER, 0, 0);
-
-            cb->btn = btn;
-            cb->label = lbl;
+            /* Add text label for button types only */
+            if (cb->widget_type == SC_WIDGET_BTN_MOMENTARY ||
+                cb->widget_type == SC_WIDGET_BTN_LATCHING)
+            {
+                lv_obj_t *lbl = lv_label_create(w);
+                lv_label_set_text(lbl, cb->label_text[0] ? cb->label_text : cb->action_id);
+                lv_obj_set_style_text_color(lbl, SC_COL_TEXT, 0);
+                lv_obj_set_style_text_font(lbl, SC_FONT_MEDIUM, 0);
+                lv_obj_align(lbl, LV_ALIGN_CENTER, 0, 0);
+                cb->label = lbl;
+            }
         }
     }
 
@@ -274,6 +358,27 @@ void sc_ui_screen_console_load(const sc_terminal_config_t *cfg)
         return;
     }
 
+    if (!sc_ui_sprites_is_loaded()) {
+        cJSON *manuf = cJSON_GetObjectItem(root, "manufacturer");
+        if (manuf && cJSON_IsString(manuf)) {
+            char manuf_lower[64] = {0};
+            for (int i = 0; manuf->valuestring[i] && i < sizeof(manuf_lower) - 1; i++) {
+                char c = manuf->valuestring[i];
+                if (c >= 'A' && c <= 'Z') c = c - 'A' + 'a';
+                manuf_lower[i] = c;
+            }
+            if (strstr(manuf_lower, "drake")) {
+                sc_ui_theme_init_drake_military();
+            } else if (strstr(manuf_lower, "origin")) {
+                sc_ui_theme_init_origin_lux();
+            } else {
+                sc_ui_theme_init_drake_military();
+            }
+        } else {
+            sc_ui_theme_init_drake_military();
+        }
+    }
+
     memset(s_buttons, 0, sizeof(s_buttons));
     memset(s_consoles, 0, sizeof(s_consoles));
     s_btn_count = 0;
@@ -329,9 +434,13 @@ void sc_ui_screen_console_load(const sc_terminal_config_t *cfg)
             cb->width = cJSON_IsNumber(w_json) ? w_json->valueint : 1;
             cb->height = cJSON_IsNumber(h_json) ? h_json->valueint : 1;
 
-            cJSON *id = cJSON_GetObjectItem(action, "id");
-            cJSON *label = cJSON_GetObjectItem(action, "label");
-            cJSON *state = cJSON_GetObjectItem(action, "state");
+            cJSON *id      = cJSON_GetObjectItem(action, "id");
+            cJSON *label   = cJSON_GetObjectItem(action, "label");
+            cJSON *state   = cJSON_GetObjectItem(action, "state");
+            cJSON *wtype_j = cJSON_GetObjectItem(action, "widget_type");
+            cb->widget_type   = parse_widget_type(
+                cJSON_IsString(wtype_j) ? wtype_j->valuestring : NULL);
+            cb->latching_state = false;
 
             if (!cJSON_IsString(id))
                 continue;
@@ -434,11 +543,17 @@ void sc_ui_screen_console_destroy(void)
     if (s_root)
     {
         lv_obj_delete(s_root);
-        s_root = NULL;
+        s_root    = NULL;
         s_tileview = NULL;
+        s_tab_bar  = NULL;
     }
     lv_unlock();
-    s_btn_count = 0;
+    /* Clear widget pointers so stale refs can't be used */
+    for (int i = 0; i < s_btn_count; i++) {
+        s_buttons[i].widget = NULL;
+        s_buttons[i].label  = NULL;
+    }
+    s_btn_count     = 0;
     s_console_count = 0;
 }
 
@@ -470,14 +585,23 @@ void sc_ui_screen_console_on_event(const sc_gamelink_event_t *evt,
         /* Find matching state entry */
         for (int s = 0; s < cb->state_count; s++)
         {
-            if (strcmp(cb->state_keys[s], state_val) == 0)
-            {
-                lv_lock();
+            if (strcmp(cb->state_keys[s], state_val) != 0) continue;
+            lv_lock();
+            if (cb->label)
                 lv_label_set_text(cb->label, cb->state_labels[s]);
-                sc_ui_theme_style_btn(cb->btn, cb->state_colors[s]);
-                lv_unlock();
-                break;
+            if (cb->widget) {
+                if (cb->widget_type == SC_WIDGET_BTN_LATCHING) {
+                    /* Map state string to ON/OFF for latching buttons */
+                    bool on = (strcmp(cb->state_keys[s], "on")  == 0 ||
+                               strcmp(cb->state_keys[s], "up")  == 0 ||
+                               strcmp(cb->state_keys[s], "active") == 0);
+                    sc_ui_theme_style_btn_latching(cb->widget, on);
+                } else {
+                    sc_ui_theme_style_btn(cb->widget, cb->state_colors[s]);
+                }
             }
+            lv_unlock();
+            break;
         }
     }
 }

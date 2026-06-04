@@ -2,6 +2,7 @@ idf_component_register(
     SRCS
         "sc_ui.c"
         "sc_ui_theme.c"
+        "sc_ui_sprites.c"
         "screens/sc_ui_screen_console.c"
         "screens/sc_ui_screen_settings.c"
         "screens/sc_ui_screen_pairing.c"
@@ -21,6 +22,7 @@ idf_component_register(
         sc_gamelink
         esp_timer
         nvs_flash
+        heap
 )
 
 

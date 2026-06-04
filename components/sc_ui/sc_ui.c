@@ -11,6 +11,7 @@
 #include "sc_ui.h"
 #include "sc_ui_theme.h"
 #include "sc_ui_screens.h"
+#include "sc_ui_sprites.h"
 #include "sc_ui_screen_console.h"
 #include "sc_ui_screen_settings.h"
 #include "sc_ui_screen_pairing.h"
@@ -142,6 +143,7 @@ void sc_ui_deinit(void)
         esp_timer_delete(s_ui_timer);
         s_ui_timer = NULL;
     }
+    sc_ui_sprites_unload();   /* free PSRAM atlas before LVGL teardown */
     lv_deinit();
 }
 
