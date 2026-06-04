@@ -75,6 +75,13 @@ esp_err_t sc_ui_router_home(void);
  */
 esp_err_t sc_ui_brightness_set(uint8_t percent);
 
+/**
+ * @brief Dynamic display rotation setter.
+ *        Safe to call from any thread (uses lv_lock/unlock internally).
+ * @param rotation 0 = Portrait (0°), 1 = Landscape (90°), 2 = Portrait (180°), 3 = Landscape (270°)
+ */
+void sc_ui_set_rotation(uint8_t rotation);
+
 #ifdef __cplusplus
 }
 #endif

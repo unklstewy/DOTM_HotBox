@@ -74,7 +74,7 @@ lv_obj_t *sc_ui_screen_splash_create(void *user_data)
     // Full screen background image
     lv_obj_t *bg_img = lv_image_create(s_scr);
     lv_image_set_src(bg_img, "S:/assets/images/splash_base_portait.png");
-    lv_obj_set_size(bg_img, 800, 1280);
+    lv_obj_set_size(bg_img, LV_PCT(100), LV_PCT(100));
     lv_obj_align(bg_img, LV_ALIGN_CENTER, 0, 0);
 
     // Centered branding logo

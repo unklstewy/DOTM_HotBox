@@ -27,6 +27,7 @@ static const char *TAG = "sc_config";
 #define NVS_KEY_BRIDGE_HOST  "bridge_host"
 #define NVS_KEY_BRIDGE_PORT  "bridge_port"
 #define NVS_KEY_HID_EN       "hid_enabled"
+#define NVS_KEY_DISP_ROT     "disp_rot"
 
 /* Touch calibration keys */
 #define NVS_KEY_TC_IS_CAL    "tc_is_cal"
@@ -70,6 +71,7 @@ static void config_set_defaults(sc_terminal_config_t *cfg)
     cfg->touch_cal.swap_xy = false;
     cfg->touch_cal.invert_x = false;
     cfg->touch_cal.invert_y = false;
+    cfg->display_rotation = 0;
 }
 
 static esp_err_t nvs_load(sc_terminal_config_t *cfg)
@@ -108,6 +110,13 @@ static esp_err_t nvs_load(sc_terminal_config_t *cfg)
     if (nvs_get_u8(h, NVS_KEY_TC_SWAP, &tc_bool) == ESP_OK) cfg->touch_cal.swap_xy = (bool)tc_bool;
     if (nvs_get_u8(h, NVS_KEY_TC_INV_X, &tc_bool) == ESP_OK) cfg->touch_cal.invert_x = (bool)tc_bool;
     if (nvs_get_u8(h, NVS_KEY_TC_INV_Y, &tc_bool) == ESP_OK) cfg->touch_cal.invert_y = (bool)tc_bool;
+
+    uint8_t rot;
+    if (nvs_get_u8(h, NVS_KEY_DISP_ROT, &rot) == ESP_OK) {
+        cfg->display_rotation = rot;
+    } else {
+        cfg->display_rotation = 0;
+    }
 
     nvs_close(h);
     return ESP_OK;
@@ -173,6 +182,7 @@ esp_err_t sc_config_save(const sc_terminal_config_t *cfg)
     nvs_set_u8(h, NVS_KEY_TC_SWAP, (uint8_t)cfg->touch_cal.swap_xy);
     nvs_set_u8(h, NVS_KEY_TC_INV_X, (uint8_t)cfg->touch_cal.invert_x);
     nvs_set_u8(h, NVS_KEY_TC_INV_Y, (uint8_t)cfg->touch_cal.invert_y);
+    nvs_set_u8(h, NVS_KEY_DISP_ROT, cfg->display_rotation);
 
     esp_err_t ret = nvs_commit(h);
     nvs_close(h);

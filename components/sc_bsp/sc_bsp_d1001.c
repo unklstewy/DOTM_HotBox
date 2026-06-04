@@ -75,6 +75,7 @@ static esp_lcd_panel_handle_t       s_panel    = NULL;
 static esp_lcd_touch_handle_t       s_touch    = NULL;
 static i2c_master_bus_handle_t      s_exp_i2c_bus = NULL;
 static esp_io_expander_handle_t     s_io_expander = NULL;
+static void                        *s_panel_fb = NULL;
 esp_io_expander_handle_t io_expander = NULL; /* Exported for GSL3670 driver */
 
 static adc_oneshot_unit_handle_t s_adc_handle = NULL;
@@ -135,6 +136,7 @@ lv_display_t* sc_bsp_display_create(void)
     /* The hardware still needs its framebuffer to scan out from */
     void *panel_fb0 = NULL;
     ESP_ERROR_CHECK(esp_lcd_dpi_panel_get_frame_buffer(s_panel, 1, &panel_fb0));
+    s_panel_fb = panel_fb0;
     ESP_LOGI(TAG, "Panel framebuffer at %p", panel_fb0);
 
     lv_display_t *disp = lv_display_create(SC_UI_DISPLAY_WIDTH, SC_UI_DISPLAY_HEIGHT);
@@ -180,10 +182,56 @@ static void sc_bsp_lvgl_flush_cb(lv_display_t *disp, const lv_area_t *area, uint
 {
     s_flush_seq++;
     if (s_flush_seq <= SC_UI_DBG_FLUSH_LOG_INITIAL || (s_flush_seq % SC_UI_DBG_FLUSH_LOG_EVERY) == 0) {
-        ESP_LOGI(TAG, "Flush #%lu area=(%d,%d)-(%d,%d)", (unsigned long)s_flush_seq,
-                 (int)area->x1, (int)area->y1, (int)area->x2, (int)area->y2);
+        ESP_LOGI(TAG, "Flush #%lu area=(%d,%d)-(%d,%d) rot=%d", (unsigned long)s_flush_seq,
+                 (int)area->x1, (int)area->y1, (int)area->x2, (int)area->y2,
+                 (int)lv_display_get_rotation(disp));
     }
-    esp_lcd_panel_draw_bitmap(s_panel, area->x1, area->y1, area->x2 + 1, area->y2 + 1, px_map);
+
+    lv_display_rotation_t rotation = lv_display_get_rotation(disp);
+
+    if (rotation == LV_DISPLAY_ROTATION_0 || !s_panel_fb) {
+        esp_lcd_panel_draw_bitmap(s_panel, area->x1, area->y1, area->x2 + 1, area->y2 + 1, px_map);
+    } else {
+        uint16_t *src = (uint16_t *)px_map;
+        uint16_t *dst = (uint16_t *)s_panel_fb;
+        int w = area->x2 - area->x1 + 1;
+        int h = area->y2 - area->y1 + 1;
+
+        if (rotation == LV_DISPLAY_ROTATION_90) {
+            for (int x = 0; x < w; x++) {
+                int lx = area->x1 + x;
+                int py = lx;
+                int dst_base = py * 800;
+                for (int y = 0; y < h; y++) {
+                    int ly = area->y1 + y;
+                    int px = 799 - ly;
+                    dst[dst_base + px] = src[y * w + x];
+                }
+            }
+        } else if (rotation == LV_DISPLAY_ROTATION_180) {
+            for (int y = 0; y < h; y++) {
+                int ly = area->y1 + y;
+                int py = 1279 - ly;
+                int dst_base = py * 800;
+                for (int x = 0; x < w; x++) {
+                    int lx = area->x1 + x;
+                    int px = 799 - lx;
+                    dst[dst_base + px] = src[y * w + x];
+                }
+            }
+        } else if (rotation == LV_DISPLAY_ROTATION_270) {
+            for (int x = 0; x < w; x++) {
+                int lx = area->x1 + x;
+                int py = 1279 - lx;
+                int dst_base = py * 800;
+                for (int y = 0; y < h; y++) {
+                    int ly = area->y1 + y;
+                    int px = ly;
+                    dst[dst_base + px] = src[y * w + x];
+                }
+            }
+        }
+    }
     lv_display_flush_ready(disp);
 }
 

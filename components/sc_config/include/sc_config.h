@@ -49,6 +49,7 @@ typedef struct {
     uint16_t bridge_port;                         /**< WebSocket port (default 8765) */
     bool    hid_enabled;                          /**< USB HID active         */
     sc_touch_cal_t touch_cal;                     /**< Touch calibration data */
+    uint8_t display_rotation;                     /**< LV_DISPLAY_ROTATION_0/90/180/270 */
 } sc_terminal_config_t;
 
 /* ── Lifecycle ──────────────────────────────────────────────────────────── */

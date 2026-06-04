@@ -123,6 +123,8 @@ static void screen_click_event_cb(lv_event_t *e)
 
 lv_obj_t *sc_ui_screen_calibration_create(void *user_data)
 {
+    lv_display_set_rotation(NULL, LV_DISPLAY_ROTATION_0);
+
     s_scr = lv_obj_create(NULL);
     lv_obj_set_style_bg_color(s_scr, lv_color_black(), 0);
     lv_obj_remove_flag(s_scr, LV_OBJ_FLAG_SCROLLABLE);

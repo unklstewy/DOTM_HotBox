@@ -77,6 +77,13 @@ esp_err_t sc_ui_init(const sc_terminal_config_t *cfg)
     lv_init();
 
     s_lv_disp = sc_bsp_display_create();
+    if (s_lv_disp) {
+        lv_display_rotation_t rot = LV_DISPLAY_ROTATION_0;
+        if (cfg->display_rotation == 1) rot = LV_DISPLAY_ROTATION_90;
+        else if (cfg->display_rotation == 2) rot = LV_DISPLAY_ROTATION_180;
+        else if (cfg->display_rotation == 3) rot = LV_DISPLAY_ROTATION_270;
+        lv_display_set_rotation(s_lv_disp, rot);
+    }
     s_lv_indev = sc_bsp_touch_create();
 
     const esp_timer_create_args_t tick_args = {
@@ -257,6 +264,21 @@ static void sc_ui_periodic_cb(void *arg)
         lv_label_set_text_fmt(s_battery_label, "BATT %d%%", pct);
         lv_unlock();
     }
+}
+
+void sc_ui_set_rotation(uint8_t rotation)
+{
+    lv_lock();
+    lv_display_t *disp = s_lv_disp;
+    if (!disp) disp = lv_display_get_default();
+    if (disp) {
+        lv_display_rotation_t rot = LV_DISPLAY_ROTATION_0;
+        if (rotation == 1) rot = LV_DISPLAY_ROTATION_90;
+        else if (rotation == 2) rot = LV_DISPLAY_ROTATION_180;
+        else if (rotation == 3) rot = LV_DISPLAY_ROTATION_270;
+        lv_display_set_rotation(disp, rot);
+    }
+    lv_unlock();
 }
 
 

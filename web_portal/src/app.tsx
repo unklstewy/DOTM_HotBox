@@ -6,6 +6,7 @@ interface Config {
   ship_id: string;
   console_id: string;
   terminal_index: number;
+  display_rotation?: number;
 }
 
 interface WifiNetwork {
@@ -101,7 +102,8 @@ export function App() {
   const [config, setConfig] = useState<Config>({
     ship_id: 'cutlass_black',
     console_id: 'pilot_mfd_left',
-    terminal_index: 0
+    terminal_index: 0,
+    display_rotation: 0
   });
   const [saveLoading, setSaveLoading] = useState(false);
   const [configSuccess, setConfigSuccess] = useState(false);
@@ -1086,9 +1088,9 @@ export function App() {
   };
 
   // Editor Calculations
-  const activeConsole = shipConfig?.consoles.find(c => c.console_id === activeConsoleId);
+  const activeConsole = (shipConfig?.consoles ?? []).find(c => c.console_id === activeConsoleId);
   const [gridCols, gridRows] = activeConsole ? parseLayoutGrid(activeConsole.layout) : [4, 5];
-  const selectedWidget = activeConsole?.actions[selectedWidgetIdx !== null ? selectedWidgetIdx : -1];
+  const selectedWidget = activeConsole?.actions?.[selectedWidgetIdx !== null ? selectedWidgetIdx : -1];
 
   // Build grid drop zone boxes
   const gridCells = [];
@@ -1245,6 +1247,15 @@ export function App() {
                         style="padding: 6px 10px; font-size: 0.85rem; width: 60px;"
                       />
                     </div>
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                      <label style="font-size: 0.7rem;">Orientation</label>
+                      <select value={config.display_rotation || 0} onChange={(e) => setConfig({ ...config, display_rotation: parseInt((e.target as HTMLSelectElement).value) || 0 })} style="padding: 6px 10px; font-size: 0.85rem; width: 140px;">
+                        <option value="0">Portrait (0°)</option>
+                        <option value="1">Landscape (90°)</option>
+                        <option value="2">Portrait (180°)</option>
+                        <option value="3">Landscape (270°)</option>
+                      </select>
+                    </div>
                     <button type="submit" class="btn" style="padding: 8px 16px; font-size: 0.8rem; margin-top: 18px;" disabled={saveLoading}>
                       {saveLoading ? 'Setting...' : 'Set Active Run Target'}
                     </button>
@@ -1263,7 +1274,7 @@ export function App() {
                             <option value={s.id}>{s.name}</option>
                           ))}
                         </select>
-                        <span style="font-size: 0.85rem; color: var(--text-secondary); margin-left: 10px;">Active Theme:</span>
+                        <span style="font-size: 0.85rem; color: var(--text-secondary);">Theme:</span>
                         <select 
                           value={editorThemeOverride || 'auto'} 
                           onChange={(e) => {
@@ -1276,20 +1287,22 @@ export function App() {
                           <option value="drake">Drake (Military)</option>
                           <option value="origin">Origin (Lux)</option>
                         </select>
-
                       </div>
                     </div>
                     
                     {/* Action Tools */}
-                    <div style="display: flex; gap: 10px;">
-                      <button class="btn" onClick={handleSaveLayoutToDevice} disabled={saveLoading || !shipConfig} style="padding: 8px 16px; font-size: 0.8rem;">
-                        💾 Save to Device
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: nowrap;">
+                      <button class="btn accent" onClick={() => setShowAddShipModal(true)} style="padding: 8px 14px; font-size: 0.8rem;">
+                        ＋ New Ship
                       </button>
-                      <button class="btn accent" onClick={handleExportLayoutFile} disabled={!shipConfig} style="padding: 8px 16px; font-size: 0.8rem;">
-                        📤 Export JSON
+                      <button class="btn" onClick={handleSaveLayoutToDevice} disabled={saveLoading || !shipConfig} style="padding: 8px 14px; font-size: 0.8rem;">
+                        💾 Save
                       </button>
-                      <button class="btn" onClick={() => importFileRef.current?.click()} style="padding: 8px 16px; font-size: 0.8rem;">
-                        📥 Import JSON
+                      <button class="btn" onClick={handleExportLayoutFile} disabled={!shipConfig} style="padding: 8px 14px; font-size: 0.8rem;">
+                        📤 Export
+                      </button>
+                      <button class="btn" onClick={() => importFileRef.current?.click()} style="padding: 8px 14px; font-size: 0.8rem;">
+                        📥 Import
                       </button>
                       <input 
                         type="file" 

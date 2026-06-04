@@ -205,7 +205,7 @@ lv_obj_t *sc_ui_screen_console_create(lv_obj_t *parent)
     }
 
     s_root = lv_obj_create(parent);
-    lv_obj_set_size(s_root, 800, 1280);
+    lv_obj_set_size(s_root, LV_PCT(100), LV_PCT(100));
     lv_obj_set_style_bg_color(s_root, SC_COL_BG, 0);
     lv_obj_set_style_bg_opa(s_root, LV_OPA_COVER, 0);
 
@@ -523,8 +523,10 @@ void sc_ui_screen_console_load(const sc_terminal_config_t *cfg)
     int pad_x = r_tl.w > 0 ? r_tl.w : 16;
     int pad_y = r_tl.h > 0 ? r_tl.h : 16;
 
-    int total_w = 800 - 2 * pad_x - 32;
-    int total_h = 1280 - 2 * pad_y - 100 - 32;
+    int display_width = lv_display_get_horizontal_resolution(NULL);
+    int display_height = lv_display_get_vertical_resolution(NULL);
+    int total_w = display_width - 2 * pad_x - 32;
+    int total_h = display_height - 2 * pad_y - 100 - 32;
 
     for (int b = 0; b < s_btn_count; b++) {
         console_btn_t *cb = &s_buttons[b];

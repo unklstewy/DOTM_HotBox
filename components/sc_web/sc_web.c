@@ -5,6 +5,7 @@
 #include "sc_web.h"
 #include "sc_config.h"
 #include "sc_network.h"
+#include "sc_ui.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -186,6 +187,7 @@ static esp_err_t get_config_handler(httpd_req_t *req)
     cJSON_AddStringToObject(root, "ship_id", cfg->ship_id);
     cJSON_AddStringToObject(root, "console_id", cfg->console_id);
     cJSON_AddNumberToObject(root, "terminal_index", cfg->terminal_index);
+    cJSON_AddNumberToObject(root, "display_rotation", cfg->display_rotation);
     
     char *json = cJSON_PrintUnformatted(root);
     httpd_resp_sendstr(req, json);
@@ -225,6 +227,10 @@ static esp_err_t post_config_handler(httpd_req_t *req)
     if (index) {
         new_cfg.terminal_index = index->valueint;
     }
+    cJSON *rot = cJSON_GetObjectItem(root, "display_rotation");
+    if (rot) {
+        new_cfg.display_rotation = rot->valueint;
+    }
     
     cJSON_Delete(root);
     
@@ -233,6 +239,9 @@ static esp_err_t post_config_handler(httpd_req_t *req)
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to save configuration");
         return ESP_FAIL;
     }
+
+    /* Apply rotation live */
+    sc_ui_set_rotation(new_cfg.display_rotation);
     
     httpd_resp_sendstr(req, "{\"status\":\"ok\"}");
     return ESP_OK;

@@ -10,6 +10,8 @@
 #
 # Options:
 #   --mount-point <path>  Override auto-detected mount point
+#   --network <ip>        Deploy via HTTP upload API instead of SD card mount
+#                         e.g.  --network 192.168.1.206
 #   --dry-run             Show what would be done, without writing
 #   --force               Skip the confirmation prompt
 #   --demo                Also copy the demo ship layout from ~/Pictures/
@@ -50,6 +52,7 @@ DEMO_JSON="${HOME}/Pictures/demo_controls.json"
 RASTERIZE_PY="${SCRIPT_DIR}/rasterize_sprites.py"
 
 MOUNT_POINT=""
+NETWORK_IP=""
 DRY_RUN=false
 FORCE=false
 INCLUDE_DEMO=false
@@ -60,13 +63,14 @@ SKIP_RASTERIZE=false
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --mount-point)     MOUNT_POINT="$2"; shift 2 ;;
+        --network)         NETWORK_IP="$2"; shift 2 ;;
         --dry-run)         DRY_RUN=true; shift ;;
         --force)           FORCE=true; shift ;;
         --demo)            INCLUDE_DEMO=true; shift ;;
         --build-web)       BUILD_WEB=true; shift ;;
         --skip-rasterize)  SKIP_RASTERIZE=true; shift ;;
         -h|--help)
-            sed -n '3,25p' "$0" | sed 's/^# \?//'
+            sed -n '3,27p' "$0" | sed 's/^# \?//'
             exit 0 ;;
         *) echo -e "${RED}Unknown option: $1${RST}"; exit 1 ;;
     esac
@@ -78,6 +82,15 @@ echo "  ┌───────────────────────
 echo "  │   SC Terminal — SD Card Deployment Tool      │"
 echo "  └──────────────────────────────────────────────┘"
 echo -e "${RST}"
+
+# ── Network mode: skip SD card detection entirely ────────────────────────────
+if [[ -n "$NETWORK_IP" ]]; then
+    if ! command -v curl &>/dev/null; then
+        echo -e "${RED}[✗] 'curl' is required for --network mode. Install it and retry.${RST}"
+        exit 1
+    fi
+    echo -e "${GRN}[✓] Network deploy mode: target ${BOLD}http://${NETWORK_IP}${RST}"
+fi
 
 # ── Auto-detect mount point ───────────────────────────────────────────────────
 auto_detect_mount() {
@@ -130,27 +143,30 @@ for dev in data.get('blockdevices', []):
     [[ -n "$candidate" ]] && echo "${candidate%/}"
 }
 
-if [[ -z "$MOUNT_POINT" ]]; then
-    MOUNT_POINT="$(auto_detect_mount)"
-fi
+if [[ -z "$NETWORK_IP" ]]; then
+    if [[ -z "$MOUNT_POINT" ]]; then
+        MOUNT_POINT="$(auto_detect_mount)"
+    fi
 
-if [[ -z "$MOUNT_POINT" ]]; then
-    echo -e "${RED}[✗] No SD card mount point detected.${RST}"
-    echo "    Insert the card, wait for it to be auto-mounted, then retry."
-    echo "    Or specify manually:  $0 --mount-point /run/media/${USER}/F095-9D7D"
-    exit 1
-fi
-
-MOUNT_POINT="${MOUNT_POINT%/}"
-
-if ! mountpoint -q "$MOUNT_POINT" && ! findmnt -n "$MOUNT_POINT" &>/dev/null; then
-    if [[ ! -d "$MOUNT_POINT" ]] || [[ -z "$(ls -A "$MOUNT_POINT" 2>/dev/null)" ]]; then
-        echo -e "${RED}[✗] Mount point '${MOUNT_POINT}' does not appear to be mounted.${RST}"
+    if [[ -z "$MOUNT_POINT" ]]; then
+        echo -e "${RED}[✗] No SD card mount point detected.${RST}"
+        echo "    Insert the card, wait for it to be auto-mounted, then retry."
+        echo "    Or:  $0 --mount-point /run/media/${USER}/F095-9D7D"
+        echo "    Or:  $0 --network <device-ip>   (deploy over WiFi)"
         exit 1
     fi
-fi
 
-echo -e "${GRN}[✓] SD card detected at: ${BOLD}${MOUNT_POINT}${RST}"
+    MOUNT_POINT="${MOUNT_POINT%/}"
+
+    if ! mountpoint -q "$MOUNT_POINT" && ! findmnt -n "$MOUNT_POINT" &>/dev/null; then
+        if [[ ! -d "$MOUNT_POINT" ]] || [[ -z "$(ls -A "$MOUNT_POINT" 2>/dev/null)" ]]; then
+            echo -e "${RED}[✗] Mount point '${MOUNT_POINT}' does not appear to be mounted.${RST}"
+            exit 1
+        fi
+    fi
+
+    echo -e "${GRN}[✓] SD card detected at: ${BOLD}${MOUNT_POINT}${RST}"
+fi
 
 # ── Step 0a: Host-side sprite rasterization ───────────────────────────────────
 if ! $SKIP_RASTERIZE; then
@@ -183,19 +199,25 @@ else
 fi
 
 # ── Disk space check ──────────────────────────────────────────────────────────
-AVAIL_KB=$(df -k "$MOUNT_POINT" | awk 'NR==2 {print $4}')
-NEEDED_KB=$(du -sk "$SDCARD_SOURCE" "$IMAGES_SOURCE" "$WEB_DIST" 2>/dev/null | awk '{s+=$1} END {print s}')
+if [[ -z "$NETWORK_IP" ]]; then
+    AVAIL_KB=$(df -k "$MOUNT_POINT" | awk 'NR==2 {print $4}')
+    NEEDED_KB=$(du -sk "$SDCARD_SOURCE" "$IMAGES_SOURCE" "$WEB_DIST" 2>/dev/null | awk '{s+=$1} END {print s}')
 
-echo -e "${BLU}[→] Available: $(numfmt --to=iec $((AVAIL_KB * 1024)))  Required: ~$(numfmt --to=iec $((NEEDED_KB * 1024)))${RST}"
+    echo -e "${BLU}[→] Available: $(numfmt --to=iec $((AVAIL_KB * 1024)))  Required: ~$(numfmt --to=iec $((NEEDED_KB * 1024)))${RST}"
 
-if (( AVAIL_KB < NEEDED_KB )); then
-    echo -e "${RED}[✗] Insufficient space on SD card.${RST}"
-    exit 1
+    if (( AVAIL_KB < NEEDED_KB )); then
+        echo -e "${RED}[✗] Insufficient space on SD card.${RST}"
+        exit 1
+    fi
 fi
 
 # ── Confirm ───────────────────────────────────────────────────────────────────
 echo ""
-echo -e "${BOLD}Files to be deployed to ${MOUNT_POINT}:${RST}"
+if [[ -n "$NETWORK_IP" ]]; then
+    echo -e "${BOLD}Files to be deployed to http://${NETWORK_IP}:${RST}"
+else
+    echo -e "${BOLD}Files to be deployed to ${MOUNT_POINT}:${RST}"
+fi
 echo -e "  ${CYN}• ${SDCARD_SOURCE}/ships/                  →  ships/${RST}"
 echo -e "  ${CYN}• ${SDCARD_SOURCE}/assets/themes/drake/    →  assets/themes/drake/${RST}"
 echo -e "  ${CYN}• ${SDCARD_SOURCE}/assets/themes/origin/   →  assets/themes/origin/${RST}"
@@ -218,7 +240,44 @@ if $DRY_RUN; then
     echo -e "${YLW}[DRY RUN] No files will be written.${RST}"
 fi
 
-# ── Sync helper ───────────────────────────────────────────────────────────────
+# ── Sync helpers ──────────────────────────────────────────────────────────────
+
+# Upload a single file to the device via HTTP API.
+# Usage: net_upload <local_file> <sdcard_path>   (sdcard_path = /sdcard/...)
+net_upload() {
+    local src="$1"
+    local sdpath="$2"   # full device path e.g. /sdcard/web/index.html
+    if $DRY_RUN; then
+        echo "    [dry-run] PUT ${sdpath}"
+        return 0
+    fi
+    local http_code
+    http_code=$(curl -s -o /dev/null -w "%{http_code}" \
+        -X POST "http://${NETWORK_IP}/api/fs/upload" \
+        -H "X-File-Path: ${sdpath}" \
+        --data-binary @"${src}")
+    if [[ "$http_code" != "200" ]]; then
+        echo -e "${RED}    [✗] Upload failed (HTTP ${http_code}): ${sdpath}${RST}"
+        return 1
+    fi
+}
+
+# Walk a local directory tree and net_upload every file.
+# Usage: net_upload_dir <local_src_dir> <sdcard_dest_prefix>
+#   e.g. net_upload_dir sdcard/ships/ /sdcard/ships
+net_upload_dir() {
+    local src_dir="${1%/}"
+    local dst_prefix="${2%/}"
+    local total=0 ok=0
+    while IFS= read -r -d '' file; do
+        local rel="${file#${src_dir}/}"
+        local sdpath="${dst_prefix}/${rel}"
+        net_upload "$file" "$sdpath" && (( ok++ )) || true
+        (( total++ )) || true
+    done < <(find "$src_dir" -type f -print0)
+    echo -e "${GRN}    Uploaded ${ok}/${total} files.${RST}"
+}
+
 do_rsync() {
     local src="$1"
     local dst="$2"
@@ -256,68 +315,77 @@ do_copy() {
     fi
 }
 
-# ── Create directory structure ────────────────────────────────────────────────
-if ! $DRY_RUN; then
-    echo -e "\n${BLU}[→] Creating directory structure on card...${RST}"
-    mkdir -p \
-        "${MOUNT_POINT}/ships" \
-        "${MOUNT_POINT}/assets/images" \
-        "${MOUNT_POINT}/assets/themes/drake/sprites" \
-        "${MOUNT_POINT}/assets/themes/origin/sprites" \
-        "${MOUNT_POINT}/web/assets"
-fi
-
 # ── Deploy ────────────────────────────────────────────────────────────────────
 
-# 1. Ship JSON layouts
-do_rsync \
-    "${SDCARD_SOURCE}/ships/" \
-    "${MOUNT_POINT}/ships/" \
-    "Ship layouts (ships/*.json)"
+if [[ -n "$NETWORK_IP" ]]; then
+    # ── Network path: upload via HTTP API ─────────────────────────────────────
+    echo -e "\n${BLU}[→] Uploading via HTTP to ${NETWORK_IP}...${RST}"
 
-# 2. Drake theme (SVG + rasterized sprites/ subdir)
-do_rsync \
-    "${SDCARD_SOURCE}/assets/themes/drake/" \
-    "${MOUNT_POINT}/assets/themes/drake/" \
-    "Drake Military theme"
+    # Ping check
+    if ! curl -sf --connect-timeout 3 "http://${NETWORK_IP}/api/status" &>/dev/null; then
+        echo -e "${RED}[✗] Cannot reach http://${NETWORK_IP}/api/status — is the device on WiFi?${RST}"
+        exit 1
+    fi
 
-# 3. Origin theme
-do_rsync \
-    "${SDCARD_SOURCE}/assets/themes/origin/" \
-    "${MOUNT_POINT}/assets/themes/origin/" \
-    "Origin Lux theme"
+    echo -e "\n${BLU}[→] Uploading Ship layouts...${RST}"
+    net_upload_dir "${SDCARD_SOURCE}/ships" "/sdcard/ships"
+    echo -e "${GRN}[✓] Ship layouts uploaded.${RST}"
 
-# 4. Splash / branding images
-do_rsync \
-    "${IMAGES_SOURCE}/" \
-    "${MOUNT_POINT}/assets/images/" \
-    "Branding images (PNG)"
+    echo -e "\n${BLU}[→] Uploading Drake theme sprites...${RST}"
+    net_upload_dir "${SDCARD_SOURCE}/assets/themes/drake/sprites" "/sdcard/assets/themes/drake/sprites"
+    echo -e "${GRN}[✓] Drake sprites uploaded.${RST}"
 
-# 5. Web portal UI
-if [[ -d "${WEB_DIST}" ]]; then
-    do_rsync \
-        "${WEB_DIST}/" \
-        "${MOUNT_POINT}/web/" \
-        "Web portal UI (web/)"
+    echo -e "\n${BLU}[→] Uploading Origin theme sprites...${RST}"
+    net_upload_dir "${SDCARD_SOURCE}/assets/themes/origin/sprites" "/sdcard/assets/themes/origin/sprites"
+    echo -e "${GRN}[✓] Origin sprites uploaded.${RST}"
+
+    if [[ -d "${WEB_DIST}" ]]; then
+        echo -e "\n${BLU}[→] Uploading Web portal UI...${RST}"
+        net_upload_dir "${WEB_DIST}" "/sdcard/web"
+        echo -e "${GRN}[✓] Web portal uploaded.${RST}"
+    fi
+
+    if $INCLUDE_DEMO && [[ -f "$DEMO_JSON" ]]; then
+        echo -e "\n${BLU}[→] Uploading demo ship layout...${RST}"
+        net_upload "$DEMO_JSON" "/sdcard/ships/demo_controls.json"
+        echo -e "${GRN}[✓] Demo layout uploaded.${RST}"
+    fi
+
 else
-    echo -e "${YLW}[!] ${WEB_DIST} not found — skipping web UI deploy.${RST}"
-    echo -e "${YLW}    Run with --build-web or manually: cd web_portal && npm run build${RST}"
-fi
+    # ── SD card path: rsync to mount point ────────────────────────────────────
+    if ! $DRY_RUN; then
+        echo -e "\n${BLU}[→] Creating directory structure on card...${RST}"
+        mkdir -p \
+            "${MOUNT_POINT}/ships" \
+            "${MOUNT_POINT}/assets/images" \
+            "${MOUNT_POINT}/assets/themes/drake/sprites" \
+            "${MOUNT_POINT}/assets/themes/origin/sprites" \
+            "${MOUNT_POINT}/web/assets"
+    fi
 
-# 6. Optional: demo ship layout
-if $INCLUDE_DEMO; then
-    if [[ -f "$DEMO_JSON" ]]; then
-        do_copy \
-            "$DEMO_JSON" \
-            "${MOUNT_POINT}/ships/demo_controls.json" \
-            "Demo ship layout"
+    do_rsync "${SDCARD_SOURCE}/ships/"                  "${MOUNT_POINT}/ships/"                  "Ship layouts (ships/*.json)"
+    do_rsync "${SDCARD_SOURCE}/assets/themes/drake/"    "${MOUNT_POINT}/assets/themes/drake/"    "Drake Military theme"
+    do_rsync "${SDCARD_SOURCE}/assets/themes/origin/"   "${MOUNT_POINT}/assets/themes/origin/"   "Origin Lux theme"
+    do_rsync "${IMAGES_SOURCE}/"                        "${MOUNT_POINT}/assets/images/"          "Branding images (PNG)"
+
+    if [[ -d "${WEB_DIST}" ]]; then
+        do_rsync "${WEB_DIST}/" "${MOUNT_POINT}/web/" "Web portal UI (web/)"
     else
-        echo -e "${YLW}[!] --demo requested but ${DEMO_JSON} not found — skipping.${RST}"
+        echo -e "${YLW}[!] ${WEB_DIST} not found — skipping web UI deploy.${RST}"
+        echo -e "${YLW}    Run with --build-web or manually: cd web_portal && npm run build${RST}"
+    fi
+
+    if $INCLUDE_DEMO; then
+        if [[ -f "$DEMO_JSON" ]]; then
+            do_copy "$DEMO_JSON" "${MOUNT_POINT}/ships/demo_controls.json" "Demo ship layout"
+        else
+            echo -e "${YLW}[!] --demo requested but ${DEMO_JSON} not found — skipping.${RST}"
+        fi
     fi
 fi
 
-# ── Flush writes ──────────────────────────────────────────────────────────────
-if ! $DRY_RUN; then
+# ── Flush writes (SD card only) ───────────────────────────────────────────────
+if [[ -z "$NETWORK_IP" ]] && ! $DRY_RUN; then
     echo -e "\n${BLU}[→] Flushing write cache (sync)...${RST}"
     sync
     echo -e "${GRN}[✓] Sync complete.${RST}"

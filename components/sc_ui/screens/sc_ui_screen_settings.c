@@ -39,6 +39,30 @@ static void calibrate_btn_cb(lv_event_t *e) {
     sc_ui_router_push(SC_UI_SCREEN_CALIBRATION);
 }
 
+static void rot_btn_cb(lv_event_t *e)
+{
+    sc_terminal_config_t cfg = *sc_config_get();
+    if (cfg.display_rotation == 0) {
+        cfg.display_rotation = 1; // Landscape (90)
+    } else {
+        cfg.display_rotation = 0; // Portrait (0)
+    }
+    sc_config_save(&cfg);
+
+    // Apply rotation live
+    lv_display_t *disp = lv_display_get_default();
+    if (disp) {
+        lv_display_set_rotation(disp, cfg.display_rotation == 1 ? LV_DISPLAY_ROTATION_90 : LV_DISPLAY_ROTATION_0);
+    }
+
+    // Update button text
+    lv_obj_t *btn = lv_event_get_target(e);
+    lv_obj_t *lbl = lv_obj_get_child(btn, 0);
+    if (lbl) {
+        lv_label_set_text_fmt(lbl, "Orientation: %s", cfg.display_rotation == 1 ? "Landscape" : "Portrait");
+    }
+}
+
 static void back_btn_cb(lv_event_t *e) {
     sc_ui_router_pop();
 }
@@ -101,6 +125,14 @@ lv_obj_t *sc_ui_screen_settings_create(lv_obj_t *parent)
     lv_obj_add_event_cb(cal_btn, calibrate_btn_cb, LV_EVENT_RELEASED, NULL);
     lv_obj_t *cal_lbl = lv_label_create(cal_btn);
     lv_label_set_text(cal_lbl, "Calibrate Touch");
+
+    /* Toggle display rotation button */
+    const sc_terminal_config_t *cfg = sc_config_get();
+    lv_obj_t *rot_btn = lv_button_create(s_root);
+    lv_obj_set_style_bg_color(rot_btn, SC_COL_ACCENT, 0);
+    lv_obj_add_event_cb(rot_btn, rot_btn_cb, LV_EVENT_RELEASED, NULL);
+    lv_obj_t *rot_lbl = lv_label_create(rot_btn);
+    lv_label_set_text_fmt(rot_lbl, "Orientation: %s", cfg->display_rotation == 1 ? "Landscape" : "Portrait");
 
     /* Back button */
     lv_obj_t *back_btn = lv_button_create(s_root);
