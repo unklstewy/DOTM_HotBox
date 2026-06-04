@@ -175,10 +175,12 @@ static void extract_sprite_rects(const char *svg_data)
             p = strstr(svg_data, target_id);
         }
         if (p) {
+            char *p_tag_end = strchr(p, '>');
             char *p_rect = strstr(p, "data-rect=\"");
             if (!p_rect) p_rect = strstr(p, "data-rect='");
-            if (p_rect) {
-                p_rect += strlen("data-rect=\"");
+            if (p_rect && (!p_tag_end || p_rect < p_tag_end)) {
+                bool single_quote = (p_rect == strstr(p, "data-rect='"));
+                p_rect += single_quote ? strlen("data-rect='") : strlen("data-rect=\"");
                 int x=0, y=0, w=0, h=0;
                 if (sscanf(p_rect, "%d,%d,%d,%d", &x, &y, &w, &h) == 4) {
                     s_rects[s_id_map[i].id].x = x;
@@ -293,6 +295,14 @@ static void queue_sprites_for_widget(const char *wtype, uint16_t target_w, uint1
         for (int i = 0; i < 8; i++) {
             queue_sprite(SC_SPRITE_JOG_WHEEL_F0 + i, base_w, base_h);
         }
+    } else {
+        /* Unknown or missing widget_type — default to btn_momentary sprites so
+         * old-schema ship JSONs (e.g. cutlass_black) still get correctly-sized
+         * rasterised bitmaps rather than silently falling back to tiny defaults. */
+        queue_sprite(SC_SPRITE_BTN_MOMENTARY_IDLE, target_w, target_h);
+        queue_sprite(SC_SPRITE_BTN_MOMENTARY_ARMED, target_w, target_h);
+        queue_sprite(SC_SPRITE_BTN_MOMENTARY_ACTIVE, target_w, target_h);
+        queue_sprite(SC_SPRITE_BTN_INACTIVE, target_w, target_h);
     }
 }
 
@@ -376,11 +386,11 @@ static uint8_t *rasterize_svg_cropped_to_rgb565(sc_ui_sprite_id_t id, uint16_t t
 
     lv_color32_t *src_pixels = (lv_color32_t *)canvas_buf->data;
     uint16_t *dst_pixels = (uint16_t *)rgb_buf;
+    uint32_t stride_pixels = canvas_buf->header.stride / 4;
 
     for (int y = 0; y < target_h; y++) {
         for (int x = 0; x < target_w; x++) {
-            int idx = y * target_w + x;
-            lv_color32_t p = src_pixels[idx];
+            lv_color32_t p = src_pixels[y * stride_pixels + x];
             uint16_t rgb565;
             if (p.alpha < 128) {
                 rgb565 = 0x0001; // Transparent chroma key
@@ -391,7 +401,7 @@ static uint8_t *rasterize_svg_cropped_to_rgb565(sc_ui_sprite_id_t id, uint16_t t
                 rgb565 = (r << 11) | (g << 5) | b;
                 if (rgb565 == 0x0001) rgb565 = 0x0002;
             }
-            dst_pixels[idx] = rgb565;
+            dst_pixels[y * target_w + x] = rgb565;
         }
     }
 
@@ -467,6 +477,51 @@ esp_err_t sc_ui_sprites_rasterize_all(const char *ship_id, void (*progress_cb)(i
 
     clear_cache();
 
+    // 1. Open and parse ship JSON first to check manufacturer & setup theme
+    char path[128];
+    snprintf(path, sizeof(path), "/sdcard/ships/%s.json", ship_id);
+    FILE *f_json = fopen(path, "r");
+    if (!f_json) {
+        ESP_LOGE(TAG, "Failed to open ship JSON: %s", path);
+        return ESP_ERR_NOT_FOUND;
+    }
+    fseek(f_json, 0, SEEK_END);
+    size_t json_sz = ftell(f_json);
+    fseek(f_json, 0, SEEK_SET);
+    char *json_buf = malloc(json_sz + 1);
+    if (!json_buf) {
+        fclose(f_json);
+        return ESP_ERR_NO_MEM;
+    }
+    fread(json_buf, 1, json_sz, f_json);
+    json_buf[json_sz] = '\0';
+    fclose(f_json);
+
+    cJSON *root = cJSON_Parse(json_buf);
+    free(json_buf);
+    if (!root) {
+        ESP_LOGE(TAG, "JSON parsing failed for layout %s", ship_id);
+        return ESP_FAIL;
+    }
+
+    cJSON *manuf = cJSON_GetObjectItem(root, "manufacturer");
+    if (manuf && cJSON_IsString(manuf)) {
+        char manuf_lower[64] = {0};
+        for (int i = 0; manuf->valuestring[i] && i < sizeof(manuf_lower) - 1; i++) {
+            char c = manuf->valuestring[i];
+            if (c >= 'A' && c <= 'Z') c = c - 'A' + 'a';
+            manuf_lower[i] = c;
+        }
+        if (strstr(manuf_lower, "origin")) {
+            sc_ui_theme_init_origin_lux();
+        } else {
+            sc_ui_theme_init_drake_military();
+        }
+    } else {
+        sc_ui_theme_init_drake_military();
+    }
+
+    // 2. Open and load correct theme SVG
     sc_theme_id_t active_theme = sc_ui_theme_get_active();
     const char *svg_path = "/sdcard/assets/themes/drake/sprite_sheet.svg";
     if (active_theme == SC_THEME_ORIGIN_LUX) {
@@ -476,6 +531,7 @@ esp_err_t sc_ui_sprites_rasterize_all(const char *ship_id, void (*progress_cb)(i
     FILE *f_svg = fopen(svg_path, "r");
     if (!f_svg) {
         ESP_LOGE(TAG, "Failed to open SVG file: %s", svg_path);
+        cJSON_Delete(root);
         return ESP_ERR_NOT_FOUND;
     }
     fseek(f_svg, 0, SEEK_END);
@@ -485,6 +541,7 @@ esp_err_t sc_ui_sprites_rasterize_all(const char *ship_id, void (*progress_cb)(i
     s_svg_content = heap_caps_malloc(svg_sz + 1, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (!s_svg_content) {
         fclose(f_svg);
+        cJSON_Delete(root);
         return ESP_ERR_NO_MEM;
     }
     fread(s_svg_content, 1, svg_sz, f_svg);
@@ -502,45 +559,11 @@ esp_err_t sc_ui_sprites_rasterize_all(const char *ship_id, void (*progress_cb)(i
         ESP_LOGE(TAG, "Invalid SVG file root element structure");
         heap_caps_free(s_svg_content);
         s_svg_content = NULL;
+        cJSON_Delete(root);
         return ESP_FAIL;
     }
 
     extract_sprite_rects(s_svg_content);
-
-    char path[128];
-    snprintf(path, sizeof(path), "/sdcard/ships/%s.json", ship_id);
-    FILE *f_json = fopen(path, "r");
-    if (!f_json) {
-        ESP_LOGE(TAG, "Failed to open ship JSON: %s", path);
-        heap_caps_free(s_svg_content);
-        s_svg_content = NULL;
-        s_svg_body = NULL;
-        return ESP_ERR_NOT_FOUND;
-    }
-    fseek(f_json, 0, SEEK_END);
-    size_t json_sz = ftell(f_json);
-    fseek(f_json, 0, SEEK_SET);
-    char *json_buf = malloc(json_sz + 1);
-    if (!json_buf) {
-        fclose(f_json);
-        heap_caps_free(s_svg_content);
-        s_svg_content = NULL;
-        s_svg_body = NULL;
-        return ESP_ERR_NO_MEM;
-    }
-    fread(json_buf, 1, json_sz, f_json);
-    json_buf[json_sz] = '\0';
-    fclose(f_json);
-
-    cJSON *root = cJSON_Parse(json_buf);
-    free(json_buf);
-    if (!root) {
-        ESP_LOGE(TAG, "JSON parsing failed for layout %s", ship_id);
-        heap_caps_free(s_svg_content);
-        s_svg_content = NULL;
-        s_svg_body = NULL;
-        return ESP_FAIL;
-    }
 
     s_queue_count = 0;
 

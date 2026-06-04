@@ -80,6 +80,7 @@ typedef enum {
     SC_WIDGET_AXIS_RUDDER,        /**< Rudder pedal horizontal axis            */
     SC_WIDGET_KNOB,               /**< Rotary knob                             */
     SC_WIDGET_JOG_WHEEL,          /**< Jog / shuttle wheel (multi-frame)       */
+    SC_WIDGET_BTN_DANGER,         /**< Eject / armed-hot danger button         */
     SC_WIDGET_COUNT
 } sc_widget_type_t;
 

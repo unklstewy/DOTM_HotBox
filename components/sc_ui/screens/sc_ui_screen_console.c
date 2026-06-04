@@ -78,8 +78,9 @@ static void btn_released_cb(lv_event_t *e)
 /** Parse widget_type string from JSON, default to BTN_MOMENTARY. */
 static sc_widget_type_t parse_widget_type(const char *s)
 {
-    if (!s) return SC_WIDGET_BTN_MOMENTARY;
+    if (!s)                          return SC_WIDGET_BTN_MOMENTARY;
     if (strcmp(s, "btn_latching")    == 0) return SC_WIDGET_BTN_LATCHING;
+    if (strcmp(s, "btn_danger")      == 0) return SC_WIDGET_BTN_DANGER;
     if (strcmp(s, "slider_h")        == 0) return SC_WIDGET_SLIDER_H;
     if (strcmp(s, "slider_v")        == 0) return SC_WIDGET_SLIDER_V;
     if (strcmp(s, "axis_joystick")   == 0) return SC_WIDGET_AXIS_JOYSTICK;
@@ -102,6 +103,12 @@ static lv_obj_t *create_widget(lv_obj_t *grid, console_btn_t *cb)
             w = lv_button_create(grid);
             lv_obj_set_user_data(w, cb);
             sc_ui_theme_style_btn_latching(w, cb->latching_state);
+            lv_obj_add_event_cb(w, btn_released_cb, LV_EVENT_RELEASED, cb);
+            break;
+        case SC_WIDGET_BTN_DANGER:
+            w = lv_button_create(grid);
+            lv_obj_set_user_data(w, cb);
+            sc_ui_theme_style_btn(w, SC_COL_ARMED);
             lv_obj_add_event_cb(w, btn_released_cb, LV_EVENT_RELEASED, cb);
             break;
         case SC_WIDGET_SLIDER_H:
@@ -257,7 +264,8 @@ lv_obj_t *sc_ui_screen_console_create(lv_obj_t *parent)
 
             /* Add text label for button types only */
             if (cb->widget_type == SC_WIDGET_BTN_MOMENTARY ||
-                cb->widget_type == SC_WIDGET_BTN_LATCHING)
+                cb->widget_type == SC_WIDGET_BTN_LATCHING ||
+                cb->widget_type == SC_WIDGET_BTN_DANGER)
             {
                 lv_obj_t *lbl = lv_label_create(w);
                 lv_label_set_text(lbl, cb->label_text[0] ? cb->label_text : cb->action_id);
@@ -339,25 +347,23 @@ void sc_ui_screen_console_load(const sc_terminal_config_t *cfg)
         return;
     }
 
-    if (!sc_ui_sprites_is_loaded()) {
-        cJSON *manuf = cJSON_GetObjectItem(root, "manufacturer");
-        if (manuf && cJSON_IsString(manuf)) {
-            char manuf_lower[64] = {0};
-            for (int i = 0; manuf->valuestring[i] && i < sizeof(manuf_lower) - 1; i++) {
-                char c = manuf->valuestring[i];
-                if (c >= 'A' && c <= 'Z') c = c - 'A' + 'a';
-                manuf_lower[i] = c;
-            }
-            if (strstr(manuf_lower, "drake")) {
-                sc_ui_theme_init_drake_military();
-            } else if (strstr(manuf_lower, "origin")) {
-                sc_ui_theme_init_origin_lux();
-            } else {
-                sc_ui_theme_init_drake_military();
-            }
+    cJSON *manuf = cJSON_GetObjectItem(root, "manufacturer");
+    if (manuf && cJSON_IsString(manuf)) {
+        char manuf_lower[64] = {0};
+        for (int i = 0; manuf->valuestring[i] && i < sizeof(manuf_lower) - 1; i++) {
+            char c = manuf->valuestring[i];
+            if (c >= 'A' && c <= 'Z') c = c - 'A' + 'a';
+            manuf_lower[i] = c;
+        }
+        if (strstr(manuf_lower, "drake")) {
+            sc_ui_theme_init_drake_military();
+        } else if (strstr(manuf_lower, "origin")) {
+            sc_ui_theme_init_origin_lux();
         } else {
             sc_ui_theme_init_drake_military();
         }
+    } else {
+        sc_ui_theme_init_drake_military();
     }
 
     memset(s_buttons, 0, sizeof(s_buttons));
