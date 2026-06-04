@@ -11,9 +11,6 @@ set(EXTRA_COMPONENT_DIRS "${CMAKE_CURRENT_LIST_DIR}/components")
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(sc_terminal VERSION 1.0.0)
 
-# Build a SPIFFS image from ./data and flash it to the "storage" partition.
-# This provides /spiffs/ships/<ship_id>.json at runtime.
-spiffs_create_partition_image(storage ${CMAKE_CURRENT_LIST_DIR}/data FLASH_IN_PROJECT)
 
 # ── Linker workarounds for IDF 5.5 + esp_hosted 0.0.10 ──────────────────────
 # esp_hosted 0.0.10 defines wifi_deinit/wifi_set_country/wifi_get_country to

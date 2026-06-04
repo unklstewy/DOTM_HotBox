@@ -24,10 +24,12 @@
 #include "esp_log.h"
 
 #include "sc_config.h"
+#include "sc_storage.h"
 #include "sc_hid.h"
 #include "sc_ui.h"
 #include "sc_network.h"
 #include "sc_gamelink.h"
+#include "sc_web.h"
 
 static const char *TAG = "sc_main";
 
@@ -44,6 +46,13 @@ void app_main(void)
 
     /* ── 1. NVS ─────────────────────────────────────────────────────────── */
     ESP_ERROR_CHECK(nvs_init());
+
+    /* ── 1.5. Storage (SD Card) ─────────────────────────────────────────── */
+    err = sc_storage_init();
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Storage init failed: %s", esp_err_to_name(err));
+        // Continue anyway, maybe no SD card inserted
+    }
 
     /* ── 2. Config ──────────────────────────────────────────────────────── */
     ESP_ERROR_CHECK(sc_config_init());
@@ -62,6 +71,7 @@ void app_main(void)
 
     /* ── 5. Network (Wi-Fi + WebSocket) ─────────────────────────────────── */
     ESP_ERROR_CHECK(sc_network_init());
+    ESP_ERROR_CHECK(sc_web_start());
 
     /* ── 6. Gamelink ────────────────────────────────────────────────────── */
     ESP_ERROR_CHECK(sc_gamelink_init());

@@ -8,37 +8,28 @@ from PIL import Image
 SVG_NS = "http://www.w3.org/2000/svg"
 ET.register_namespace('', SVG_NS)
 
-def png_to_c_array(png_file, c_file, array_name, w, h):
+def png_to_bin(png_file, bin_file, w, h):
     img = Image.open(png_file).convert("RGB")
     pixels = img.load()
     
-    with open(c_file, "w") as f:
-        f.write(f"#include \"lvgl.h\"\n\n")
-        f.write(f"const uint8_t {array_name}_map[] = {{\n")
+    with open(bin_file, "wb") as f:
+        # lv_image_header_t for LVGL v9
+        # magic (0x19), cf (0x12 = RGB565), flags (0)
+        # w, h, stride (w*2), reserved (0)
+        magic = 0x19
+        cf = 0x12
+        flags = 0
+        stride = w * 2
+        header = struct.pack("<BBHHH HH", magic, cf, flags, w, h, stride, 0)
+        f.write(header)
         
-        count = 0
         for y in range(h):
             for x in range(w):
                 r, g, b = pixels[x, y]
+                # RGB565 format
                 color = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
-                f.write(f"0x{color & 0xFF:02x}, 0x{(color >> 8) & 0xFF:02x}, ")
-                count += 1
-                if count % 8 == 0:
-                    f.write("\n")
-        f.write("\n};\n\n")
-        
-        f.write(f"const lv_image_dsc_t {array_name} = {{\n")
-        f.write(f"    .header = {{\n")
-        f.write(f"        .magic = LV_IMAGE_HEADER_MAGIC,\n")
-        f.write(f"        .cf = LV_COLOR_FORMAT_RGB565,\n")
-        f.write(f"        .flags = 0,\n")
-        f.write(f"        .w = {w},\n")
-        f.write(f"        .h = {h},\n")
-        f.write(f"        .stride = {w * 2},\n")
-        f.write(f"    }},\n")
-        f.write(f"    .data_size = {w * h * 2},\n")
-        f.write(f"    .data = {array_name}_map,\n")
-        f.write(f"}};\n")
+                # write little-endian uint16
+                f.write(struct.pack("<H", color))
 
 # Dimensions for the 9-slice panel
 PANEL_W = 240
@@ -155,18 +146,17 @@ def extract_sprites(svg_file, out_dir, theme_prefix):
         tree_out.write(tmp_svg)
         
         png_file = os.path.join(out_dir, f"{name}.png")
-        c_file = os.path.join(out_dir, f"{name}.c")
+        bin_file = os.path.join(out_dir, f"{name}.bin")
         
         subprocess.run(["/home/sannis/ESPSCar/tools/mock_ui/venv/bin/cairosvg", tmp_svg, "-o", png_file])
-        array_name = f"img_{theme_prefix}_{slice_key if slice_key else name}"
-        png_to_c_array(png_file, c_file, array_name, w, h)
-        print(f" -> Generated {c_file} (size: {w}x{h})")
+        png_to_bin(png_file, bin_file, w, h)
+        print(f" -> Generated {bin_file} (size: {w}x{h})")
         
         os.remove(tmp_svg)
         os.remove(png_file)
 
 if __name__ == "__main__":
     print("Extracting Drake sprites...")
-    extract_sprites("art/style_drake_military/sprite_sheet.svg", "components/sc_ui/assets/sprites/drake", "drake")
+    extract_sprites("art/style_drake_military/sprite_sheet.svg", "data/assets/themes/drake", "drake")
     print("Extracting Origin sprites...")
-    extract_sprites("art/style_origin_lux/sprite_sheet.svg", "components/sc_ui/assets/sprites/origin", "origin")
+    extract_sprites("art/style_origin_lux/sprite_sheet.svg", "data/assets/themes/origin", "origin")

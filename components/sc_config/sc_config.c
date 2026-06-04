@@ -15,7 +15,6 @@
 #include "freertos/semphr.h"
 #include "nvs_flash.h"
 #include "nvs.h"
-#include "esp_spiffs.h"
 #include "esp_log.h"
 
 static const char *TAG = "sc_config";
@@ -52,13 +51,6 @@ static sc_terminal_config_t s_cfg;
 static SemaphoreHandle_t    s_mutex;
 static bool                 s_initialised = false;
 
-/* ── SPIFFS config ────────────────────────────────────────────────────────── */
-static const esp_vfs_spiffs_conf_t s_spiffs_conf = {
-    .base_path              = "/spiffs",
-    .partition_label        = "storage",
-    .max_files              = 8,
-    .format_if_mount_failed = true,
-};
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
 static void config_set_defaults(sc_terminal_config_t *cfg)
@@ -130,17 +122,11 @@ esp_err_t sc_config_init(void)
     s_mutex = xSemaphoreCreateMutex();
     if (!s_mutex) return ESP_ERR_NO_MEM;
 
-    /* Mount SPIFFS */
-    esp_err_t ret = esp_vfs_spiffs_register(&s_spiffs_conf);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "SPIFFS mount failed: %s", esp_err_to_name(ret));
-        return ret;
-    }
-    ESP_LOGI(TAG, "SPIFFS mounted at /spiffs");
+
 
     /* Load terminal identity from NVS */
     config_set_defaults(&s_cfg);
-    ret = nvs_load(&s_cfg);
+    esp_err_t ret = nvs_load(&s_cfg);
     if (ret != ESP_OK) return ret;
 
     ESP_LOGI(TAG, "Config loaded: ship=%s console=%s terminal=%d",
@@ -153,7 +139,6 @@ esp_err_t sc_config_init(void)
 void sc_config_deinit(void)
 {
     if (!s_initialised) return;
-    esp_vfs_spiffs_unregister(s_spiffs_conf.partition_label);
     vSemaphoreDelete(s_mutex);
     s_initialised = false;
 }
@@ -217,7 +202,7 @@ esp_err_t sc_config_ship_json_load(char **out_json, size_t *out_len)
     if (!out_json || !out_len) return ESP_ERR_INVALID_ARG;
 
     char path[80];
-    snprintf(path, sizeof(path), "/spiffs/ships/%s.json", s_cfg.ship_id);
+    snprintf(path, sizeof(path), "/sdcard/ships/%s.json", s_cfg.ship_id);
 
     FILE *f = fopen(path, "r");
     if (!f) {

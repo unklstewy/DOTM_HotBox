@@ -148,19 +148,25 @@ esp_err_t sc_hid_action_hold(const char *action_id, uint32_t override_ms)
 
 /* ── Low-level reports ───────────────────────────────────────────────────── */
 
-esp_err_t sc_hid_report_keyboard_send(uint8_t modifier, const uint8_t keycodes[6])
+esp_err_t sc_hid_report_gamepad_send(uint32_t buttons)
 {
     if (!tud_hid_ready()) return ESP_ERR_INVALID_STATE;
-    tud_hid_keyboard_report(1, modifier, (uint8_t *)keycodes);
+    struct TU_ATTR_PACKED {
+        uint32_t buttons;
+        int8_t   x;
+        int8_t   y;
+    } report = {
+        .buttons = buttons,
+        .x = 0,
+        .y = 0
+    };
+    tud_hid_report(1, &report, sizeof(report));
     return ESP_OK;
 }
 
-esp_err_t sc_hid_report_keyboard_release(void)
+esp_err_t sc_hid_report_gamepad_release(void)
 {
-    if (!tud_hid_ready()) return ESP_ERR_INVALID_STATE;
-    static const uint8_t zeros[6] = {0};
-    tud_hid_keyboard_report(1, 0, (uint8_t *)zeros);
-    return ESP_OK;
+    return sc_hid_report_gamepad_send(0);
 }
 
 esp_err_t sc_hid_report_consumer_send(uint16_t usage)
@@ -190,11 +196,11 @@ static void sc_hid_usb_task(void *arg)
                 vTaskDelay(pdMS_TO_TICKS(hold));
                 uint16_t zero = 0;
                 tud_hid_report(2, &zero, sizeof(zero));
-            } else {
-                sc_hid_report_keyboard_send(msg.action.modifier,
-                                            msg.action.keycodes);
+            } else if (msg.action.gamepad_button > 0 && msg.action.gamepad_button <= 32) {
+                uint32_t buttons = (1UL << (msg.action.gamepad_button - 1));
+                sc_hid_report_gamepad_send(buttons);
                 vTaskDelay(pdMS_TO_TICKS(hold));
-                sc_hid_report_keyboard_release();
+                sc_hid_report_gamepad_release();
             }
         }
 

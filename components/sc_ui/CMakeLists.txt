@@ -15,24 +15,12 @@ idf_component_register(
         "screens"
     REQUIRES
         lvgl__lvgl
-        esp_lcd_jd9365_8
-        esp_lcd_touch_gsl3670
-        esp_io_expander_pca9535
-        esp_lcd
-        esp_driver_ledc
-        driver
+        sc_bsp
         sc_config
         sc_hid
         sc_gamelink
         esp_timer
         nvs_flash
-        esp_adc
 )
-
-file(GLOB SPRITE_SRCS 
-    "assets/sprites/drake/*.c"
-    "assets/sprites/origin/*.c"
-)
-target_sources(${COMPONENT_LIB} PRIVATE ${SPRITE_SRCS})
 
 

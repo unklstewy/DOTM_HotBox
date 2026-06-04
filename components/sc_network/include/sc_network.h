@@ -34,6 +34,7 @@ typedef enum {
     SC_NET_STATE_DISCONNECTED = 0,
     SC_NET_STATE_CONNECTING,
     SC_NET_STATE_WIFI_UP,
+    SC_NET_STATE_AP_UP,
     SC_NET_STATE_WS_CONNECTED,
 } sc_network_state_t;
 
@@ -75,6 +76,15 @@ esp_err_t sc_network_ws_send(const char *data, size_t len);
 
 /** @brief Return current network state (thread-safe). */
 sc_network_state_t sc_network_state_get(void);
+
+/** @brief Return if network is currently in AP mode. */
+bool sc_network_is_ap(void);
+
+/** @brief Update Wi-Fi credentials in NVS. */
+esp_err_t sc_network_set_wifi_credentials(const char *ssid, const char *psk);
+
+/** @brief Run Wi-Fi scan and write results to JSON buffer. */
+esp_err_t sc_network_scan_wifi(char *buf, size_t max_len);
 
 #ifdef __cplusplus
 }

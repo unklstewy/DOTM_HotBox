@@ -23,6 +23,7 @@
 #include "esp_netif.h"
 #include "esp_log.h"
 #include "esp_websocket_client.h"
+#include "esp_mac.h"
 #include "mdns.h"
 
 static const char *TAG = "sc_network";
@@ -46,6 +47,10 @@ static void                     *s_ws_rx_ctx = NULL;
 static sc_network_state_cb_t     s_state_cb  = NULL;
 static void                     *s_state_ctx = NULL;
 
+static bool s_is_ap = false;
+static int s_sta_retry_count = 0;
+#define MAX_STA_RETRIES 5
+
 /* ── Task ────────────────────────────────────────────────────────────────── */
 static StaticTask_t  s_task_buf;
 static StackType_t   s_task_stack[SC_NETWORK_TASK_STACK_SIZE];
@@ -59,16 +64,20 @@ static void wifi_event_handler(void *arg, esp_event_base_t base,
 static void sc_network_ws_event_handler(void *arg,
                                         esp_event_base_t base,
                                         int32_t event_id, void *data);
+static esp_err_t wifi_init_all(void);
 static esp_err_t wifi_connect(void);
+static esp_err_t wifi_start_ap(void);
 static esp_err_t ws_connect(const char *host, uint16_t port);
 
 /* ── Lifecycle ───────────────────────────────────────────────────────────── */
 
 esp_err_t sc_network_init(void)
 {
-    /* Suppress verbose Wi-Fi messages until we resume work on the network stack */
-    esp_log_level_set("wifi", ESP_LOG_ERROR);
-    esp_log_level_set(TAG, ESP_LOG_ERROR);
+    /* Enable Wi-Fi and coprocessor logging for diagnostics */
+    esp_log_level_set("wifi", ESP_LOG_INFO);
+    esp_log_level_set("esp_wifi", ESP_LOG_INFO);
+    esp_log_level_set("esp_hosted", ESP_LOG_INFO);
+    esp_log_level_set(TAG, ESP_LOG_INFO);
 
     s_net_evg = xEventGroupCreate();
     if (!s_net_evg) return ESP_ERR_NO_MEM;
@@ -76,10 +85,13 @@ esp_err_t sc_network_init(void)
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
+    ESP_ERROR_CHECK(wifi_init_all());
+
     esp_err_t ret = wifi_connect();
     if (ret != ESP_OK) {
-        ESP_LOGW(TAG, "Wi-Fi connect failed: %s — will retry in task",
+        ESP_LOGW(TAG, "STA connection could not start: %s — launching SoftAP fallback",
                  esp_err_to_name(ret));
+        wifi_start_ap();
     }
 
     s_task_handle = xTaskCreateStatic(
@@ -147,6 +159,11 @@ sc_network_state_t sc_network_state_get(void)
     return s_state;
 }
 
+bool sc_network_is_ap(void)
+{
+    return s_is_ap;
+}
+
 /* ── State helper ────────────────────────────────────────────────────────── */
 
 static void sc_network_state_set(sc_network_state_t new_state)
@@ -164,13 +181,49 @@ static void wifi_event_handler(void *arg, esp_event_base_t base,
     if (base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
         sc_network_state_set(SC_NET_STATE_DISCONNECTED);
         xEventGroupClearBits(s_net_evg, NET_EVT_WIFI_GOT_IP);
-        ESP_LOGW(TAG, "Wi-Fi disconnected — reconnecting…");
-        esp_wifi_connect();
+        
+        if (s_is_ap) {
+            return;
+        }
+
+        s_sta_retry_count++;
+        if (s_sta_retry_count >= MAX_STA_RETRIES) {
+            ESP_LOGW(TAG, "STA connection failed after %d retries. Launching SoftAP...", MAX_STA_RETRIES);
+            wifi_start_ap();
+        } else {
+            ESP_LOGI(TAG, "Wi-Fi disconnected — reconnecting (retry %d/%d)…", s_sta_retry_count, MAX_STA_RETRIES);
+            esp_wifi_connect();
+        }
     } else if (base == IP_EVENT && id == IP_EVENT_STA_GOT_IP) {
+        s_sta_retry_count = 0;
+        s_is_ap = false;
         sc_network_state_set(SC_NET_STATE_WIFI_UP);
         xEventGroupSetBits(s_net_evg, NET_EVT_WIFI_GOT_IP);
         ESP_LOGI(TAG, "Wi-Fi connected, IP assigned");
     }
+}
+
+static esp_err_t wifi_init_all(void)
+{
+    esp_netif_create_default_wifi_sta();
+    esp_netif_create_default_wifi_ap();
+
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    esp_err_t ret = esp_wifi_init(&cfg);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "esp_wifi_init failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    ret = esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID,
+                                     &wifi_event_handler, NULL);
+    if (ret != ESP_OK) return ret;
+
+    ret = esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP,
+                                     &wifi_event_handler, NULL);
+    if (ret != ESP_OK) return ret;
+
+    return ESP_OK;
 }
 
 static esp_err_t wifi_connect(void)
@@ -179,17 +232,16 @@ static esp_err_t wifi_connect(void)
     nvs_handle_t h;
     esp_err_t ret = nvs_open(NVS_NS_CONFIG, NVS_READONLY, &h);
     if (ret == ESP_ERR_NVS_NOT_FOUND) {
-    ESP_LOGW(TAG, "NVS namespace '%s' not found", NVS_NS_CONFIG);
+        ESP_LOGW(TAG, "NVS namespace '%s' not found", NVS_NS_CONFIG);
 #if defined(CONFIG_SC_NETWORK_DEV_FALLBACK) && CONFIG_SC_NETWORK_DEV_FALLBACK
-    ESP_LOGW(TAG, "Using dev fallback Wi-Fi credentials");
-    goto wifi_fallback;
+        ESP_LOGW(TAG, "Using dev fallback Wi-Fi credentials");
+        goto wifi_fallback;
 #else
-    ESP_LOGW(TAG, "Wi-Fi not provisioned yet");
-    return ESP_ERR_NOT_FOUND;
+        return ESP_ERR_NOT_FOUND;
 #endif
     }
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to open NVS namespace '%s': %s", NVS_NS_CONFIG, esp_err_to_name(ret));
+        ESP_LOGE(TAG, "Failed to open NVS namespace: %s", esp_err_to_name(ret));
         return ret;
     }
 
@@ -206,23 +258,16 @@ wifi_fallback:
         strlcpy(ssid, CONFIG_SC_NETWORK_DEV_SSID, sizeof(ssid));
         strlcpy(psk,  CONFIG_SC_NETWORK_DEV_PSK,  sizeof(psk));
         if (ssid[0] == '\0') {
-            ESP_LOGW(TAG, "No Wi-Fi SSID in NVS and dev fallback SSID is empty — skipping Wi-Fi");
             return ESP_ERR_NOT_FOUND;
         }
-        ESP_LOGW(TAG, "No Wi-Fi SSID in NVS — using dev fallback SSID: %s", ssid);
         goto wifi_start;
 #else
-        ESP_LOGW(TAG, "No Wi-Fi SSID in NVS — provision via settings screen");
         return ESP_ERR_NOT_FOUND;
 #endif
     }
     len = sizeof(psk);
     ret = nvs_get_str(h, NVS_KEY_PSK, psk, &len);
-    if (ret == ESP_ERR_NVS_NOT_FOUND) {
-        ESP_LOGW(TAG, "No Wi-Fi PSK in NVS; attempting connection without password");
-        psk[0] = '\0';
-    } else if (ret != ESP_OK) {
-        ESP_LOGW(TAG, "Failed reading Wi-Fi PSK from NVS: %s", esp_err_to_name(ret));
+    if (ret != ESP_OK) {
         psk[0] = '\0';
     }
     nvs_close(h);
@@ -230,59 +275,166 @@ wifi_fallback:
 #if defined(CONFIG_SC_NETWORK_DEV_FALLBACK) && CONFIG_SC_NETWORK_DEV_FALLBACK
 wifi_start:
 #endif
-    esp_netif_create_default_wifi_sta();
-
-    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ret = esp_wifi_init(&cfg);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "esp_wifi_init failed: %s", esp_err_to_name(ret));
-        return ret;
-    }
-
-    ret = esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID,
-                                     &wifi_event_handler, NULL);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "WIFI_EVENT handler register failed: %s", esp_err_to_name(ret));
-        return ret;
-    }
-
-    ret = esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP,
-                                     &wifi_event_handler, NULL);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "IP_EVENT handler register failed: %s", esp_err_to_name(ret));
-        return ret;
-    }
-
     wifi_config_t wifi_cfg = {0};
     strlcpy((char *)wifi_cfg.sta.ssid,     ssid, sizeof(wifi_cfg.sta.ssid));
     strlcpy((char *)wifi_cfg.sta.password, psk,  sizeof(wifi_cfg.sta.password));
-    wifi_cfg.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+    wifi_cfg.sta.threshold.authmode = psk[0] ? WIFI_AUTH_WPA2_PSK : WIFI_AUTH_OPEN;
 
     ret = esp_wifi_set_mode(WIFI_MODE_STA);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "esp_wifi_set_mode failed: %s", esp_err_to_name(ret));
-        return ret;
-    }
+    if (ret != ESP_OK) return ret;
 
     ret = esp_wifi_set_config(WIFI_IF_STA, &wifi_cfg);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "esp_wifi_set_config failed: %s", esp_err_to_name(ret));
-        return ret;
-    }
+    if (ret != ESP_OK) return ret;
 
     ret = esp_wifi_start();
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "esp_wifi_start failed: %s", esp_err_to_name(ret));
-        return ret;
-    }
+    if (ret != ESP_OK) return ret;
 
     ret = esp_wifi_connect();
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "esp_wifi_connect failed: %s", esp_err_to_name(ret));
-        return ret;
-    }
+    if (ret != ESP_OK) return ret;
 
     sc_network_state_set(SC_NET_STATE_CONNECTING);
+    return ESP_OK;
+}
+
+static esp_err_t wifi_start_ap(void)
+{
+    s_is_ap = true;
+    sc_network_state_set(SC_NET_STATE_CONNECTING);
+
+    esp_wifi_stop();
+
+    uint8_t mac[6];
+    esp_efuse_mac_get_default(mac);
+    
+    char ap_ssid[32];
+    snprintf(ap_ssid, sizeof(ap_ssid), "SC_Terminal_%02X%02X", mac[4], mac[5]);
+    
+    wifi_config_t wifi_cfg = {
+        .ap = {
+            .channel = 1,
+            .max_connection = 4,
+            .authmode = WIFI_AUTH_OPEN
+        }
+    };
+    strlcpy((char *)wifi_cfg.ap.ssid, ap_ssid, sizeof(wifi_cfg.ap.ssid));
+
+    esp_err_t ret = esp_wifi_set_mode(WIFI_MODE_AP);
+    if (ret != ESP_OK) return ret;
+
+    ret = esp_wifi_set_config(WIFI_IF_AP, &wifi_cfg);
+    if (ret != ESP_OK) return ret;
+
+    ret = esp_wifi_start();
+    if (ret != ESP_OK) return ret;
+
+    sc_network_state_set(SC_NET_STATE_AP_UP);
+    ESP_LOGI(TAG, "SoftAP started: SSID=%s, IP=192.168.4.1", ap_ssid);
+    return ESP_OK;
+}
+
+esp_err_t sc_network_set_wifi_credentials(const char *ssid, const char *psk)
+{
+    nvs_handle_t h;
+    esp_err_t ret = nvs_open(NVS_NS_CONFIG, NVS_READWRITE, &h);
+    if (ret != ESP_OK) return ret;
+
+    ret = nvs_set_str(h, NVS_KEY_SSID, ssid);
+    if (ret == ESP_OK) {
+        ret = nvs_set_str(h, NVS_KEY_PSK, psk);
+    }
+    if (ret == ESP_OK) {
+        ret = nvs_commit(h);
+    }
+    nvs_close(h);
+
+    if (ret == ESP_OK) {
+        ESP_LOGI(TAG, "Credentials saved successfully. Scheduling restart in 1 second...");
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        esp_restart();
+    }
+    return ret;
+}
+
+esp_err_t sc_network_scan_wifi(char *buf, size_t max_len)
+{
+    wifi_mode_t current_mode;
+    esp_wifi_get_mode(&current_mode);
+    if (current_mode == WIFI_MODE_AP) {
+        esp_wifi_set_mode(WIFI_MODE_APSTA);
+    }
+    
+    wifi_scan_config_t scan_config = {
+        .ssid = NULL,
+        .bssid = NULL,
+        .channel = 0,
+        .show_hidden = false
+    };
+    
+    esp_err_t err = esp_wifi_scan_start(&scan_config, true);
+    if (err != ESP_OK) {
+        if (current_mode == WIFI_MODE_AP) {
+            esp_wifi_set_mode(WIFI_MODE_AP);
+        }
+        return err;
+    }
+    
+    uint16_t ap_count = 0;
+    esp_wifi_scan_get_ap_num(&ap_count);
+    if (ap_count == 0) {
+        snprintf(buf, max_len, "[]");
+        if (current_mode == WIFI_MODE_AP) {
+            esp_wifi_set_mode(WIFI_MODE_AP);
+        }
+        return ESP_OK;
+    }
+    
+    if (ap_count > 16) ap_count = 16;
+    wifi_ap_record_t *ap_records = malloc(sizeof(wifi_ap_record_t) * ap_count);
+    if (!ap_records) {
+        if (current_mode == WIFI_MODE_AP) {
+            esp_wifi_set_mode(WIFI_MODE_AP);
+        }
+        return ESP_ERR_NO_MEM;
+    }
+    
+    err = esp_wifi_scan_get_ap_records(&ap_count, ap_records);
+    if (err != ESP_OK) {
+        free(ap_records);
+        if (current_mode == WIFI_MODE_AP) {
+            esp_wifi_set_mode(WIFI_MODE_AP);
+        }
+        return err;
+    }
+    
+    if (current_mode == WIFI_MODE_AP) {
+        esp_wifi_set_mode(WIFI_MODE_AP);
+    }
+    
+    int len = snprintf(buf, max_len, "[");
+    for (int i = 0; i < ap_count; i++) {
+        if (ap_records[i].ssid[0] == '\0') continue;
+        
+        char item[128];
+        snprintf(item, sizeof(item), "{\"ssid\":\"%s\",\"rssi\":%d,\"secure\":%d}%s",
+                 (char *)ap_records[i].ssid,
+                 ap_records[i].rssi,
+                 ap_records[i].authmode != WIFI_AUTH_OPEN,
+                 (i == ap_count - 1) ? "" : ",");
+        
+        if (len + strlen(item) + 2 < max_len) {
+            len += snprintf(buf + len, max_len - len, "%s", item);
+        } else {
+            break;
+        }
+    }
+    
+    if (len > 1 && buf[len - 1] == ',') {
+        buf[len - 1] = '\0';
+        len--;
+    }
+    
+    snprintf(buf + len, max_len - len, "]");
+    free(ap_records);
     return ESP_OK;
 }
 
@@ -304,7 +456,7 @@ static void sc_network_ws_event_handler(void *arg, esp_event_base_t base,
             xEventGroupClearBits(s_net_evg, NET_EVT_WS_CONNECTED);
             break;
         case WEBSOCKET_EVENT_DATA:
-            if (ws_data->op_code == 0x01 /* text */ && s_ws_rx_cb) {
+            if (ws_data->op_code == 0x01 && s_ws_rx_cb) {
                 s_ws_rx_cb(ws_data->data_ptr, ws_data->data_len, s_ws_rx_ctx);
             }
             break;
@@ -347,14 +499,17 @@ static esp_err_t ws_connect(const char *host, uint16_t port)
 
 static void sc_network_task(void *arg)
 {
-    /* Wait for IP, then attempt mDNS discovery + WebSocket connect */
     for (;;) {
+        if (s_is_ap) {
+            vTaskDelay(pdMS_TO_TICKS(5000));
+            continue;
+        }
+
         EventBits_t bits = xEventGroupWaitBits(s_net_evg,
                                                NET_EVT_WIFI_GOT_IP,
                                                pdFALSE, pdTRUE,
-                                               pdMS_TO_TICKS(30000));
+                                               pdMS_TO_TICKS(15000));
         if (!(bits & NET_EVT_WIFI_GOT_IP)) {
-            ESP_LOGW(TAG, "Still waiting for Wi-Fi…");
             continue;
         }
 
@@ -376,7 +531,6 @@ static void sc_network_task(void *arg)
                      SC_NETWORK_WS_RECONNECT_MS);
         }
 
-        /* Wait for disconnect then retry */
         xEventGroupWaitBits(s_net_evg, NET_EVT_WS_CONNECTED,
                             pdFALSE, pdTRUE, portMAX_DELAY);
         vTaskDelay(pdMS_TO_TICKS(SC_NETWORK_WS_RECONNECT_MS));

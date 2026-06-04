@@ -11,4 +11,6 @@ idf_component_register(
         sc_network
         sc_config
         sc_gamelink
+        sc_storage
+        sc_web
 )

@@ -399,27 +399,15 @@ void sc_ui_screen_console_load(const sc_terminal_config_t *cfg)
                 sc_hid_action_t ha = {0};
                 /* Restore the real action id for HID lookup */
                 strlcpy(ha.action_id, id->valuestring, sizeof(ha.action_id));
-                cJSON *mod = cJSON_GetObjectItem(hid, "modifier");
-                cJSON *keys = cJSON_GetObjectItem(hid, "keycodes");
+                cJSON *gamepad = cJSON_GetObjectItem(hid, "gamepad_button");
                 cJSON *cons = cJSON_GetObjectItem(hid, "consumer_usage");
                 cJSON *hold = cJSON_GetObjectItem(hid, "hold_ms");
-                if (cJSON_IsNumber(mod))
-                    ha.modifier = (uint8_t)mod->valueint;
+                if (cJSON_IsNumber(gamepad))
+                    ha.gamepad_button = (uint8_t)gamepad->valueint;
                 if (cJSON_IsNumber(cons))
                     ha.consumer_usage = (uint16_t)cons->valueint;
                 if (cJSON_IsNumber(hold))
                     ha.hold_ms = (uint32_t)hold->valueint;
-                if (cJSON_IsArray(keys))
-                {
-                    int ki = 0;
-                    cJSON *k = NULL;
-                    cJSON_ArrayForEach(k, keys)
-                    {
-                        if (ki >= 6)
-                            break;
-                        ha.keycodes[ki++] = (uint8_t)k->valueint;
-                    }
-                }
                 if (hid_count < SC_HID_MAX_ACTIONS) {
                     hid_actions[hid_count++] = ha;
                 }

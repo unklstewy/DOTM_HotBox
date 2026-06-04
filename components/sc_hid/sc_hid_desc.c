@@ -24,36 +24,31 @@
 
 /* ── HID Report Descriptor ───────────────────────────────────────────────── */
 static const uint8_t s_hid_report_desc[] = {
-    /* --- Report 1: Boot Keyboard ---------------------------------------- */
+    /* --- Report 1: Gamepad ---------------------------------------- */
     HID_USAGE_PAGE (HID_USAGE_PAGE_DESKTOP),
-    HID_USAGE      (HID_USAGE_DESKTOP_KEYBOARD),
+    HID_USAGE      (HID_USAGE_DESKTOP_GAMEPAD),
     HID_COLLECTION (HID_COLLECTION_APPLICATION),
         HID_REPORT_ID (1)
 
-        /* Modifier keys (8 bits) */
-        HID_USAGE_PAGE  (HID_USAGE_PAGE_KEYBOARD),
-        HID_USAGE_MIN   (224),
-        HID_USAGE_MAX   (231),
-        HID_LOGICAL_MIN (0),
-        HID_LOGICAL_MAX (1),
-        HID_REPORT_COUNT(8),
-        HID_REPORT_SIZE (1),
-        HID_INPUT       (HID_DATA | HID_VARIABLE | HID_ABSOLUTE),
+        /* 32 Buttons (4 bytes) */
+        HID_USAGE_PAGE   (HID_USAGE_PAGE_BUTTON),
+        HID_USAGE_MIN    (1),
+        HID_USAGE_MAX    (32),
+        HID_LOGICAL_MIN  (0),
+        HID_LOGICAL_MAX  (1),
+        HID_REPORT_COUNT (32),
+        HID_REPORT_SIZE  (1),
+        HID_INPUT        (HID_DATA | HID_VARIABLE | HID_ABSOLUTE),
 
-        /* Reserved byte */
-        HID_REPORT_COUNT(1),
-        HID_REPORT_SIZE (8),
-        HID_INPUT       (HID_CONSTANT),
-
-        /* 6 keycodes (1 byte each, usage 0–255) */
-        HID_USAGE_PAGE  (HID_USAGE_PAGE_KEYBOARD),
-        HID_USAGE_MIN   (0),
-        HID_USAGE_MAX   (255),
-        HID_LOGICAL_MIN (0),
-        HID_LOGICAL_MAX_N(255, 2),
-        HID_REPORT_COUNT(6),
-        HID_REPORT_SIZE (8),
-        HID_INPUT       (HID_DATA | HID_ARRAY | HID_ABSOLUTE),
+        /* X and Y Axis (2 bytes) */
+        HID_USAGE_PAGE   (HID_USAGE_PAGE_DESKTOP),
+        HID_USAGE        (HID_USAGE_DESKTOP_X),
+        HID_USAGE        (HID_USAGE_DESKTOP_Y),
+        HID_LOGICAL_MIN_N(0x81, 1), /* -127 */
+        HID_LOGICAL_MAX_N(0x7F, 1), /* 127 */
+        HID_REPORT_COUNT (2),
+        HID_REPORT_SIZE  (8),
+        HID_INPUT        (HID_DATA | HID_VARIABLE | HID_ABSOLUTE),
     HID_COLLECTION_END,
 
     /* --- Report 2: Consumer Control ------------------------------------- */

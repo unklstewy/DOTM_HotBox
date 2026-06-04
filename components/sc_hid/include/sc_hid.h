@@ -28,8 +28,7 @@ extern "C" {
 /** One HID action loaded from the ship JSON config. */
 typedef struct {
     char     action_id[SC_HID_ACTION_ID_LEN]; /**< Matches JSON "id" field   */
-    uint8_t  modifier;                         /**< HID modifier byte          */
-    uint8_t  keycodes[6];                      /**< Up to 6 simultaneous keys  */
+    uint8_t  gamepad_button;                   /**< Gamepad button (1-32, 0=none) */
     uint16_t consumer_usage;                   /**< Consumer usage (0 = none)  */
     uint32_t hold_ms;                          /**< 0 = tap, >0 = hold         */
 } sc_hid_action_t;
@@ -73,12 +72,11 @@ esp_err_t sc_hid_action_hold(const char *action_id, uint32_t override_ms);
 
 /* ── Low-level Report API (internal / testing only) ────────────────────── */
 
-/** @brief Send a raw keyboard report. */
-esp_err_t sc_hid_report_keyboard_send(uint8_t modifier,
-                                      const uint8_t keycodes[6]);
+/** @brief Send a raw gamepad report. */
+esp_err_t sc_hid_report_gamepad_send(uint32_t buttons);
 
-/** @brief Release all keyboard keys. */
-esp_err_t sc_hid_report_keyboard_release(void);
+/** @brief Release all gamepad buttons. */
+esp_err_t sc_hid_report_gamepad_release(void);
 
 /** @brief Send a raw consumer control report. */
 esp_err_t sc_hid_report_consumer_send(uint16_t usage);

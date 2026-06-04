@@ -1,0 +1,17 @@
+idf_component_register(
+    SRCS
+        "sc_bsp_d1001.c"
+    INCLUDE_DIRS
+        "include"
+    REQUIRES
+        lvgl__lvgl
+        esp_lcd_jd9365_8
+        esp_lcd_touch_gsl3670
+        esp_io_expander_pca9535
+        esp_lcd
+        driver
+        esp_timer
+        esp_adc
+        sc_config
+        esp_driver_ledc
+)
