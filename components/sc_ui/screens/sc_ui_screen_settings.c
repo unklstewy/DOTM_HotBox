@@ -14,6 +14,7 @@
 #include "sc_ui_screens.h"
 #include "sc_network.h"
 #include "sc_ui.h"
+#include "sc_hid.h"
 #include "esp_log.h"
 #include "esp_system.h"
 #include "esp_timer.h"
@@ -291,7 +292,7 @@ static void status_timer_cb(lv_timer_t *timer)
     if (s_status_fields[0]) lv_label_set_text(s_status_fields[0], state_str);
     if (s_status_fields[1]) lv_label_set_text(s_status_fields[1], ip_str);
     if (s_status_fields[2]) lv_label_set_text(s_status_fields[2], is_ap ? "SoftAP" : "Station");
-    if (s_status_fields[3]) lv_label_set_text(s_status_fields[3], is_ap ? "SC_Terminal" : ssid);
+    if (s_status_fields[3]) lv_label_set_text(s_status_fields[3], is_ap ? "HotBox" : ssid);
     if (s_status_fields[4]) lv_label_set_text(s_status_fields[4], heap_str);
     if (s_status_fields[5]) lv_label_set_text(s_status_fields[5], uptime_str);
 }
@@ -802,6 +803,20 @@ static void hw_reset_btn_cb(lv_event_t *e)
     lv_obj_set_style_text_color(reset_lbl, lv_color_white(), 0);
 }
 
+static void hid_switch_cb(lv_event_t *e)
+{
+    lv_obj_t *sw = lv_event_get_target(e);
+    bool enabled = lv_obj_has_state(sw, LV_STATE_CHECKED);
+    
+    /* Update configuration */
+    sc_terminal_config_t cfg = *sc_config_get();
+    cfg.hid_enabled = enabled;
+    sc_config_save(&cfg);
+
+    /* Apply PHY swap dynamically */
+    sc_hid_set_phy_swap(enabled);
+}
+
 static void draw_hardware_tab(void)
 {
     lv_obj_t *title = lv_label_create(s_content_inner);
@@ -835,6 +850,27 @@ static void draw_hardware_tab(void)
     lv_label_set_text_fmt(s_brightness_val_lbl, "%d%%", current_brightness);
     lv_obj_set_style_text_font(s_brightness_val_lbl, SC_FONT_MEDIUM, 0);
     lv_obj_set_style_text_color(s_brightness_val_lbl, SC_COL_TEXT, 0);
+
+    /* USB Gamepad Output Toggle */
+    lv_obj_t *hid_lbl = lv_label_create(s_content_inner);
+    lv_label_set_text(hid_lbl, "USB Gamepad Output (PHY Swap)");
+    lv_obj_set_style_text_font(hid_lbl, SC_FONT_SMALL, 0);
+    lv_obj_set_style_text_color(hid_lbl, SC_COL_TEXT_DIM, 0);
+
+    lv_obj_t *hid_row = lv_obj_create(s_content_inner);
+    lv_obj_set_size(hid_row, LV_PCT(90), LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(hid_row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_bg_opa(hid_row, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(hid_row, 0, 0);
+    lv_obj_set_style_pad_all(hid_row, 0, 0);
+    lv_obj_set_style_pad_gap(hid_row, 15, 0);
+
+    lv_obj_t *hid_sw = lv_switch_create(hid_row);
+    const sc_terminal_config_t *cfg = sc_config_get();
+    if (cfg->hid_enabled) {
+        lv_obj_add_state(hid_sw, LV_STATE_CHECKED);
+    }
+    lv_obj_add_event_cb(hid_sw, hid_switch_cb, LV_EVENT_VALUE_CHANGED, NULL);
 
     lv_obj_t *cal_btn = lv_button_create(s_content_inner);
     lv_obj_set_size(cal_btn, LV_PCT(90), 40);
@@ -945,7 +981,7 @@ lv_obj_t *sc_ui_screen_settings_create(lv_obj_t *parent)
     lv_obj_center(back_lbl);
 
     lv_obj_t *title = lv_label_create(header);
-    lv_label_set_text(title, "SC TERMINAL CONTROL PANEL");
+    lv_label_set_text(title, "DOTM - HOTBOX CONTROL PANEL");
     lv_obj_set_style_text_font(title, SC_FONT_MEDIUM, 0);
     lv_obj_set_style_text_color(title, SC_COL_TEXT, 0);
 

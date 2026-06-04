@@ -114,9 +114,9 @@ static const uint8_t s_hs_config_desc[] = {
 /* ── String Descriptors ──────────────────────────────────────────────────── */
 static const char *s_string_desc[] = {
     "\x09\x04",            /* 0: Language = English (0x0409) */
-    "SC Terminal",         /* 1: Manufacturer */
-    "SC Terminal HID",     /* 2: Product */
-    "SC-001",              /* 3: Serial (consider reading MAC address at runtime) */
+    "DOTM - HotBox",       /* 1: Manufacturer */
+    "HotBox HID",          /* 2: Product */
+    "HB-001",              /* 3: Serial */
 };
 
 /* ── Accessors for esp_tinyusb config ───────────────────────────────────── */

@@ -307,7 +307,7 @@ static esp_err_t wifi_start_ap(void)
     esp_efuse_mac_get_default(mac);
     
     char ap_ssid[32];
-    snprintf(ap_ssid, sizeof(ap_ssid), "SC_Terminal_%02X%02X", mac[4], mac[5]);
+    snprintf(ap_ssid, sizeof(ap_ssid), "HotBox_%02X%02X", mac[4], mac[5]);
     
     wifi_config_t wifi_cfg = {
         .ap = {

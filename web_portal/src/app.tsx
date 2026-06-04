@@ -147,12 +147,14 @@ export function App() {
   // Settings State
   const [backlight, setBacklight] = useState(80);
   const [rebooting, setRebooting] = useState(false);
+  const [hidEnabled, setHidEnabled] = useState(true);
 
   // Fetch initial telemetry, device config and ships list
   useEffect(() => {
     fetchStatus();
     fetchConfig();
     fetchBacklight();
+    fetchHidEnabled();
     fetchShipsList();
     fetchShipTemplates();
   }, []);
@@ -398,6 +400,18 @@ export function App() {
     }
   };
 
+  const fetchHidEnabled = async () => {
+    try {
+      const res = await fetch('/api/system/hid');
+      if (res.ok) {
+        const data = await res.json();
+        setHidEnabled(data.enabled);
+      }
+    } catch (e) {
+      console.error('Failed to fetch HID state', e);
+    }
+  };
+
   const fetchShipsList = async (templatesToMerge?: ShipConfig[]) => {
     const templates = templatesToMerge || shipTemplates;
     const listMap = new Map<string, { id: string; name: string }>();
@@ -412,7 +426,7 @@ export function App() {
       if (res.ok) {
         const fileItems = await res.json();
         fileItems
-          .filter((item: any) => !item.is_dir && typeof item.name === 'string' && item.name.endsWith('.json') && item.name !== 'ship_templates.json')
+          .filter((item: any) => !item.is_dir && typeof item.name === 'string' && item.name.endsWith('.json') && item.name !== 'ship_templates.json' && item.name !== 'editor_controls.json')
           .forEach((item: any) => {
             const id = item.name.replace('.json', '');
             const name = id.split('_').map((s: string) => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
@@ -814,12 +828,15 @@ export function App() {
     if (!name) return;
     const id = name.toLowerCase().replace(/[^a-z0-9]/g, '_');
     
-    if (shipConfig?.consoles.some(c => c.console_id === id)) {
+    if ((shipConfig?.consoles ?? []).some(c => c.console_id === id)) {
       alert('A console with that ID already exists.');
       return;
     }
 
     const updatedConfig = { ...shipConfig } as ShipConfig;
+    if (!updatedConfig.consoles) {
+      updatedConfig.consoles = [];
+    }
     const newConsole: ConsoleLayout = {
       console_id: id,
       display_name: name,
@@ -836,17 +853,21 @@ export function App() {
 
   const handleDeleteConsole = () => {
     if (!shipConfig || !activeConsoleId) return;
-    if (shipConfig.consoles.length <= 1) {
+    if ((shipConfig?.consoles ?? []).length <= 1) {
       alert('A ship layout must contain at least one console.');
       return;
     }
     if (!confirm('Are you sure you want to delete this entire console layout? This action cannot be undone.')) return;
 
     const updatedConfig = { ...shipConfig };
-    updatedConfig.consoles = updatedConfig.consoles.filter(c => c.console_id !== activeConsoleId);
+    updatedConfig.consoles = (updatedConfig.consoles ?? []).filter(c => c.console_id !== activeConsoleId);
     
     setShipConfig(updatedConfig);
-    setActiveConsoleId(updatedConfig.consoles[0].console_id);
+    if (updatedConfig.consoles.length > 0) {
+      setActiveConsoleId(updatedConfig.consoles[0].console_id);
+    } else {
+      setActiveConsoleId('');
+    }
     setSelectedWidgetIdx(null);
   };
 
@@ -1048,8 +1069,22 @@ export function App() {
     }
   };
 
+  const handleHidToggle = async () => {
+    const newVal = !hidEnabled;
+    setHidEnabled(newVal);
+    try {
+      await fetch('/api/system/hid', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: newVal })
+      });
+    } catch (e) {
+      console.error('Failed to set HID state', e);
+    }
+  };
+
   const handleReboot = async () => {
-    if (!confirm('Reboot SC Terminal?')) return;
+    if (!confirm('Reboot HotBox?')) return;
     setRebooting(true);
     try {
       await fetch('/api/system/reboot', { method: 'POST' });
@@ -1112,7 +1147,7 @@ export function App() {
   return (
     <>
       <header>
-        <h1>SC Terminal // <span>Control Portal</span></h1>
+        <h1>DOTM - HotBox // <span>Control Portal</span></h1>
         <div class="system-status">
           <div class={`status-badge ${status.online ? 'online' : 'offline'}`}>
             ● System: {status.online ? 'Online' : 'Offline'}
@@ -1126,7 +1161,7 @@ export function App() {
       {rebooting && (
         <div class="alert warning" style="font-size: 1.1rem; justify-content: center; padding: 20px;">
           <div class="spinner"></div>
-          Rebooting SC Terminal... Please wait a few seconds.
+          Rebooting HotBox... Please wait a few seconds.
         </div>
       )}
 
@@ -1537,7 +1572,7 @@ export function App() {
                         {/* Tab Headers representing console files */}
                         <div class="editor-console-tabs">
                           <div style="display: flex; gap: 6px; overflow-x: auto; flex-grow: 1;">
-                            {shipConfig.consoles.map(c => (
+                            {(shipConfig?.consoles ?? []).map(c => (
                               <button
                                 class={`editor-console-tab ${activeConsoleId === c.console_id ? 'active' : ''}`}
                                 onClick={(e) => { e.stopPropagation(); setActiveConsoleId(c.console_id); setSelectedWidgetIdx(null); }}
@@ -1668,7 +1703,7 @@ export function App() {
             {activeTab === 'wifi' && (
               <div class="glass-panel" style="max-width: 600px; margin: 0 auto;">
                 <h2>Wi-Fi Settings</h2>
-                <p style="margin-bottom: 20px;">Configure the SC Terminal to connect to your home Wi-Fi network.</p>
+                <p style="margin-bottom: 20px;">Configure the HotBox to connect to your home Wi-Fi network.</p>
 
                 {wifiSuccess && (
                   <div class="alert success">
@@ -1850,6 +1885,25 @@ export function App() {
                       onChange={(e) => handleBacklightChange(parseInt((e.target as HTMLInputElement).value))} 
                     />
                     <span>☀</span>
+                  </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 30px;">
+                  <label>USB Gamepad Output (PHY Swap)</label>
+                  <p style="font-size: 0.8rem; color: var(--text-secondary); margin: 5px 0 10px 0;">
+                    When enabled, the USB-C port outputs a gamepad HID device. When disabled, the port reverts to Serial/JTAG for debugging.
+                  </p>
+                  <div style="display: flex; align-items: center; gap: 12px;">
+                    <button
+                      class={`btn ${hidEnabled ? 'accent' : 'danger'}`}
+                      style="min-width: 140px; padding: 8px 16px;"
+                      onClick={handleHidToggle}
+                    >
+                      {hidEnabled ? '🎮 Enabled' : '🔌 Disabled'}
+                    </button>
+                    <span style="font-size: 0.85rem; color: var(--text-secondary);">
+                      {hidEnabled ? 'USB-C → Gamepad' : 'USB-C → Serial/JTAG'}
+                    </span>
                   </div>
                 </div>
 

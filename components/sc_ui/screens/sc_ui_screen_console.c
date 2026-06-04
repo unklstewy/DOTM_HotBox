@@ -55,23 +55,129 @@ static lv_coord_t s_grid_row_dscs[MAX_CONSOLES][16];
 
 /* ── Button event callback ───────────────────────────────────────────────── */
 
-static void btn_released_cb(lv_event_t *e)
+static lv_timer_t *s_danger_timer = NULL;
+
+static void danger_btn_timer_cb(lv_timer_t *timer)
+{
+    for (int i = 0; i < s_btn_count; i++) {
+        console_btn_t *cb = &s_buttons[i];
+        if (cb->widget_type == SC_WIDGET_BTN_DANGER) {
+            if (cb->is_armed) {
+                if (cb->is_holding) {
+                    uint32_t elapsed = lv_tick_elaps(cb->hold_start_timestamp);
+                    if (elapsed >= 2000) {
+                        /* Fire danger action! */
+                        sc_hid_action_hold(cb->action_id, cb->hold_ms);
+                        
+                        /* Reset state */
+                        cb->is_holding = false;
+                        cb->is_armed = false;
+                        if (cb->label) {
+                            lv_label_set_text(cb->label, "FIRED!");
+                        }
+                        sc_ui_theme_style_btn(cb->widget, SC_COL_BG_PANEL);
+                    } else {
+                        /* Update countdown */
+                        if (cb->label) {
+                            char buf[32];
+                            double remaining = (2000.0 - elapsed) / 1000.0;
+                            if (remaining < 0) remaining = 0;
+                            snprintf(buf, sizeof(buf), "HOLD %.1fs", remaining);
+                            lv_label_set_text(cb->label, buf);
+                        }
+                    }
+                } else {
+                    /* Not holding. Check disarm timeout (5 seconds) */
+                    if (lv_tick_elaps(cb->arm_timestamp) >= 5000) {
+                        cb->is_armed = false;
+                        if (cb->label) {
+                            lv_label_set_text(cb->label, cb->original_label);
+                        }
+                        sc_ui_theme_style_btn(cb->widget, SC_COL_WARN);
+                    }
+                }
+            }
+        }
+    }
+}
+
+static void btn_event_cb(lv_event_t *e)
 {
     console_btn_t *cb = (console_btn_t *)lv_event_get_user_data(e);
     if (!cb) return;
-    ESP_LOGD(TAG, "Widget action: %s", cb->action_id);
+    lv_event_code_t code = lv_event_get_code(e);
 
-    /* Handle latching toggle state flip */
-    if (cb->widget_type == SC_WIDGET_BTN_LATCHING && cb->widget) {
-        cb->latching_state = !cb->latching_state;
-        lv_lock();
-        sc_ui_theme_style_btn_latching(cb->widget, cb->latching_state);
-        lv_unlock();
+    if (cb->widget_type == SC_WIDGET_BTN_DANGER) {
+        if (code == LV_EVENT_PRESSED) {
+            if (!cb->is_armed) {
+                cb->is_armed = true;
+                cb->arm_timestamp = lv_tick_get();
+                if (cb->label) {
+                    strlcpy(cb->original_label, lv_label_get_text(cb->label), sizeof(cb->original_label));
+                    lv_label_set_text(cb->label, "ARMED");
+                }
+                sc_ui_theme_style_btn(cb->widget, SC_COL_ARMED);
+            } else {
+                cb->is_holding = true;
+                cb->hold_start_timestamp = lv_tick_get();
+            }
+        }
+        else if (code == LV_EVENT_RELEASED || code == LV_EVENT_PRESS_LOST) {
+            if (cb->is_holding) {
+                cb->is_holding = false;
+                if (cb->label) {
+                    lv_label_set_text(cb->label, "ARMED");
+                }
+            } else if (!cb->is_armed) {
+                /* Fired, restore original label */
+                if (cb->label) {
+                    lv_label_set_text(cb->label, cb->original_label);
+                }
+                sc_ui_theme_style_btn(cb->widget, SC_COL_WARN);
+            }
+        }
     }
-
-    esp_err_t ret = sc_hid_action_send(cb->action_id);
-    if (ret != ESP_OK) {
-        ESP_LOGW(TAG, "HID send failed: %s", esp_err_to_name(ret));
+    else if (cb->widget_type == SC_WIDGET_BTN_LATCHING) {
+        if (code == LV_EVENT_RELEASED) {
+            cb->latching_state = !cb->latching_state;
+            sc_ui_theme_style_btn_latching(cb->widget, cb->latching_state);
+            if (cb->latching_state) {
+                sc_hid_action_press(cb->action_id);
+            } else {
+                sc_hid_action_release(cb->action_id);
+            }
+        }
+    }
+    else if (cb->widget_type == SC_WIDGET_BTN_MOMENTARY) {
+        if (code == LV_EVENT_PRESSED) {
+            if (cb->hold_ms > 0) {
+                sc_hid_action_send(cb->action_id);
+            } else {
+                sc_hid_action_press(cb->action_id);
+            }
+            sc_ui_theme_style_btn(cb->widget, SC_COL_READY);
+        }
+        else if (code == LV_EVENT_RELEASED || code == LV_EVENT_PRESS_LOST) {
+            if (cb->hold_ms == 0) {
+                sc_hid_action_release(cb->action_id);
+            }
+            sc_ui_theme_style_btn(cb->widget, SC_COL_BG_PANEL);
+        }
+    }
+    else {
+        /* Fallback for axis/jog/hat controls that behave momentarily */
+        if (code == LV_EVENT_PRESSED) {
+            if (cb->hold_ms > 0) {
+                sc_hid_action_send(cb->action_id);
+            } else {
+                sc_hid_action_press(cb->action_id);
+            }
+        }
+        else if (code == LV_EVENT_RELEASED || code == LV_EVENT_PRESS_LOST) {
+            if (cb->hold_ms == 0) {
+                sc_hid_action_release(cb->action_id);
+            }
+        }
     }
 }
 
@@ -103,13 +209,15 @@ static lv_obj_t *create_widget(lv_obj_t *grid, console_btn_t *cb)
             w = lv_button_create(grid);
             lv_obj_set_user_data(w, cb);
             sc_ui_theme_style_btn_latching(w, cb->latching_state);
-            lv_obj_add_event_cb(w, btn_released_cb, LV_EVENT_RELEASED, cb);
+            lv_obj_add_event_cb(w, btn_event_cb, LV_EVENT_ALL, cb);
             break;
         case SC_WIDGET_BTN_DANGER:
             w = lv_button_create(grid);
             lv_obj_set_user_data(w, cb);
-            sc_ui_theme_style_btn(w, SC_COL_ARMED);
-            lv_obj_add_event_cb(w, btn_released_cb, LV_EVENT_RELEASED, cb);
+            sc_ui_theme_style_btn(w, SC_COL_WARN);
+            lv_obj_add_event_cb(w, btn_event_cb, LV_EVENT_ALL, cb);
+            cb->is_armed = false;
+            cb->is_holding = false;
             break;
         case SC_WIDGET_SLIDER_H:
             w = sc_ui_theme_draw_slider_h(grid, cb);
@@ -122,7 +230,7 @@ static lv_obj_t *create_widget(lv_obj_t *grid, console_btn_t *cb)
             break;
         case SC_WIDGET_AXIS_DPAD:
             w = sc_ui_theme_draw_axis_dpad(grid, cb);
-            lv_obj_add_event_cb(w, btn_released_cb, LV_EVENT_RELEASED, cb);
+            lv_obj_add_event_cb(w, btn_event_cb, LV_EVENT_ALL, cb);
             break;
         case SC_WIDGET_AXIS_HAAT:
             w = sc_ui_theme_draw_axis_haat(grid, cb);
@@ -141,14 +249,14 @@ static lv_obj_t *create_widget(lv_obj_t *grid, console_btn_t *cb)
             break;
         case SC_WIDGET_JOG_WHEEL:
             w = sc_ui_theme_draw_jog_wheel(grid, cb);
-            lv_obj_add_event_cb(w, btn_released_cb, LV_EVENT_RELEASED, cb);
+            lv_obj_add_event_cb(w, btn_event_cb, LV_EVENT_ALL, cb);
             break;
         case SC_WIDGET_BTN_MOMENTARY:
         default:
             w = lv_button_create(grid);
             lv_obj_set_user_data(w, cb);
             sc_ui_theme_style_btn(w, SC_COL_BG_PANEL);
-            lv_obj_add_event_cb(w, btn_released_cb, LV_EVENT_RELEASED, cb);
+            lv_obj_add_event_cb(w, btn_event_cb, LV_EVENT_ALL, cb);
             break;
     }
     return w;
@@ -193,6 +301,13 @@ static lv_color_t parse_hex_color(const char *hex)
     return lv_color_hex((uint32_t)val);
 }
 
+static void root_delete_cb(lv_event_t *e) {
+    if (s_danger_timer) {
+        lv_timer_delete(s_danger_timer);
+        s_danger_timer = NULL;
+    }
+}
+
 /* ── Create screen ───────────────────────────────────────────────────────── */
 
 lv_obj_t *sc_ui_screen_console_create(lv_obj_t *parent)
@@ -208,6 +323,13 @@ lv_obj_t *sc_ui_screen_console_create(lv_obj_t *parent)
     lv_obj_set_size(s_root, LV_PCT(100), LV_PCT(100));
     lv_obj_set_style_bg_color(s_root, SC_COL_BG, 0);
     lv_obj_set_style_bg_opa(s_root, LV_OPA_COVER, 0);
+
+    /* Setup periodic timer for danger buttons and clean it up on s_root delete */
+    if (!s_danger_timer) {
+        s_danger_timer = lv_timer_create(danger_btn_timer_cb, 50, NULL);
+    }
+    
+    lv_obj_add_event_cb(s_root, root_delete_cb, LV_EVENT_DELETE, NULL);
 
     lv_obj_t *content = sc_ui_theme_draw_panel(s_root);
     lv_obj_set_flex_flow(content, LV_FLEX_FLOW_COLUMN);
@@ -502,8 +624,10 @@ void sc_ui_screen_console_load(const sc_terminal_config_t *cfg)
                     ha.gamepad_button = (uint8_t)gamepad->valueint;
                 if (cJSON_IsNumber(cons))
                     ha.consumer_usage = (uint16_t)cons->valueint;
-                if (cJSON_IsNumber(hold))
+                if (cJSON_IsNumber(hold)) {
                     ha.hold_ms = (uint32_t)hold->valueint;
+                    cb->hold_ms = ha.hold_ms;
+                }
                 if (hid_count < SC_HID_MAX_ACTIONS) {
                     hid_actions[hid_count++] = ha;
                 }

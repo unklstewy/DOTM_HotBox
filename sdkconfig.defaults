@@ -57,6 +57,8 @@ CONFIG_TINYUSB_HID_COUNT=1
 # Suppress the esp_tinyusb background task; sc_hid.c runs its own USB poll task.
 CONFIG_TINYUSB_NO_DEFAULT_TASK=y
 CONFIG_TINYUSB_DESC_USE_ESPRESSIF_VID=n
+CONFIG_TINYUSB_RHPORT_HS=n
+CONFIG_TINYUSB_RHPORT_FS=y
 
 # --------------- FreeRTOS -----------------------------------------------
 CONFIG_FREERTOS_HZ=1000

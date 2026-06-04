@@ -6,6 +6,7 @@
 #include "sc_config.h"
 #include "sc_network.h"
 #include "sc_ui.h"
+#include "sc_hid.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -150,11 +151,11 @@ static esp_err_t get_status_handler(httpd_req_t *req)
         esp_ip4addr_ntoa(&ip_info.ip, ip_str, sizeof(ip_str));
     }
     
-    char ssid[32] = "SC_Terminal";
+    char ssid[32] = "HotBox";
     if (sc_network_is_ap()) {
         uint8_t mac[6];
         esp_efuse_mac_get_default(mac);
-        snprintf(ssid, sizeof(ssid), "SC_Terminal_%02X%02X", mac[4], mac[5]);
+        snprintf(ssid, sizeof(ssid), "HotBox_%02X%02X", mac[4], mac[5]);
     } else {
         nvs_handle_t h;
         if (nvs_open("sc_config", NVS_READONLY, &h) == ESP_OK) {
@@ -550,6 +551,50 @@ static esp_err_t post_system_backlight_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+static esp_err_t get_system_hid_handler(httpd_req_t *req)
+{
+    httpd_resp_set_type(req, "application/json");
+    const sc_terminal_config_t *cfg = sc_config_get();
+    char json[64];
+    snprintf(json, sizeof(json), "{\"enabled\":%s}", cfg->hid_enabled ? "true" : "false");
+    httpd_resp_sendstr(req, json);
+    return ESP_OK;
+}
+
+static esp_err_t post_system_hid_handler(httpd_req_t *req)
+{
+    char buf[64];
+    int received = httpd_req_recv(req, buf, sizeof(buf) - 1);
+    if (received <= 0) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Empty body");
+        return ESP_FAIL;
+    }
+    buf[received] = '\0';
+
+    cJSON *root = cJSON_Parse(buf);
+    if (!root) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
+        return ESP_FAIL;
+    }
+
+    cJSON *enabled = cJSON_GetObjectItem(root, "enabled");
+    if (enabled) {
+        bool val = cJSON_IsTrue(enabled);
+
+        /* Persist to NVS */
+        sc_terminal_config_t cfg = *sc_config_get();
+        cfg.hid_enabled = val;
+        sc_config_save(&cfg);
+
+        /* Apply PHY swap dynamically */
+        sc_hid_set_phy_swap(val);
+    }
+
+    cJSON_Delete(root);
+    httpd_resp_sendstr(req, "{\"status\":\"ok\"}");
+    return ESP_OK;
+}
+
 /* ── Lifecycle ───────────────────────────────────────────────────────────── */
 
 esp_err_t sc_web_start(void)
@@ -559,7 +604,7 @@ esp_err_t sc_web_start(void)
     }
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.max_uri_handlers = 16;
+    config.max_uri_handlers = 20;
     config.uri_match_fn = httpd_uri_match_wildcard;
     config.lru_purge_enable = true;
     config.stack_size = 8192; // Boost stack size for file/JSON work
@@ -617,6 +662,12 @@ esp_err_t sc_web_start(void)
 
     httpd_uri_t api_backlight_post = { .uri = "/api/system/backlight", .method = HTTP_POST, .handler = post_system_backlight_handler, .user_ctx = NULL };
     httpd_register_uri_handler(s_server, &api_backlight_post);
+
+    httpd_uri_t api_hid_get = { .uri = "/api/system/hid", .method = HTTP_GET, .handler = get_system_hid_handler, .user_ctx = NULL };
+    httpd_register_uri_handler(s_server, &api_hid_get);
+
+    httpd_uri_t api_hid_post = { .uri = "/api/system/hid", .method = HTTP_POST, .handler = post_system_hid_handler, .user_ctx = NULL };
+    httpd_register_uri_handler(s_server, &api_hid_post);
 
     /* ── Catch-All ───────────────────────────────────────────────────────── */
     httpd_uri_t catch_all = { .uri = "/*", .method = HTTP_GET, .handler = default_handler, .user_ctx = NULL };

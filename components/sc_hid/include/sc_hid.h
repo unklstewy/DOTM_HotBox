@@ -44,6 +44,9 @@ esp_err_t sc_hid_init(void);
 /** @brief Shut down HID device and delete task. */
 void sc_hid_deinit(void);
 
+/** @brief Enable or disable the USB PHY software override to swap physical port to OTG_FS. */
+void sc_hid_set_phy_swap(bool enable);
+
 /* ── Action Table ───────────────────────────────────────────────────────── */
 
 /**
@@ -69,6 +72,18 @@ esp_err_t sc_hid_action_send(const char *action_id);
  * @param override_ms  Duration override; 0 = use value from action table.
  */
 esp_err_t sc_hid_action_hold(const char *action_id, uint32_t override_ms);
+
+/**
+ * @brief Set the gamepad button or consumer control state to pressed (held).
+ * @param action_id Action to press.
+ */
+esp_err_t sc_hid_action_press(const char *action_id);
+
+/**
+ * @brief Set the gamepad button or consumer control state to released.
+ * @param action_id Action to release.
+ */
+esp_err_t sc_hid_action_release(const char *action_id);
 
 /* ── Low-level Report API (internal / testing only) ────────────────────── */
 

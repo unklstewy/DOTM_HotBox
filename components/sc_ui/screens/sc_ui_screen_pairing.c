@@ -76,7 +76,7 @@ lv_obj_t *sc_ui_screen_pairing_create(lv_obj_t *parent)
 
     /* Title */
     lv_obj_t *title = lv_label_create(s_root);
-    lv_label_set_text(title, "SC Terminal — Setup");
+    lv_label_set_text(title, "DOTM - HotBox — Setup");
     lv_obj_set_style_text_font(title, SC_FONT_TITLE, 0);
     lv_obj_set_style_text_color(title, SC_COL_ACCENT, 0);
 

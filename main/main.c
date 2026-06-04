@@ -46,7 +46,7 @@ void app_main(void)
 {
     esp_err_t err;
 
-    ESP_LOGI(TAG, "SC Terminal boot — v%d.%d.%d",
+    ESP_LOGI(TAG, "DOTM - HotBox boot — v%d.%d.%d",
              SC_VER_MAJOR, SC_VER_MINOR, SC_VER_PATCH);
 
     /* ── 1. NVS ─────────────────────────────────────────────────────────── */

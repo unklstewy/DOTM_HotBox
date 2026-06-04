@@ -8,6 +8,7 @@ idf_component_register(
         espressif__esp_tinyusb
         espressif__cjson
         esp_timer
+        sc_config
 )
 
 # TinyUSB callback functions (tud_hid_get_report_cb etc.) are referenced FROM

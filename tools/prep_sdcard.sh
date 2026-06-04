@@ -198,6 +198,16 @@ else
     echo -e "${BLU}[→] Step 0b: Using existing web_portal/dist/ (pass --build-web to rebuild).${RST}"
 fi
 
+# ── Step 0c: Branding image conversion ───────────────────────────────────────
+echo -e "\n${BLU}[→] Step 0c: Converting branding PNGs to LVGL bin format...${RST}"
+if $DRY_RUN; then
+    echo -e "${YLW}    [dry-run] Would run: python3 ${PROJECT_ROOT}/tools/convert_branding_images.py${RST}"
+else
+    python3 "${PROJECT_ROOT}/tools/convert_branding_images.py"
+    echo -e "${GRN}[✓] Branding image conversion complete.${RST}"
+fi
+
+
 # ── Disk space check ──────────────────────────────────────────────────────────
 if [[ -z "$NETWORK_IP" ]]; then
     AVAIL_KB=$(df -k "$MOUNT_POINT" | awk 'NR==2 {print $4}')
@@ -339,6 +349,10 @@ if [[ -n "$NETWORK_IP" ]]; then
     net_upload_dir "${SDCARD_SOURCE}/assets/themes/origin/sprites" "/sdcard/assets/themes/origin/sprites"
     echo -e "${GRN}[✓] Origin sprites uploaded.${RST}"
 
+    echo -e "\n${BLU}[→] Uploading Branding images...${RST}"
+    net_upload_dir "${IMAGES_SOURCE}" "/sdcard/assets/images"
+    echo -e "${GRN}[✓] Branding images uploaded.${RST}"
+
     if [[ -d "${WEB_DIST}" ]]; then
         echo -e "\n${BLU}[→] Uploading Web portal UI...${RST}"
         net_upload_dir "${WEB_DIST}" "/sdcard/web"
@@ -366,7 +380,7 @@ else
     do_rsync "${SDCARD_SOURCE}/ships/"                  "${MOUNT_POINT}/ships/"                  "Ship layouts (ships/*.json)"
     do_rsync "${SDCARD_SOURCE}/assets/themes/drake/"    "${MOUNT_POINT}/assets/themes/drake/"    "Drake Military theme"
     do_rsync "${SDCARD_SOURCE}/assets/themes/origin/"   "${MOUNT_POINT}/assets/themes/origin/"   "Origin Lux theme"
-    do_rsync "${IMAGES_SOURCE}/"                        "${MOUNT_POINT}/assets/images/"          "Branding images (PNG)"
+    do_rsync "${IMAGES_SOURCE}/"                        "${MOUNT_POINT}/assets/images/"          "Branding images (PNG/BIN)"
 
     if [[ -d "${WEB_DIST}" ]]; then
         do_rsync "${WEB_DIST}/" "${MOUNT_POINT}/web/" "Web portal UI (web/)"

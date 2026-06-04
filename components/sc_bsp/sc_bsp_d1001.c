@@ -84,6 +84,8 @@ static adc_channel_t             s_adc_chan = 0;
 static esp_timer_handle_t        s_pwr_timer = NULL;
 static uint32_t                  s_btn_press_ms = 0;
 static uint32_t                  s_last_release_ms = 0;
+static sc_bsp_btn_triple_click_cb_t s_triple_click_cb = NULL;
+static uint32_t                  s_click_count = 0;
 static int                       s_battery_pct = 100;
 static uint32_t                  s_flush_seq = 0;
 static bool                      s_touch_last_pressed = false;
@@ -285,6 +287,11 @@ static void sc_bsp_lvgl_touch_cb(lv_indev_t *indev, lv_indev_data_t *data)
     s_touch_last_pressed = pressed;
 }
 
+void sc_bsp_register_btn_triple_click_cb(sc_bsp_btn_triple_click_cb_t cb)
+{
+    s_triple_click_cb = cb;
+}
+
 static void sc_bsp_pwr_timer_cb(void *arg)
 {
     static uint32_t s_ticks = 0;
@@ -305,16 +312,33 @@ static void sc_bsp_pwr_timer_cb(void *arg)
             uint32_t duration = now - s_btn_press_ms;
             s_btn_press_ms = 0;
             if (duration < 500 && duration > 20) {
-                if (now - s_last_release_ms < 400) {
-                    ESP_LOGW(TAG, "Double tap detected! Restarting...");
-                    esp_restart();
+                if (s_click_count == 0 || now - s_last_release_ms < 500) {
+                    s_click_count++;
+                    s_last_release_ms = now;
+                    ESP_LOGI(TAG, "Button click detected (count=%d)", (int)s_click_count);
+                    if (s_click_count == 3) {
+                        ESP_LOGW(TAG, "Triple tap detected! Triggering calibration...");
+                        if (s_triple_click_cb) {
+                            s_triple_click_cb();
+                        }
+                        s_click_count = 0;
+                    }
                 } else {
+                    s_click_count = 1;
                     s_last_release_ms = now;
                 }
             }
         } else {
             s_btn_press_ms = 0;
         }
+    }
+
+    if (s_click_count > 0 && now - s_last_release_ms >= 400) {
+        if (s_click_count == 2) {
+            ESP_LOGW(TAG, "Double tap detected! Restarting...");
+            esp_restart();
+        }
+        s_click_count = 0;
     }
 
     s_ticks++;

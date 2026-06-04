@@ -38,6 +38,12 @@ int sc_bsp_get_battery_pct(void);
  */
 esp_err_t sc_bsp_brightness_set(uint8_t percent);
 
+/**
+ * @brief Register a callback for when the power button is clicked 3 times rapidly.
+ */
+typedef void (*sc_bsp_btn_triple_click_cb_t)(void);
+void sc_bsp_register_btn_triple_click_cb(sc_bsp_btn_triple_click_cb_t cb);
+
 #ifdef __cplusplus
 }
 #endif

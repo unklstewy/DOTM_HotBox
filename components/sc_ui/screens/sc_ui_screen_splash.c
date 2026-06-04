@@ -45,7 +45,7 @@ static void rasterize_thread_func(void *arg)
                  esp_err_to_name(ret));
     }
 
-    vTaskDelay(pdMS_TO_TICKS(300));
+    vTaskDelay(pdMS_TO_TICKS(2300));
 
     lv_lock();
     ESP_LOGI(TAG, "Rasterization complete, routing to next boot screen");
@@ -71,16 +71,18 @@ lv_obj_t *sc_ui_screen_splash_create(void *user_data)
     lv_obj_set_style_bg_color(s_scr, lv_color_hex(0x000000), 0);
     lv_obj_remove_flag(s_scr, LV_OBJ_FLAG_SCROLLABLE);
 
+    const sc_terminal_config_t *cfg = sc_config_get();
+    bool is_landscape = (cfg->display_rotation == 1 || cfg->display_rotation == 3);
+
     // Full screen background image
     lv_obj_t *bg_img = lv_image_create(s_scr);
-    lv_image_set_src(bg_img, "S:/assets/images/splash_base_portait.png");
+    if (is_landscape) {
+        lv_image_set_src(bg_img, "S:/assets/images/splash_base_landscape.bin");
+    } else {
+        lv_image_set_src(bg_img, "S:/assets/images/splash_base_portait.bin");
+    }
     lv_obj_set_size(bg_img, LV_PCT(100), LV_PCT(100));
     lv_obj_align(bg_img, LV_ALIGN_CENTER, 0, 0);
-
-    // Centered branding logo
-    lv_obj_t *logo_img = lv_image_create(s_scr);
-    lv_image_set_src(logo_img, "S:/assets/images/DanksideLogo.png");
-    lv_obj_align(logo_img, LV_ALIGN_CENTER, 0, -150);
 
     // Progress Bar at the bottom
     s_progress_bar = lv_bar_create(s_scr);

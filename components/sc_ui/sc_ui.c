@@ -60,6 +60,12 @@ static esp_err_t sc_ui_screen_show(sc_ui_screen_id_t id);
 
 /* ── Lifecycle ───────────────────────────────────────────────────────────── */
 
+static void sc_ui_bsp_triple_click_cb(void)
+{
+    ESP_LOGI(TAG, "BSP triple click callback triggered. Navigating to touch calibration.");
+    sc_ui_router_push(SC_UI_SCREEN_CALIBRATION);
+}
+
 esp_err_t sc_ui_init(const sc_terminal_config_t *cfg)
 {
     s_cfg = cfg;
@@ -71,7 +77,7 @@ esp_err_t sc_ui_init(const sc_terminal_config_t *cfg)
     esp_err_t ret = sc_bsp_init();
     if (ret != ESP_OK) return ret;
 
-
+    sc_bsp_register_btn_triple_click_cb(sc_ui_bsp_triple_click_cb);
 
     /* LVGL init */
     lv_init();

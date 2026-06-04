@@ -100,6 +100,7 @@ typedef struct
     /* Widget type */
     sc_widget_type_t widget_type;
     bool latching_state;     /* current ON/OFF for latching buttons */
+    uint32_t hold_ms;        /* configured HID hold time in ms */
     /* State colours from JSON */
     char state_keys[4][16];
     lv_color_t state_colors[4];
@@ -108,6 +109,12 @@ typedef struct
     /* Custom computed rasterized bounds */
     int pixel_w;
     int pixel_h;
+    /* Danger button state */
+    bool is_armed;
+    uint32_t arm_timestamp;
+    bool is_holding;
+    uint32_t hold_start_timestamp;
+    char original_label[32];
 } console_btn_t;
 
 /* ── Theme API ───────────────────────────────────────────────────────────── */
