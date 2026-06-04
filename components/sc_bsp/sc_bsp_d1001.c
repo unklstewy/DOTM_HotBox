@@ -467,3 +467,15 @@ static esp_err_t sc_bsp_touch_hw_init(void)
     
     return esp_lcd_touch_new_i2c_gsl3670(tp_io, &tp_cfg, &s_touch);
 }
+
+esp_err_t sc_bsp_brightness_set(uint8_t percent)
+{
+    if (percent > 100) percent = 100;
+    uint32_t duty = (percent * 1023) / 100;
+    esp_err_t err = ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, duty);
+    if (err == ESP_OK) {
+        err = ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
+    }
+    return err;
+}
+

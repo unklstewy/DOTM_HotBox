@@ -179,9 +179,7 @@ esp_err_t sc_ui_router_home(void)
 
 esp_err_t sc_ui_brightness_set(uint8_t percent)
 {
-    /* Handled by BSP now. We'll add this to BSP header. */
-    // return sc_bsp_brightness_set(percent);
-    return ESP_OK;
+    return sc_bsp_brightness_set(percent);
 }
 
 /* ── Screen factory ──────────────────────────────────────────────────────── */

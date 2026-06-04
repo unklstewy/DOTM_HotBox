@@ -33,6 +33,11 @@ void sc_bsp_power_off(void);
  */
 int sc_bsp_get_battery_pct(void);
 
+/**
+ * @brief Set display backlight brightness.
+ */
+esp_err_t sc_bsp_brightness_set(uint8_t percent);
+
 #ifdef __cplusplus
 }
 #endif
