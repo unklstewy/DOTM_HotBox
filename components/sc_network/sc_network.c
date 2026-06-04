@@ -500,6 +500,8 @@ static esp_err_t ws_connect(const char *host, uint16_t port)
 static void sc_network_task(void *arg)
 {
     for (;;) {
+#if CONFIG_SC_BRIDGE_ENABLED
+        /* Bridge disabled — only WiFi/AP needed; skip WebSocket connector. */
         if (s_is_ap) {
             vTaskDelay(pdMS_TO_TICKS(5000));
             continue;
@@ -513,7 +515,7 @@ static void sc_network_task(void *arg)
             continue;
         }
 
-        /* Read bridge host/port from config */
+        /* Read bridge host/port from NVS */
         nvs_handle_t h;
         char bridge_host[SC_CONFIG_HOSTNAME_LEN] = "sc-bridge.local";
         uint16_t bridge_port = 8765;
@@ -534,5 +536,9 @@ static void sc_network_task(void *arg)
         xEventGroupWaitBits(s_net_evg, NET_EVT_WS_CONNECTED,
                             pdFALSE, pdTRUE, portMAX_DELAY);
         vTaskDelay(pdMS_TO_TICKS(SC_NETWORK_WS_RECONNECT_MS));
+#else
+        /* SC-Bridge disabled: task idles; WiFi/AP and web server remain active. */
+        vTaskDelay(pdMS_TO_TICKS(60000));
+#endif
     }
 }

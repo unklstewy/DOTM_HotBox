@@ -1,0 +1,222 @@
+{
+  "btn_momentary_idle": {
+    "index": 0,
+    "w": 140,
+    "h": 56
+  },
+  "btn_momentary_armed": {
+    "index": 1,
+    "w": 140,
+    "h": 56
+  },
+  "btn_momentary_active": {
+    "index": 2,
+    "w": 140,
+    "h": 56
+  },
+  "btn_latching_off": {
+    "index": 3,
+    "w": 140,
+    "h": 56
+  },
+  "btn_latching_on": {
+    "index": 4,
+    "w": 140,
+    "h": 56
+  },
+  "btn_inactive": {
+    "index": 5,
+    "w": 140,
+    "h": 56
+  },
+  "btn_danger": {
+    "index": 6,
+    "w": 140,
+    "h": 56
+  },
+  "slider_track_h": {
+    "index": 7,
+    "w": 120,
+    "h": 24
+  },
+  "slider_track_v": {
+    "index": 8,
+    "w": 24,
+    "h": 120
+  },
+  "slider_thumb": {
+    "index": 9,
+    "w": 40,
+    "h": 24
+  },
+  "axis_joystick_base": {
+    "index": 10,
+    "w": 120,
+    "h": 120
+  },
+  "axis_joystick_thumb": {
+    "index": 11,
+    "w": 40,
+    "h": 40
+  },
+  "axis_dpad_base": {
+    "index": 12,
+    "w": 120,
+    "h": 120
+  },
+  "axis_dpad_up": {
+    "index": 13,
+    "w": 40,
+    "h": 36
+  },
+  "axis_dpad_down": {
+    "index": 14,
+    "w": 40,
+    "h": 36
+  },
+  "axis_dpad_left": {
+    "index": 15,
+    "w": 36,
+    "h": 40
+  },
+  "axis_dpad_right": {
+    "index": 16,
+    "w": 36,
+    "h": 40
+  },
+  "axis_haat_base": {
+    "index": 17,
+    "w": 120,
+    "h": 120
+  },
+  "axis_haat_cursor": {
+    "index": 18,
+    "w": 24,
+    "h": 24
+  },
+  "axis_throttle_track": {
+    "index": 19,
+    "w": 44,
+    "h": 120
+  },
+  "axis_throttle_grip": {
+    "index": 20,
+    "w": 60,
+    "h": 20
+  },
+  "axis_yaw_ring": {
+    "index": 21,
+    "w": 120,
+    "h": 120
+  },
+  "axis_yaw_needle": {
+    "index": 22,
+    "w": 10,
+    "h": 56
+  },
+  "axis_rudder_track": {
+    "index": 23,
+    "w": 256,
+    "h": 32
+  },
+  "axis_rudder_pedal": {
+    "index": 24,
+    "w": 56,
+    "h": 40
+  },
+  "knob_ring": {
+    "index": 25,
+    "w": 64,
+    "h": 64
+  },
+  "knob_cap": {
+    "index": 26,
+    "w": 64,
+    "h": 64
+  },
+  "jog_wheel_f0": {
+    "index": 27,
+    "w": 96,
+    "h": 96
+  },
+  "jog_wheel_f1": {
+    "index": 28,
+    "w": 96,
+    "h": 96
+  },
+  "jog_wheel_f2": {
+    "index": 29,
+    "w": 96,
+    "h": 96
+  },
+  "jog_wheel_f3": {
+    "index": 30,
+    "w": 96,
+    "h": 96
+  },
+  "jog_wheel_f4": {
+    "index": 31,
+    "w": 96,
+    "h": 96
+  },
+  "jog_wheel_f5": {
+    "index": 32,
+    "w": 96,
+    "h": 96
+  },
+  "jog_wheel_f6": {
+    "index": 33,
+    "w": 96,
+    "h": 96
+  },
+  "jog_wheel_f7": {
+    "index": 34,
+    "w": 96,
+    "h": 96
+  },
+  "panel_tl": {
+    "index": 35,
+    "w": 16,
+    "h": 16
+  },
+  "panel_tr": {
+    "index": 36,
+    "w": 16,
+    "h": 16
+  },
+  "panel_bl": {
+    "index": 37,
+    "w": 16,
+    "h": 16
+  },
+  "panel_br": {
+    "index": 38,
+    "w": 16,
+    "h": 16
+  },
+  "panel_edge_t": {
+    "index": 39,
+    "w": 64,
+    "h": 8
+  },
+  "panel_edge_b": {
+    "index": 40,
+    "w": 64,
+    "h": 8
+  },
+  "panel_edge_l": {
+    "index": 41,
+    "w": 8,
+    "h": 64
+  },
+  "panel_edge_r": {
+    "index": 42,
+    "w": 8,
+    "h": 64
+  },
+  "panel_center": {
+    "index": 43,
+    "w": 64,
+    "h": 64
+  }
+}

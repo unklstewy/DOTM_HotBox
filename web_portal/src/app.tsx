@@ -410,7 +410,7 @@ export function App() {
       if (res.ok) {
         const fileItems = await res.json();
         fileItems
-          .filter((item: any) => !item.is_dir && item.name.endsWith('.json') && item.name !== 'ship_templates.json')
+          .filter((item: any) => !item.is_dir && typeof item.name === 'string' && item.name.endsWith('.json') && item.name !== 'ship_templates.json')
           .forEach((item: any) => {
             const id = item.name.replace('.json', '');
             const name = id.split('_').map((s: string) => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
@@ -612,6 +612,7 @@ export function App() {
 
   // WYSIWYG Load Layout from SD Card or Fallback
   const fetchShipConfig = async (shipId: string) => {
+    if (!shipId) return;
     setEditorLoading(true);
     setSelectedWidgetIdx(null);
     try {
@@ -645,7 +646,7 @@ export function App() {
       const mockConfig: ShipConfig = {
         ship_id: shipId,
         ship_name: shipId.split('_').map((s: string) => s.charAt(0).toUpperCase() + s.slice(1)).join(' '),
-        manufacturer: shipId.startsWith('drake') ? 'Drake Interplanetary' : 'Aegis Dynamics',
+        manufacturer: (shipId || '').startsWith('drake') ? 'Drake Interplanetary' : 'Aegis Dynamics',
         consoles: [
           {
             console_id: 'pilot_mfd_left',
@@ -1605,16 +1606,17 @@ export function App() {
                                 {/* Placed controls */}
                                 {activeConsole.actions.map((act, index) => {
                                   const isSelected = selectedWidgetIdx === index;
-                                  const isButton = act.widget_type.startsWith('btn_');
+                                  const widgetType = act.widget_type || 'btn_momentary';
+                                  const isButton = widgetType.startsWith('btn_');
                                   return (
                                     <div
-                                      class={`placed-widget ${act.widget_type || 'btn_momentary'} ${isSelected ? 'selected' : ''}`}
+                                      class={`placed-widget ${widgetType} ${isSelected ? 'selected' : ''}`}
                                       style={`grid-row: ${act.row + 1} / span ${act.height || 1}; grid-column: ${act.col + 1} / span ${act.width || 1};`}
                                       onClick={(e) => { e.stopPropagation(); setSelectedWidgetIdx(index); }}
                                       draggable
                                       onDragStart={(e) => handleWidgetDragStart(e, index)}
                                     >
-                                      <WidgetSprite type={act.widget_type} active={isSelected} />
+                                      <WidgetSprite type={widgetType} active={isSelected} />
                                       <div class={`widget-label ${isButton ? 'button-label' : 'caption-label'}`}>
                                         {act.label || act.id}
                                       </div>

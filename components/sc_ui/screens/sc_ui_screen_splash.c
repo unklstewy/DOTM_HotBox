@@ -6,6 +6,7 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "sdkconfig.h"
 #include <stdio.h>
 
 static const char *TAG = "sc_ui_splash";
@@ -21,7 +22,7 @@ static void splash_progress_cb(int pct)
         lv_bar_set_value(s_progress_bar, pct, LV_ANIM_ON);
     }
     if (s_status_lbl) {
-        lv_label_set_text_fmt(s_status_lbl, "Rasterizing Vector Sprites... %d%%", pct);
+        lv_label_set_text_fmt(s_status_lbl, "Rasterizing sprites... %d%%", pct);
     }
     lv_unlock();
 }
@@ -29,25 +30,36 @@ static void splash_progress_cb(int pct)
 static void rasterize_thread_func(void *arg)
 {
     const sc_terminal_config_t *cfg = sc_config_get();
-    ESP_LOGI(TAG, "Starting SVG rasterizer background task for ship: %s", cfg->ship_id);
-    
-    // Run the full SVG crop, rasterization, and cache pipeline
-    esp_err_t ret = sc_ui_sprites_rasterize_all(cfg->ship_id, splash_progress_cb);
+    ESP_LOGI(TAG, "Loading sprites for ship: %s", cfg->ship_id);
+
+    /* Load pre-rasterized sprite .bin files from the SD card.
+     * These are produced on the host by tools/rasterize_sprites.py and
+     * deployed by tools/prep_sdcard.sh.  Pure file I/O — no LVGL rendering,
+     * no lv_lock(), no draw-thread interaction, no WDT issues. */
+    esp_err_t ret = sc_ui_sprites_load_from_sdcard(
+        "/sdcard/assets/themes/drake",
+        splash_progress_cb
+    );
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "SVG rasterization failed: %s", esp_err_to_name(ret));
+        ESP_LOGW(TAG, "Sprite load failed (%s) — UI will use flat-colour fallback",
+                 esp_err_to_name(ret));
     }
 
-    // Delay slightly to let the user see 100% completion
-    vTaskDelay(pdMS_TO_TICKS(500));
+    vTaskDelay(pdMS_TO_TICKS(300));
 
     lv_lock();
     ESP_LOGI(TAG, "Rasterization complete, routing to next boot screen");
-    // Check if paired, else route to pairing screen
+#if CONFIG_SC_BRIDGE_ENABLED
+    // With bridge: go to pairing if no host is configured
     if (cfg->bridge_host[0] == '\0' || cfg->ship_id[0] == '\0') {
         sc_ui_router_push(SC_UI_SCREEN_PAIRING);
     } else {
         sc_ui_router_push(SC_UI_SCREEN_BOOTMENU);
     }
+#else
+    // Without bridge: always go straight to bootmenu
+    sc_ui_router_push(SC_UI_SCREEN_BOOTMENU);
+#endif
     lv_unlock();
 
     vTaskDelete(NULL);
@@ -91,7 +103,8 @@ lv_obj_t *sc_ui_screen_splash_create(void *user_data)
     lv_obj_align(s_status_lbl, LV_ALIGN_CENTER, 0, 240);
 
     // Start background rasterization task
-    xTaskCreate(rasterize_thread_func, "sc_splash_rast", 8192, NULL, 3, NULL);
+    // 12 KB stack: ThorVG SVG renderer is deeply recursive and stack-hungry.
+    xTaskCreate(rasterize_thread_func, "sc_splash_rast", 12288, NULL, 3, NULL);
 
     return s_scr;
 }

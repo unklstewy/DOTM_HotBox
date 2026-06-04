@@ -25,15 +25,45 @@
 
 static const char *TAG = "sc_web";
 
-/* ── Assembly Externs for Embedded Web Assets ────────────────────────────── */
-extern const uint8_t index_html_start[] asm("_binary_index_html_start");
-extern const uint8_t index_html_end[]   asm("_binary_index_html_end");
+/* ── Web UI root on SD card ───────────────────────────────────────────────── */
+#define WEB_UI_ROOT "/sdcard/web"
 
-extern const uint8_t index_js_start[] asm("_binary_index_js_start");
-extern const uint8_t index_js_end[]   asm("_binary_index_js_end");
+static const char *mime_type_for(const char *path)
+{
+    if (strstr(path, ".html")) return "text/html";
+    if (strstr(path, ".js"))   return "application/javascript";
+    if (strstr(path, ".css"))  return "text/css";
+    if (strstr(path, ".svg"))  return "image/svg+xml";
+    if (strstr(path, ".png"))  return "image/png";
+    if (strstr(path, ".ico"))  return "image/x-icon";
+    return "application/octet-stream";
+}
 
-extern const uint8_t index_css_start[] asm("_binary_index_css_start");
-extern const uint8_t index_css_end[]   asm("_binary_index_css_end");
+/** Stream a file from the SD card to the HTTP client in 4 KB chunks. */
+static esp_err_t serve_sdcard_file(httpd_req_t *req, const char *sdcard_path)
+{
+    FILE *f = fopen(sdcard_path, "rb");
+    if (!f) {
+        ESP_LOGW(TAG, "Web file not found: %s", sdcard_path);
+        httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, "File not found on SD card");
+        return ESP_FAIL;
+    }
+
+    httpd_resp_set_type(req, mime_type_for(sdcard_path));
+
+    static char chunk[4096];
+    size_t n;
+    while ((n = fread(chunk, 1, sizeof(chunk), f)) > 0) {
+        if (httpd_resp_send_chunk(req, chunk, (ssize_t)n) != ESP_OK) {
+            fclose(f);
+            httpd_resp_send_chunk(req, NULL, 0);
+            return ESP_FAIL;
+        }
+    }
+    fclose(f);
+    httpd_resp_send_chunk(req, NULL, 0); /* signal end of chunked response */
+    return ESP_OK;
+}
 
 /* ── Server Handle ───────────────────────────────────────────────────────── */
 static httpd_handle_t s_server = NULL;
@@ -69,33 +99,43 @@ static void url_decode(char *dst, const char *src)
 
 static esp_err_t static_html_handler(httpd_req_t *req)
 {
-    httpd_resp_set_type(req, "text/html");
-    httpd_resp_send(req, (const char *)index_html_start, index_html_end - index_html_start);
-    return ESP_OK;
+    return serve_sdcard_file(req, WEB_UI_ROOT "/index.html");
 }
 
 static esp_err_t static_js_handler(httpd_req_t *req)
 {
-    httpd_resp_set_type(req, "application/javascript");
-    httpd_resp_send(req, (const char *)index_js_start, index_js_end - index_js_start);
-    return ESP_OK;
+    return serve_sdcard_file(req, WEB_UI_ROOT "/assets/index.js");
 }
 
 static esp_err_t static_css_handler(httpd_req_t *req)
 {
-    httpd_resp_set_type(req, "text/css");
-    httpd_resp_send(req, (const char *)index_css_start, index_css_end - index_css_start);
-    return ESP_OK;
+    return serve_sdcard_file(req, WEB_UI_ROOT "/assets/index.css");
 }
 
 static esp_err_t default_handler(httpd_req_t *req)
 {
-    if (strncmp(req->uri, "/api/", 5) == 0) {
-        httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, "API Endpoint Not Found");
-        return ESP_FAIL;
+    /* Serve any static asset from the SD card web root.
+     * Falls back to index.html for SPA client-side routes.
+     * API routes are handled by their own registered handlers and never reach here. */
+    char path[600];
+    strncpy(path, WEB_UI_ROOT, sizeof(path) - 1);
+    strncat(path, req->uri, sizeof(path) - strlen(path) - 1);
+    path[sizeof(path) - 1] = '\0';
+
+    /* Strip query string from path if present */
+    char *qs = strchr(path, '?');
+    if (qs) *qs = '\0';
+
+    FILE *probe = fopen(path, "rb");
+    if (probe) {
+        fclose(probe);
+        return serve_sdcard_file(req, path);
     }
     return static_html_handler(req);
 }
+
+
+
 
 /* ── REST API Handlers ───────────────────────────────────────────────────── */
 

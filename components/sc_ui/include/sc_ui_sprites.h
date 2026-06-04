@@ -200,6 +200,20 @@ sc_ui_sprite_id_t sc_ui_sprites_jog_frame(uint16_t angle_deg);
 esp_err_t sc_ui_sprites_rasterize_all(const char *ship_id, void (*progress_cb)(int pct));
 
 /**
+ * @brief Load pre-rasterized per-sprite .bin files from the SD card.
+ *
+ * Files must have been produced by tools/rasterize_sprites.py and deployed
+ * by tools/prep_sdcard.sh.  This avoids on-device SVG rendering entirely.
+ *
+ * @param theme_dir  VFS path to the theme directory
+ *                   (e.g. "/sdcard/assets/themes/drake").
+ * @param progress_cb Optional 0–100 progress callback; may be NULL.
+ * @return ESP_OK on success, ESP_ERR_NOT_FOUND if sprites/ directory missing.
+ */
+esp_err_t sc_ui_sprites_load_from_sdcard(const char *theme_dir,
+                                          void (*progress_cb)(int pct));
+
+/**
  * @brief Retrieve a cached rasterized sprite image descriptor.
  *        If w and h are 0, returns the original default size.
  */

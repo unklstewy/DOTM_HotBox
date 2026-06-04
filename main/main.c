@@ -27,9 +27,14 @@
 #include "sc_storage.h"
 #include "sc_hid.h"
 #include "sc_ui.h"
+#include "sdkconfig.h"
+
 #include "sc_network.h"
-#include "sc_gamelink.h"
 #include "sc_web.h"
+
+#if CONFIG_SC_BRIDGE_ENABLED
+#include "sc_gamelink.h"
+#endif
 
 static const char *TAG = "sc_main";
 
@@ -69,12 +74,21 @@ void app_main(void)
     /* ── 4. UI ──────────────────────────────────────────────────────────── */
     ESP_ERROR_CHECK(sc_ui_init(cfg));
 
-    /* ── 5. Network (Wi-Fi + WebSocket) ─────────────────────────────────── */
-    ESP_ERROR_CHECK(sc_network_init());
-    ESP_ERROR_CHECK(sc_web_start());
+    /* ── 5. Network (Wi-Fi AP + Web Server) ─────────────────────────────── */
+    err = sc_network_init();
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "Network init failed: %s — web UI unavailable", esp_err_to_name(err));
+    } else {
+        ESP_ERROR_CHECK(sc_web_start());
+    }
 
-    /* ── 6. Gamelink ────────────────────────────────────────────────────── */
+    /* ── 6. SC-Bridge (game log / WebSocket bridge connector) ───────────── */
+#if CONFIG_SC_BRIDGE_ENABLED
     ESP_ERROR_CHECK(sc_gamelink_init());
+    ESP_LOGI(TAG, "SC-Bridge connector started.");
+#else
+    ESP_LOGI(TAG, "SC-Bridge disabled — bridge connector will not run.");
+#endif
 
     ESP_LOGI(TAG, "All subsystems started.");
 

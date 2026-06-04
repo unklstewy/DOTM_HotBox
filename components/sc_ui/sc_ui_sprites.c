@@ -363,16 +363,30 @@ static uint8_t *rasterize_svg_cropped_to_rgb565(sc_ui_sprite_id_t id, uint16_t t
 
     lv_canvas_set_draw_buf(canvas, canvas_buf);
     lv_canvas_fill_bg(canvas, lv_color_black(), 0);
+    lv_obj_add_flag(canvas, LV_OBJ_FLAG_HIDDEN); /* don't render to screen */
 
     lv_layer_t layer;
     lv_canvas_init_layer(canvas, &layer);
     lv_draw_svg(&layer, svg_node);
-    lv_canvas_finish_layer(canvas, &layer);
+
+    /* Deadlock fix: lv_canvas_finish_layer holds lv_lock() while calling
+     * lv_draw_wait_for_finish. The LVGL draw thread needs lv_lock() to run
+     * (it calls lv_array_init internally). Holding the lock during the wait
+     * means sc_splash_rast waits for the draw thread, and the draw thread
+     * waits for sc_splash_rast — permanent deadlock, IDLE1 starved.
+     *
+     * Solution: dispatch draw tasks (lock held), then release before waiting,
+     * reacquire after the draw thread has finished. */
+    lv_draw_dispatch_layer(NULL, &layer);
+    lv_unlock();                    /* draw thread can now acquire lv_lock() */
+    lv_draw_wait_for_finish();  /* block until draw thread done */
+    lv_lock();                      /* safe to touch LVGL objects again */
 
     lv_svg_node_delete(svg_node);
     lv_obj_delete(canvas);
 
     lv_unlock();
+
 
     size_t rgb_size = target_w * target_h * 2;
     uint8_t *rgb_buf = heap_caps_malloc(rgb_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
@@ -418,10 +432,205 @@ esp_err_t sc_ui_sprites_load(const char               *atlas_path,
                               const sc_ui_atlas_meta_t *meta,
                               const sc_ui_sprite_rect_t desc[SC_SPRITE_COUNT])
 {
-    // Legacy support, now superseded by sc_ui_sprites_rasterize_all
-    ESP_LOGW(TAG, "sc_ui_sprites_load is deprecated, use rasterize_all");
+    if (!atlas_path || !meta || !desc) return ESP_ERR_INVALID_ARG;
+
+    FILE *f = fopen(atlas_path, "rb");
+    if (!f) {
+        ESP_LOGE(TAG, "Atlas not found: %s", atlas_path);
+        return ESP_ERR_NOT_FOUND;
+    }
+
+    size_t atlas_bytes = (size_t)meta->width * meta->height * 2;
+    uint8_t *buf = heap_caps_malloc(atlas_bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (!buf) {
+        fclose(f);
+        ESP_LOGE(TAG, "Out of PSRAM for atlas (%zu bytes)", atlas_bytes);
+        return ESP_ERR_NO_MEM;
+    }
+
+    size_t nread = fread(buf, 1, atlas_bytes, f);
+    fclose(f);
+    if (nread != atlas_bytes) {
+        heap_caps_free(buf);
+        ESP_LOGE(TAG, "Atlas read short: %zu / %zu", nread, atlas_bytes);
+        return ESP_FAIL;
+    }
+
+    /* Build per-sprite descriptors as sub-views into the atlas buffer */
+    for (int i = 0; i < SC_SPRITE_COUNT; i++) {
+        uint16_t w = desc[i].w, h = desc[i].h;
+        if (w == 0 || h == 0) continue;
+        s_rects[i] = desc[i];
+        /* Point data at the first row of this sprite inside the atlas */
+        size_t row_bytes   = (size_t)meta->width * 2;
+        size_t sprite_off  = (size_t)desc[i].y * row_bytes + (size_t)desc[i].x * 2;
+        s_descs[i].header.magic  = LV_IMAGE_HEADER_MAGIC;
+        s_descs[i].header.cf     = LV_COLOR_FORMAT_RGB565;
+        s_descs[i].header.w      = w;
+        s_descs[i].header.h      = h;
+        s_descs[i].header.stride = (uint32_t)meta->width * 2; /* atlas row stride */
+        s_descs[i].data          = buf + sprite_off;
+        s_descs[i].data_size     = (size_t)h * meta->width * 2;
+    }
+    s_loaded = true;
+    ESP_LOGI(TAG, "Atlas loaded: %s (%zu bytes PSRAM)", atlas_path, atlas_bytes);
     return ESP_OK;
 }
+
+/**
+ * @brief Load per-sprite .bin files produced by tools/rasterize_sprites.py.
+ *
+ * Each file is a raw RGB565 bitmap (w×h×2 bytes, little-endian) stored at
+ *   <theme_dir>/sprites/<sprite_name>.bin
+ * A companion JSON at <theme_dir>/sprites/sprites_meta.json provides {w, h}
+ * for each sprite name so the firmware knows the image dimensions without a
+ * file header.
+ *
+ * This function has NO dependency on LVGL rendering and is safe to call from
+ * any task — avoiding the lv_lock() / draw-thread deadlock that afflicts
+ * the on-device SVG rasterizer.
+ */
+esp_err_t sc_ui_sprites_load_from_sdcard(const char        *theme_dir,
+                                          void (*progress_cb)(int pct))
+{
+    /* ── 1. Read sprites_meta.json ──────────────────────────────────────── */
+    char meta_path[128];
+    snprintf(meta_path, sizeof(meta_path), "%s/sprites/sprites_meta.json", theme_dir);
+
+    FILE *mf = fopen(meta_path, "r");
+    if (!mf) {
+        ESP_LOGE(TAG, "sprites_meta.json not found: %s", meta_path);
+        return ESP_ERR_NOT_FOUND;
+    }
+    fseek(mf, 0, SEEK_END);
+    long mlen = ftell(mf);
+    rewind(mf);
+    char *mbuf = heap_caps_malloc((size_t)mlen + 1, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    if (!mbuf) { fclose(mf); return ESP_ERR_NO_MEM; }
+    fread(mbuf, 1, (size_t)mlen, mf);
+    fclose(mf);
+    mbuf[mlen] = '\0';
+
+    cJSON *meta = cJSON_Parse(mbuf);
+    heap_caps_free(mbuf);
+    if (!meta) {
+        ESP_LOGE(TAG, "Failed to parse sprites_meta.json");
+        return ESP_FAIL;
+    }
+
+    /* Sprite name list — must match SPRITE_NAMES in rasterize_sprites.py */
+    static const char * const SPRITE_FILE_NAMES[SC_SPRITE_COUNT] = {
+        [SC_SPRITE_BTN_MOMENTARY_IDLE]   = "btn_momentary_idle",
+        [SC_SPRITE_BTN_MOMENTARY_ARMED]  = "btn_momentary_armed",
+        [SC_SPRITE_BTN_MOMENTARY_ACTIVE] = "btn_momentary_active",
+        [SC_SPRITE_BTN_LATCHING_OFF]     = "btn_latching_off",
+        [SC_SPRITE_BTN_LATCHING_ON]      = "btn_latching_on",
+        [SC_SPRITE_BTN_INACTIVE]         = "btn_inactive",
+        [SC_SPRITE_BTN_DANGER]           = "btn_danger",
+        [SC_SPRITE_SLIDER_TRACK_H]       = "slider_track_h",
+        [SC_SPRITE_SLIDER_TRACK_V]       = "slider_track_v",
+        [SC_SPRITE_SLIDER_THUMB]         = "slider_thumb",
+        [SC_SPRITE_AXIS_JOYSTICK_BASE]   = "axis_joystick_base",
+        [SC_SPRITE_AXIS_JOYSTICK_THUMB]  = "axis_joystick_thumb",
+        [SC_SPRITE_AXIS_DPAD_BASE]       = "axis_dpad_base",
+        [SC_SPRITE_AXIS_DPAD_UP]         = "axis_dpad_up",
+        [SC_SPRITE_AXIS_DPAD_DOWN]       = "axis_dpad_down",
+        [SC_SPRITE_AXIS_DPAD_LEFT]       = "axis_dpad_left",
+        [SC_SPRITE_AXIS_DPAD_RIGHT]      = "axis_dpad_right",
+        [SC_SPRITE_AXIS_HAAT_BASE]       = "axis_haat_base",
+        [SC_SPRITE_AXIS_HAAT_CURSOR]     = "axis_haat_cursor",
+        [SC_SPRITE_AXIS_THROTTLE_TRACK]  = "axis_throttle_track",
+        [SC_SPRITE_AXIS_THROTTLE_GRIP]   = "axis_throttle_grip",
+        [SC_SPRITE_AXIS_YAW_RING]        = "axis_yaw_ring",
+        [SC_SPRITE_AXIS_YAW_NEEDLE]      = "axis_yaw_needle",
+        [SC_SPRITE_AXIS_RUDDER_TRACK]    = "axis_rudder_track",
+        [SC_SPRITE_AXIS_RUDDER_PEDAL]    = "axis_rudder_pedal",
+        [SC_SPRITE_KNOB_RING]            = "knob_ring",
+        [SC_SPRITE_KNOB_CAP]             = "knob_cap",
+        [SC_SPRITE_JOG_WHEEL_F0]         = "jog_wheel_f0",
+        [SC_SPRITE_JOG_WHEEL_F1]         = "jog_wheel_f1",
+        [SC_SPRITE_JOG_WHEEL_F2]         = "jog_wheel_f2",
+        [SC_SPRITE_JOG_WHEEL_F3]         = "jog_wheel_f3",
+        [SC_SPRITE_JOG_WHEEL_F4]         = "jog_wheel_f4",
+        [SC_SPRITE_JOG_WHEEL_F5]         = "jog_wheel_f5",
+        [SC_SPRITE_JOG_WHEEL_F6]         = "jog_wheel_f6",
+        [SC_SPRITE_JOG_WHEEL_F7]         = "jog_wheel_f7",
+        [SC_SPRITE_PANEL_TL]             = "panel_tl",
+        [SC_SPRITE_PANEL_TR]             = "panel_tr",
+        [SC_SPRITE_PANEL_BL]             = "panel_bl",
+        [SC_SPRITE_PANEL_BR]             = "panel_br",
+        [SC_SPRITE_PANEL_EDGE_T]         = "panel_edge_t",
+        [SC_SPRITE_PANEL_EDGE_B]         = "panel_edge_b",
+        [SC_SPRITE_PANEL_EDGE_L]         = "panel_edge_l",
+        [SC_SPRITE_PANEL_EDGE_R]         = "panel_edge_r",
+        [SC_SPRITE_PANEL_CENTER]         = "panel_center",
+    };
+
+    /* ── 2. Load each sprite .bin into PSRAM ────────────────────────────── */
+    int loaded = 0;
+    for (int i = 0; i < SC_SPRITE_COUNT; i++) {
+        const char *sname = SPRITE_FILE_NAMES[i];
+        if (!sname) { continue; }
+
+        /* Read w/h from meta JSON */
+        cJSON *entry = cJSON_GetObjectItem(meta, sname);
+        if (!entry) { continue; }
+        int w = cJSON_GetObjectItem(entry, "w") ?
+                cJSON_GetObjectItem(entry, "w")->valueint : 0;
+        int h = cJSON_GetObjectItem(entry, "h") ?
+                cJSON_GetObjectItem(entry, "h")->valueint : 0;
+        if (w == 0 || h == 0) { continue; }
+
+        char bin_path[160];
+        snprintf(bin_path, sizeof(bin_path), "%s/sprites/%s.bin", theme_dir, sname);
+
+        FILE *bf = fopen(bin_path, "rb");
+        if (!bf) {
+            ESP_LOGW(TAG, "Sprite missing: %s", bin_path);
+            continue;
+        }
+
+        size_t nbytes = (size_t)w * h * 2;
+        uint8_t *buf = heap_caps_malloc(nbytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        if (!buf) {
+            fclose(bf);
+            ESP_LOGE(TAG, "PSRAM OOM loading %s", sname);
+            continue;
+        }
+
+        size_t nread = fread(buf, 1, nbytes, bf);
+        fclose(bf);
+        if (nread != nbytes) {
+            heap_caps_free(buf);
+            ESP_LOGW(TAG, "Short read for %s (%zu/%zu)", sname, nread, nbytes);
+            continue;
+        }
+
+        s_rects[i] = (sc_ui_sprite_rect_t){ .x=0, .y=0, .w=(uint16_t)w, .h=(uint16_t)h };
+        s_descs[i].header.magic  = LV_IMAGE_HEADER_MAGIC;
+        s_descs[i].header.cf     = LV_COLOR_FORMAT_RGB565;
+        s_descs[i].header.w      = (uint16_t)w;
+        s_descs[i].header.h      = (uint16_t)h;
+        s_descs[i].header.stride = (uint32_t)w * 2;
+        s_descs[i].data          = buf;
+        s_descs[i].data_size     = nbytes;
+
+        /* Also insert into the scaled cache so get_scaled() finds it */
+        add_to_cache(i, (uint16_t)w, (uint16_t)h, buf);
+        loaded++;
+
+        if (progress_cb) {
+            progress_cb((loaded * 100) / SC_SPRITE_COUNT);
+        }
+        taskYIELD(); /* keep IDLE task healthy during SD card reads */
+    }
+
+    cJSON_Delete(meta);
+    s_loaded = (loaded > 0);
+    ESP_LOGI(TAG, "Loaded %d/%d sprites from %s/sprites/", loaded, SC_SPRITE_COUNT, theme_dir);
+    return s_loaded ? ESP_OK : ESP_ERR_NOT_FOUND;
+}
+
 
 void sc_ui_sprites_unload(void)
 {
@@ -633,7 +842,9 @@ esp_err_t sc_ui_sprites_rasterize_all(const char *ship_id, void (*progress_cb)(i
         if (progress_cb) {
             progress_cb((current_step * 100) / total_steps);
         }
-        vTaskDelay(1);
+        /* Yield to IDLE1 so the task watchdog can be serviced and the LVGL
+         * task gets a chance to run between sprites. */
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
 
     // 2. Rasterize custom sizes in queue
@@ -647,7 +858,7 @@ esp_err_t sc_ui_sprites_rasterize_all(const char *ship_id, void (*progress_cb)(i
         if (progress_cb) {
             progress_cb((current_step * 100) / total_steps);
         }
-        vTaskDelay(1);
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
 
     heap_caps_free(s_svg_content);

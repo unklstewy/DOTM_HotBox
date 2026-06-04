@@ -1,0 +1,20 @@
+menu "SC Bridge / GameLink"
+
+    config SC_BRIDGE_ENABLED
+        bool "Enable SC-Bridge network connection and GameLink event dispatcher"
+        default n
+        help
+            When enabled the firmware will:
+              - Start sc_network (Wi-Fi + WebSocket client) to connect to the
+                PC-side sc-bridge daemon.
+              - Start sc_gamelink to receive and dispatch game-state events
+                (gear, shields, quantum drive, etc.) over that connection.
+              - Show the Pairing screen on first boot until a bridge host is
+                configured.
+
+            Disable this option when the hardware is being used as a standalone
+            HID controller without a running sc-bridge instance on the PC.
+            The USB HID, LVGL UI, and SD-card ship layouts continue to work
+            normally; only real-time game-state feedback is suppressed.
+
+endmenu

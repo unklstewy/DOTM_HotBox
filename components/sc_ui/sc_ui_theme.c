@@ -115,6 +115,9 @@ lv_obj_t *sc_ui_theme_draw_panel(lv_obj_t *panel)
     lv_obj_set_style_border_width(c, 0, 0);
     lv_obj_set_style_pad_all(c, 0, 0);
     lv_obj_align(c, LV_ALIGN_CENTER, 0, 0);
+    /* Always paint the theme bg — sprite is overlaid on top if available */
+    lv_obj_set_style_bg_color(c, sc_theme.bg, 0);
+    lv_obj_set_style_bg_opa(c, LV_OPA_COVER, 0);
     s_set_sprite(c, SC_SPRITE_PANEL_CENTER);
     lv_obj_set_style_bg_image_tiled(c, true, 0);
 
@@ -202,9 +205,9 @@ void sc_ui_theme_style_btn(lv_obj_t *btn, lv_color_t state_color)
 {
     lv_obj_set_style_shadow_width(btn, 0, 0);
     lv_obj_set_style_outline_width(btn, 0, 0);
-    lv_obj_set_style_border_width(btn, 0, 0);
-    lv_obj_set_style_radius(btn, 0, 0);
-    lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(btn, 1, 0);
+    lv_obj_set_style_border_color(btn, sc_theme.divider, 0);
+    lv_obj_set_style_radius(btn, 4, 0);
 
     bool is_armed  = lv_color_to_int(state_color) == lv_color_to_int(sc_theme.armed);
     bool is_active = !is_armed &&
@@ -222,11 +225,19 @@ void sc_ui_theme_style_btn(lv_obj_t *btn, lv_color_t state_color)
 
     const lv_image_dsc_t *dsc = sc_ui_sprites_get_scaled(id, w, h);
     if (dsc) {
+        lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, 0);
         lv_obj_set_style_bg_image_src(btn, dsc, 0);
         if (is_active) {
             lv_obj_set_style_bg_image_recolor(btn, state_color, 0);
             lv_obj_set_style_bg_image_recolor_opa(btn, LV_OPA_30, 0);
         }
+    } else {
+        /* Sprite atlas not loaded — use flat colour fallback */
+        lv_color_t bg = is_armed  ? sc_theme.armed
+                      : is_active ? state_color
+                      :             sc_theme.bg_panel;
+        lv_obj_set_style_bg_color(btn, bg, 0);
+        lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, 0);
     }
 }
 
@@ -234,9 +245,9 @@ void sc_ui_theme_style_btn_latching(lv_obj_t *btn, bool is_on)
 {
     lv_obj_set_style_shadow_width(btn, 0, 0);
     lv_obj_set_style_outline_width(btn, 0, 0);
-    lv_obj_set_style_border_width(btn, 0, 0);
-    lv_obj_set_style_radius(btn, 0, 0);
-    lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(btn, 1, 0);
+    lv_obj_set_style_border_color(btn, sc_theme.divider, 0);
+    lv_obj_set_style_radius(btn, 4, 0);
 
     sc_ui_sprite_id_t id = is_on ? SC_SPRITE_BTN_LATCHING_ON : SC_SPRITE_BTN_LATCHING_OFF;
 
@@ -246,7 +257,12 @@ void sc_ui_theme_style_btn_latching(lv_obj_t *btn, bool is_on)
 
     const lv_image_dsc_t *dsc = sc_ui_sprites_get_scaled(id, w, h);
     if (dsc) {
+        lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, 0);
         lv_obj_set_style_bg_image_src(btn, dsc, 0);
+    } else {
+        /* Sprite atlas not loaded — flat colour fallback */
+        lv_obj_set_style_bg_color(btn, is_on ? sc_theme.ready : sc_theme.bg_panel, 0);
+        lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, 0);
     }
 }
 

@@ -38,6 +38,18 @@ CONFIG_SC_NETWORK_DEV_FALLBACK=y
 CONFIG_SC_NETWORK_DEV_SSID="Waterways"
 CONFIG_SC_NETWORK_DEV_PSK="RiverS0ng"
 
+# --------------- SC-Bridge / GameLink ----------------------------------
+# Set to y to enable Wi-Fi + WebSocket bridge connection and game-state
+# event dispatching. Disabled by default for standalone HID use.
+CONFIG_SC_BRIDGE_ENABLED=n
+
+# --------------- Task Watchdog -----------------------------------------
+# SVG rasterization via ThorVG can block a single core for 10-20 seconds
+# per sprite. Raise the WDT timeout so the rasterizer task is not flagged.
+# IDLE health is maintained by the inter-sprite vTaskDelay(10ms) yields.
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=30
+CONFIG_ESP_TASK_WDT_PANIC=n
+
 # --------------- USB / TinyUSB ------------------------------------------
 # TINYUSB_HID_COUNT>0 enables HID and sets CFG_TUD_HID in the build.
 # We use 1 HID interface with 2 reports (keyboard + consumer control).
