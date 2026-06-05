@@ -40,6 +40,12 @@ Key features:
 - **Web Portal** — configure Wi-Fi, ship profile, and touch calibration from any browser on your local network
 - **OTA-ready** — dual OTA partition table; flash new firmware over USB or remotely
 
+### HotBox Lite (Headless Mode)
+
+For hardware targets without a built-in LCD screen (such as ESP32-S3 or ESP32-C3 DevKits), **HotBox Lite** runs headlessly on the micro-controller and hosts the interactive control canvas directly in the browser.
+
+Any device on your local network (iPad, iPhone, Android tablet, Surface Pro, or a secondary desktop browser window) can open the Web Portal's **Play Mode** to serve as the physical control panel. Interactions on the browser screen are sent in real-time to the ESP32, which forwards them to your PC as standard USB gamepad reports.
+
 ---
 
 ## Hardware
@@ -155,10 +161,22 @@ sudo usermod -aG dialout $USER
 
 ### First Boot & Configuration
 
+#### Standard (with SD Card, e.g., reTerminal D1001)
 1. **Insert a microSD card** formatted as FAT32 (exFAT is also supported on IDF 6).
 2. **Copy the SD card contents** from the `sdcard/` directory in this repo to the root of the card.
 3. Power on the device — the splash screen loads, then the boot menu appears.
-4. **Connect to the Web Portal:**
+
+#### HotBox Lite (Headless SPIFFS targets, e.g., ESP32-S3/C3)
+1. The firmware uses the internal flash storage with **SPIFFS** instead of an SD card.
+2. Web portal build files (`web_portal/dist`), ship configs (`spiffs_image/ships`), and lightweight SVG theme assets (`spiffs_image/assets/themes/.../sprite_sheet.svg`) are located in the `spiffs_image/` directory.
+3. These are compiled and flashed directly into the `storage` partition in the project using:
+   ```bash
+   idf.py build flash
+   ```
+4. Power on the device — it boots headlessly.
+
+#### Configuration & Binding
+1. **Connect to the Web Portal:**
    - The device connects to Wi-Fi using credentials stored in NVS.
    - On first boot (no credentials saved), it falls back to a softAP — connect to `HotBox-XXXX` and browse to `192.168.4.1`.
    - Set your SSID, password, ship profile, and bridge hostname.

@@ -16,12 +16,16 @@ When contributing to this project, adhere to the following principles:
 
 3. **Memory Consciousness**:
    - Prefer loading assets (images, fonts, JSON) from the SD Card via the VFS rather than baking them into Flash.
+   - For headless/HotBox Lite targets (e.g., ESP32-S3/C3 without an SD card slot), assets are loaded from the **SPIFFS partition image**. Keep SPIFFS asset sizes minimal (e.g., only copy lightweight layout SVGs, not huge pre-rasterized `.bin` directories) to avoid exceeding internal flash storage constraints.
    - Use PSRAM (MALLOC_CAP_SPIRAM) for large buffers, but keep tight, high-frequency LVGL draw buffers in internal SRAM to prevent memory bandwidth starvation.
 
 4. **Comments & Documentation**:
    - Write clear Doxygen-style comments for public header API functions.
    - Separate concerns cleanly into distinct `.c` files.
    - If you introduce a complex state machine, document its flow at the top of the C file.
+
+5. **Headless & Hybrid Operations (HotBox Lite)**:
+   - Ensure frontend-backend communication remains clean. The web portal's **Play Mode** renders the control canvas in the browser and sends user events to the device. Any new widgets, interaction models (e.g., pointer captures for smooth touch dragging), or layout features must work/fail gracefully on both the native LVGL display and the web-based canvas interface.
 
 ## Commit Standards
 
