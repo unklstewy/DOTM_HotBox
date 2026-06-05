@@ -35,6 +35,9 @@ interface Widget {
     consumer_usage?: number;
     hold_ms?: number;
     gamepad_button?: number;
+    gamepad_id?: number;
+    gamepad_axis?: number;
+    gamepad_axis_y?: number;
   };
   state?: {
     gamelink_event?: string | null;
@@ -79,7 +82,13 @@ const getWidgetIcon = (type: string) => {
 };
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<'status' | 'config' | 'wifi' | 'files' | 'settings' | 'gamepad'>('status');
+  const getInitialTab = () => {
+    if (window.location.hash === '#play' || window.location.search.includes('play=true')) {
+      return 'gamepad';
+    }
+    return 'status';
+  };
+  const [activeTab, setActiveTab] = useState<'status' | 'config' | 'wifi' | 'files' | 'settings' | 'gamepad'>(getInitialTab());
   
   // WebSocket State for Retro Gamepad / PWA Play Mode
   const [wsConnected, setWsConnected] = useState<'connected' | 'disconnected' | 'connecting'>('disconnected');
@@ -87,6 +96,48 @@ export function App() {
 
   // Active sub-mode in gamepad (console or gamepad)
   const [gamepadMode, setGamepadMode] = useState<'console' | 'classic'>('console');
+  
+  // Fullscreen Play Mode State
+  const [isFullscreen, setIsFullscreen] = useState(
+    window.location.hash === '#play' || window.location.search.includes('play=true')
+  );
+
+  // Active presses in Play Mode
+  const [pressedActions, setPressedActions] = useState<Record<string, boolean>>({});
+  const [playWidgetValues, setPlayWidgetValues] = useState<Record<string, any>>({});
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      if (window.location.hash === '#play') {
+        setActiveTab('gamepad');
+        setIsFullscreen(true);
+      } else if (window.location.hash === '') {
+        setIsFullscreen(false);
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  const enterPlayFullscreen = () => {
+    setIsFullscreen(true);
+    window.location.hash = '#play';
+    try {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+    } catch (e) {}
+  };
+
+  const exitPlayFullscreen = () => {
+    setIsFullscreen(false);
+    window.location.hash = '';
+    try {
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      }
+    } catch (e) {}
+  };
   
   // Theme and Vector SVG State
   const [editorThemeOverride, setEditorThemeOverride] = useState<'drake' | 'origin' | null>(null);
@@ -260,6 +311,101 @@ export function App() {
     }
   };
 
+  const startWidgetDrag = (widget: any, e: any) => {
+    e.preventDefault();
+    const isTouch = e.type.startsWith('touch');
+    const startEvent = isTouch ? e.touches[0] : e;
+    const clientX = startEvent.clientX;
+    const clientY = startEvent.clientY;
+    
+    const buttonEl = e.currentTarget as HTMLElement;
+    const rect = buttonEl.getBoundingClientRect();
+    
+    const widgetId = widget.id;
+    const wtype = widget.widget_type || '';
+    
+    const gamepadId = widget.hid?.gamepad_id || 1;
+    const gamepadAxis = widget.hid?.gamepad_axis !== undefined ? widget.hid?.gamepad_axis : 6;
+    const gamepadAxisY = widget.hid?.gamepad_axis_y !== undefined ? widget.hid?.gamepad_axis_y : 1;
+    
+    const updateValue = (currX: number, currY: number) => {
+      let relX = (currX - rect.left) / rect.width;
+      let relY = (currY - rect.top) / rect.height;
+      relX = Math.max(0, Math.min(1, relX));
+      relY = Math.max(0, Math.min(1, relY));
+      
+      if (wtype === 'slider_h' || wtype === 'axis_rudder') {
+        const val = Math.round(relX * 255);
+        setPlayWidgetValues(prev => ({ ...prev, [widgetId]: val }));
+        sendWsCmd({ cmd: 'gp_axis', pad: gamepadId, axis: gamepadAxis, val });
+      } else if (wtype === 'slider_v' || wtype === 'axis_throttle') {
+        const val = Math.round((1 - relY) * 255);
+        setPlayWidgetValues(prev => ({ ...prev, [widgetId]: val }));
+        sendWsCmd({ cmd: 'gp_axis', pad: gamepadId, axis: gamepadAxis, val });
+      } else if (wtype === 'axis_joystick') {
+        const valX = Math.round(relX * 255);
+        const valY = Math.round(relY * 255);
+        setPlayWidgetValues(prev => ({ ...prev, [widgetId]: { x: valX, y: valY } }));
+        sendWsCmd({ cmd: 'gp_axis', pad: gamepadId, axis: gamepadAxis, val: valX });
+        sendWsCmd({ cmd: 'gp_axis', pad: gamepadId, axis: gamepadAxisY, val: valY });
+      } else if (wtype === 'axis_haat' || wtype === 'axis_dpad') {
+        const dx = relX - 0.5;
+        const dy = relY - 0.5;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        let hatVal = 0;
+        if (dist > 0.15) {
+          let angle = Math.atan2(dx, -dy) * (180 / Math.PI);
+          if (angle < 0) angle += 360;
+          const segment = Math.round(angle / 45) % 8;
+          hatVal = segment + 1;
+        }
+        setPlayWidgetValues(prev => ({ ...prev, [widgetId]: hatVal }));
+        sendWsCmd({ cmd: 'gp_hat', pad: gamepadId, val: hatVal });
+      } else if (wtype === 'knob' || wtype === 'axis_yaw' || wtype === 'jog_wheel') {
+        const dx = relX - 0.5;
+        const dy = relY - 0.5;
+        let angle = Math.atan2(dx, -dy);
+        let val = Math.round(((angle + Math.PI) / (2 * Math.PI)) * 255);
+        setPlayWidgetValues(prev => ({ ...prev, [widgetId]: val }));
+        sendWsCmd({ cmd: 'gp_axis', pad: gamepadId, axis: gamepadAxis, val });
+      }
+    };
+    
+    updateValue(clientX, clientY);
+    
+    const handleMove = (moveEvt: MouseEvent | TouchEvent) => {
+      const currEvt = moveEvt.type.startsWith('touch') ? (moveEvt as TouchEvent).touches[0] : (moveEvt as MouseEvent);
+      updateValue(currEvt.clientX, currEvt.clientY);
+    };
+    
+    const handleUp = () => {
+      if (wtype === 'axis_joystick') {
+        setPlayWidgetValues(prev => ({ ...prev, [widgetId]: { x: 128, y: 128 } }));
+        sendWsCmd({ cmd: 'gp_axis', pad: gamepadId, axis: gamepadAxis, val: 128 });
+        sendWsCmd({ cmd: 'gp_axis', pad: gamepadId, axis: gamepadAxisY, val: 128 });
+      } else if (wtype === 'axis_haat' || wtype === 'axis_dpad') {
+        setPlayWidgetValues(prev => ({ ...prev, [widgetId]: 0 }));
+        sendWsCmd({ cmd: 'gp_hat', pad: gamepadId, val: 0 });
+      }
+      
+      if (isTouch) {
+        window.removeEventListener('touchmove', handleMove);
+        window.removeEventListener('touchend', handleUp);
+      } else {
+        window.removeEventListener('mousemove', handleMove);
+        window.removeEventListener('mouseup', handleUp);
+      }
+    };
+    
+    if (isTouch) {
+      window.addEventListener('touchmove', handleMove, { passive: false });
+      window.addEventListener('touchend', handleUp);
+    } else {
+      window.addEventListener('mousemove', handleMove);
+      window.addEventListener('mouseup', handleUp);
+    }
+  };
+
   const handleGpEvent = (btnIndex: number, isPress: boolean, e: any) => {
     e.preventDefault();
     sendWsCmd({
@@ -341,7 +487,7 @@ export function App() {
     loadSvg();
   }, [activeTheme, shipConfig?.manufacturer]);
 
-  function WidgetSprite({ type, active }: { type: string, active?: boolean }) {
+  function WidgetSprite({ type, active, value }: { type: string, active?: boolean, value?: any }) {
     const renderSprite = (spriteId: string, style?: any) => {
       const rect = spriteRects[spriteId];
       if (!rect) {
@@ -366,82 +512,149 @@ export function App() {
         return renderSprite(active ? 'sprite-btn_latching_on' : 'sprite-btn_latching_off');
       case 'btn_danger':
         return renderSprite('sprite-btn_danger');
-      case 'slider_h':
+      case 'slider_h': {
+        const val = value !== undefined ? value : 0;
+        const leftPos = 5 + (val / 255) * 60;
         return (
           <div style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
             {renderSprite('sprite-slider_track_h')}
-            <div style="position: absolute; width: 30%; height: 80%; left: 35%; top: 10%;">
+            <div style={`position: absolute; width: 30%; height: 80%; left: ${leftPos}%; top: 10%;`}>
               {renderSprite('sprite-slider_thumb')}
             </div>
           </div>
         );
-      case 'slider_v':
+      }
+      case 'slider_v': {
+        const val = value !== undefined ? value : 0;
+        const topPos = 5 + (1 - val / 255) * 60;
         return (
           <div style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
             {renderSprite('sprite-slider_track_v')}
-            <div style="position: absolute; width: 80%; height: 30%; top: 35%; left: 10%;">
+            <div style={`position: absolute; width: 80%; height: 30%; top: ${topPos}%; left: 10%;`}>
               {renderSprite('sprite-slider_thumb')}
             </div>
           </div>
         );
-      case 'axis_joystick':
+      }
+      case 'axis_joystick': {
+        const valX = value?.x !== undefined ? value.x : 128;
+        const valY = value?.y !== undefined ? value.y : 128;
+        const leftPos = 10 + (valX / 255) * 45;
+        const topPos = 10 + (valY / 255) * 45;
         return (
           <div style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
             {renderSprite('sprite-axis_joystick_base')}
-            <div style="position: absolute; width: 35%; height: 35%; left: 32.5%; top: 32.5%;">
+            <div style={`position: absolute; width: 35%; height: 35%; left: ${leftPos}%; top: ${topPos}%;`}>
               {renderSprite('sprite-axis_joystick_thumb')}
             </div>
           </div>
         );
-      case 'axis_dpad':
-        return renderSprite('sprite-axis_dpad_base');
-      case 'axis_haat':
+      }
+      case 'axis_dpad': {
+        const val = value !== undefined ? value : 0;
+        const hatCoords: Record<number, { left: string, top: string }> = {
+          0: { left: '38%', top: '38%' },
+          1: { left: '38%', top: '12%' },
+          2: { left: '56%', top: '20%' },
+          3: { left: '64%', top: '38%' },
+          4: { left: '56%', top: '56%' },
+          5: { left: '38%', top: '64%' },
+          6: { left: '20%', top: '56%' },
+          7: { left: '12%', top: '38%' },
+          8: { left: '20%', top: '20%' },
+        };
+        const coords = hatCoords[val] || hatCoords[0];
         return (
           <div style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
-            {renderSprite('sprite-axis_haat_base')}
-            <div style="position: absolute; width: 24%; height: 24%; left: 38%; top: 38%;">
+            {renderSprite('sprite-axis_dpad_base')}
+            <div style={`position: absolute; width: 24%; height: 24%; left: ${coords.left}; top: ${coords.top};`}>
               {renderSprite('sprite-axis_haat_cursor')}
             </div>
           </div>
         );
-      case 'axis_throttle':
+      }
+      case 'axis_haat': {
+        const val = value !== undefined ? value : 0;
+        const hatCoords: Record<number, { left: string, top: string }> = {
+          0: { left: '38%', top: '38%' },
+          1: { left: '38%', top: '12%' },
+          2: { left: '56%', top: '20%' },
+          3: { left: '64%', top: '38%' },
+          4: { left: '56%', top: '56%' },
+          5: { left: '38%', top: '64%' },
+          6: { left: '20%', top: '56%' },
+          7: { left: '12%', top: '38%' },
+          8: { left: '20%', top: '20%' },
+        };
+        const coords = hatCoords[val] || hatCoords[0];
+        return (
+          <div style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+            {renderSprite('sprite-axis_haat_base')}
+            <div style={`position: absolute; width: 24%; height: 24%; left: ${coords.left}; top: ${coords.top};`}>
+              {renderSprite('sprite-axis_haat_cursor')}
+            </div>
+          </div>
+        );
+      }
+      case 'axis_throttle': {
+        const val = value !== undefined ? value : 0;
+        const topPos = 5 + (1 - val / 255) * 60;
         return (
           <div style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
             {renderSprite('sprite-axis_throttle_track')}
-            <div style="position: absolute; width: 80%; height: 30%; left: 10%; top: 35%;">
+            <div style={`position: absolute; width: 80%; height: 30%; left: 10%; top: ${topPos}%;`}>
               {renderSprite('sprite-axis_throttle_grip')}
             </div>
           </div>
         );
-      case 'axis_yaw':
+      }
+      case 'axis_yaw': {
+        const val = value !== undefined ? value : 128;
+        const angle = (val / 255) * 270 - 135;
         return (
           <div style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
             {renderSprite('sprite-axis_yaw_ring')}
-            <div style="position: absolute; width: 15%; height: 70%; left: 42.5%; top: 15%;">
+            <div style={`position: absolute; width: 15%; height: 70%; left: 42.5%; top: 15%; transform: rotate(${angle}deg); transform-origin: center 50%;`}>
               {renderSprite('sprite-axis_yaw_needle')}
             </div>
           </div>
         );
-      case 'axis_rudder':
+      }
+      case 'axis_rudder': {
+        const val = value !== undefined ? value : 128;
+        const leftPos = 5 + (val / 255) * 60;
         return (
           <div style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
             {renderSprite('sprite-axis_rudder_track')}
-            <div style="position: absolute; width: 25%; height: 80%; left: 37.5%; top: 10%;">
+            <div style={`position: absolute; width: 25%; height: 80%; left: ${leftPos}%; top: 10%;`}>
               {renderSprite('sprite-axis_rudder_pedal')}
             </div>
           </div>
         );
-      case 'knob':
+      }
+      case 'knob': {
+        const val = value !== undefined ? value : 128;
+        const angle = (val / 255) * 270 - 135;
         return (
           <div style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
             {renderSprite('sprite-knob_ring')}
-            <div style="position: absolute; width: 70%; height: 70%; left: 15%; top: 15%;">
+            <div style={`position: absolute; width: 70%; height: 70%; left: 15%; top: 15%; transform: rotate(${angle}deg); transform-origin: center;`}>
               {renderSprite('sprite-knob_cap')}
             </div>
           </div>
         );
-      case 'jog_wheel':
-        return renderSprite('sprite-jog_wheel_f0');
+      }
+      case 'jog_wheel': {
+        const val = value !== undefined ? value : 0;
+        const angle = (val / 255) * 360;
+        return (
+          <div style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+            <div style={`width: 100%; height: 100%; transform: rotate(${angle}deg); transform-origin: center;`}>
+              {renderSprite('sprite-jog_wheel_f0')}
+            </div>
+          </div>
+        );
+      }
       default:
         return renderSprite('sprite-btn_momentary_idle');
     }
@@ -546,69 +759,7 @@ export function App() {
     }
 
     if (loadedTemplates.length === 0) {
-      loadedTemplates = [
-        {
-          ship_id: 'misc_prospector',
-          ship_name: 'MISC Prospector',
-          manufacturer: 'Musashi Industrial & Starflight Concern',
-          consoles: [
-            {
-              console_id: 'mining_operations',
-              display_name: 'Mining Operations Console',
-              position: 'pilot',
-              layout: 'grid_6x6',
-              actions: [
-                {
-                  id: 'mining_laser_power',
-                  label: 'LASER PWR',
-                  description: 'Toggle Mining Laser Power',
-                  icon: 'btn_latching',
-                  row: 0,
-                  col: 0,
-                  width: 1,
-                  height: 1,
-                  widget_type: 'btn_latching',
-                  hid: { consumer_usage: 0, hold_ms: 0, gamepad_button: 1 },
-                  state: {
-                    gamelink_event: 'mining_laser_active',
-                    values: {
-                      active: { label: 'LASER ON', color: '#FF8800' },
-                      idle: { label: 'LASER OFF', color: '#00FF88' }
-                    }
-                  }
-                }
-              ]
-            }
-          ]
-        },
-        {
-          ship_id: 'rsi_scorpius',
-          ship_name: 'RSI Scorpius',
-          manufacturer: 'Roberts Space Industries',
-          consoles: [
-            {
-              console_id: 'turret_control',
-              display_name: 'Copilot Turret Console',
-              position: 'copilot',
-              layout: 'grid_6x6',
-              actions: [
-                {
-                  id: 'turret_power',
-                  label: 'TURRET ON',
-                  description: 'Power up weapon turret systems',
-                  icon: 'btn_latching',
-                  row: 0,
-                  col: 0,
-                  width: 1,
-                  height: 1,
-                  widget_type: 'btn_latching',
-                  hid: { consumer_usage: 0, hold_ms: 0, gamepad_button: 1 }
-                }
-              ]
-            }
-          ]
-        }
-      ];
+      loadedTemplates = [];
     }
     setShipTemplates(loadedTemplates);
     fetchShipsList(loadedTemplates);
@@ -1232,17 +1383,19 @@ export function App() {
 
   return (
     <>
-      <header>
-        <h1>DOTM - HotBox // <span>Control Portal</span></h1>
-        <div class="system-status">
-          <div class={`status-badge ${status.online ? 'online' : 'offline'}`}>
-            ● System: {status.online ? 'Online' : 'Offline'}
+      {!isFullscreen && (
+        <header>
+          <h1>DOTM - HotBox // <span>Control Portal</span></h1>
+          <div class="system-status">
+            <div class={`status-badge ${status.online ? 'online' : 'offline'}`}>
+              ● System: {status.online ? 'Online' : 'Offline'}
+            </div>
+            <div class={`status-badge ${status.mode === 'AP' ? 'ap' : 'online'}`}>
+              Network: {status.mode} ({status.ssid})
+            </div>
           </div>
-          <div class={`status-badge ${status.mode === 'AP' ? 'ap' : 'online'}`}>
-            Network: {status.mode} ({status.ssid})
-          </div>
-        </div>
-      </header>
+        </header>
+      )}
 
       {rebooting && (
         <div class="alert warning" style="font-size: 1.1rem; justify-content: center; padding: 20px;">
@@ -1253,31 +1406,33 @@ export function App() {
 
       {!rebooting && (
         <>
-          <div class="nav-tabs">
-            <button class={`nav-tab ${activeTab === 'status' ? 'active' : ''}`} onClick={() => setActiveTab('status')}>
-              Telemetry
-            </button>
-            <button class={`nav-tab ${activeTab === 'config' ? 'active' : ''}`} onClick={() => setActiveTab('config')}>
-              Ship Config
-            </button>
-            <button class={`nav-tab ${activeTab === 'wifi' ? 'active' : ''}`} onClick={() => setActiveTab('wifi')}>
-              Wi-Fi Setup
-            </button>
-            <button class={`nav-tab ${activeTab === 'files' ? 'active' : ''}`} onClick={() => setActiveTab('files')}>
-              File Manager
-            </button>
-            <button class={`nav-tab ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>
-              System
-            </button>
-            <button class={`nav-tab ${activeTab === 'gamepad' ? 'active' : ''}`} onClick={() => {
-              setActiveTab('gamepad');
-              if (!shipConfig) {
-                fetchShipConfig(config.ship_id);
-              }
-            }}>
-              🎮 Play Mode
-            </button>
-          </div>
+          {!isFullscreen && (
+            <div class="nav-tabs">
+              <button class={`nav-tab ${activeTab === 'status' ? 'active' : ''}`} onClick={() => setActiveTab('status')}>
+                Telemetry
+              </button>
+              <button class={`nav-tab ${activeTab === 'config' ? 'active' : ''}`} onClick={() => setActiveTab('config')}>
+                Ship Config
+              </button>
+              <button class={`nav-tab ${activeTab === 'wifi' ? 'active' : ''}`} onClick={() => setActiveTab('wifi')}>
+                Wi-Fi Setup
+              </button>
+              <button class={`nav-tab ${activeTab === 'files' ? 'active' : ''}`} onClick={() => setActiveTab('files')}>
+                File Manager
+              </button>
+              <button class={`nav-tab ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>
+                System
+              </button>
+              <button class={`nav-tab ${activeTab === 'gamepad' ? 'active' : ''}`} onClick={() => {
+                setActiveTab('gamepad');
+                if (!shipConfig) {
+                  fetchShipConfig(config.ship_id);
+                }
+              }}>
+                🎮 Play Mode
+              </button>
+            </div>
+          )}
 
           <main style="flex-grow: 1; display: flex; flex-direction: column;">
             {/* Telemetry Tab */}
@@ -1531,39 +1686,97 @@ export function App() {
                                   HID USB Mapping
                                 </span>
                                 
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                                  <div class="form-group" style="margin-bottom: 0;">
-                                    <label style="font-size: 0.65rem;">Gamepad Btn (1-32)</label>
-                                    <input 
-                                      type="number" 
-                                      min="0" 
-                                      max="32" 
-                                      value={selectedWidget.hid?.gamepad_button || 0} 
-                                      onInput={(e) => handleUpdateWidgetProperty('hid.gamepad_button', parseInt((e.target as HTMLInputElement).value) || 0)} 
-                                      style="padding: 6px 10px; font-size: 0.85rem;"
-                                    />
+                                {['slider_h', 'slider_v', 'axis_joystick', 'axis_throttle', 'axis_yaw', 'axis_rudder', 'knob', 'jog_wheel', 'axis_haat', 'axis_dpad'].includes(selectedWidget.widget_type) ? (
+                                  <div style="display: flex; flex-direction: column; gap: 10px;">
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                      <div class="form-group" style="margin-bottom: 0;">
+                                        <label style="font-size: 0.65rem;">Gamepad Select</label>
+                                        <select
+                                          value={selectedWidget.hid?.gamepad_id || 1}
+                                          onChange={(e) => handleUpdateWidgetProperty('hid.gamepad_id', parseInt((e.target as HTMLSelectElement).value) || 1)}
+                                          style="padding: 6px 10px; font-size: 0.85rem; height: auto; border: 1px solid rgba(0, 240, 255, 0.2); background: rgba(0,0,0,0.4); color: var(--text-primary);"
+                                        >
+                                          <option value="1">Gamepad A</option>
+                                          <option value="2">Gamepad B</option>
+                                        </select>
+                                      </div>
+                                      {selectedWidget.widget_type !== 'axis_haat' && selectedWidget.widget_type !== 'axis_dpad' && (
+                                        <div class="form-group" style="margin-bottom: 0;">
+                                          <label style="font-size: 0.65rem;">Gamepad Axis</label>
+                                          <select
+                                            value={selectedWidget.hid?.gamepad_axis !== undefined ? selectedWidget.hid.gamepad_axis : 6}
+                                            onChange={(e) => handleUpdateWidgetProperty('hid.gamepad_axis', parseInt((e.target as HTMLSelectElement).value))}
+                                            style="padding: 6px 10px; font-size: 0.85rem; height: auto; border: 1px solid rgba(0, 240, 255, 0.2); background: rgba(0,0,0,0.4); color: var(--text-primary);"
+                                          >
+                                            <option value="0">0: X Axis</option>
+                                            <option value="1">1: Y Axis</option>
+                                            <option value="2">2: Z Axis</option>
+                                            <option value="3">3: Rx Axis</option>
+                                            <option value="4">4: Ry Axis</option>
+                                            <option value="5">5: Rz Axis</option>
+                                            <option value="6">6: Slider</option>
+                                            <option value="7">7: Dial</option>
+                                          </select>
+                                        </div>
+                                      )}
+                                    </div>
+                                    {selectedWidget.widget_type === 'axis_joystick' && (
+                                      <div class="form-group" style="margin-bottom: 0;">
+                                        <label style="font-size: 0.65rem;">Gamepad Y-Axis (2D Joystick)</label>
+                                        <select
+                                          value={selectedWidget.hid?.gamepad_axis_y !== undefined ? selectedWidget.hid.gamepad_axis_y : 1}
+                                          onChange={(e) => handleUpdateWidgetProperty('hid.gamepad_axis_y', parseInt((e.target as HTMLSelectElement).value))}
+                                          style="padding: 6px 10px; font-size: 0.85rem; height: auto; border: 1px solid rgba(0, 240, 255, 0.2); background: rgba(0,0,0,0.4); color: var(--text-primary);"
+                                        >
+                                          <option value="0">0: X Axis</option>
+                                          <option value="1">1: Y Axis</option>
+                                          <option value="2">2: Z Axis</option>
+                                          <option value="3">3: Rx Axis</option>
+                                          <option value="4">4: Ry Axis</option>
+                                          <option value="5">5: Rz Axis</option>
+                                          <option value="6">6: Slider</option>
+                                          <option value="7">7: Dial</option>
+                                        </select>
+                                      </div>
+                                    )}
                                   </div>
-                                  <div class="form-group" style="margin-bottom: 0;">
-                                    <label style="font-size: 0.65rem;">Consumer Code</label>
-                                    <input 
-                                      type="number" 
-                                      min="0" 
-                                      value={selectedWidget.hid?.consumer_usage || 0} 
-                                      onInput={(e) => handleUpdateWidgetProperty('hid.consumer_usage', parseInt((e.target as HTMLInputElement).value) || 0)} 
-                                      style="padding: 6px 10px; font-size: 0.85rem;"
-                                    />
+                                ) : (
+                                  <div style="display: flex; flex-direction: column; gap: 10px;">
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                      <div class="form-group" style="margin-bottom: 0;">
+                                        <label style="font-size: 0.65rem;">Gamepad Btn (1-256)</label>
+                                        <input 
+                                          type="number" 
+                                          min="0" 
+                                          max="256" 
+                                          value={selectedWidget.hid?.gamepad_button || 0} 
+                                          onInput={(e) => handleUpdateWidgetProperty('hid.gamepad_button', parseInt((e.target as HTMLInputElement).value) || 0)} 
+                                          style="padding: 6px 10px; font-size: 0.85rem;"
+                                        />
+                                      </div>
+                                      <div class="form-group" style="margin-bottom: 0;">
+                                        <label style="font-size: 0.65rem;">Consumer Code</label>
+                                        <input 
+                                          type="number" 
+                                          min="0" 
+                                          value={selectedWidget.hid?.consumer_usage || 0} 
+                                          onInput={(e) => handleUpdateWidgetProperty('hid.consumer_usage', parseInt((e.target as HTMLInputElement).value) || 0)} 
+                                          style="padding: 6px 10px; font-size: 0.85rem;"
+                                        />
+                                      </div>
+                                    </div>
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                      <label style="font-size: 0.65rem;">Hold Pulse ms</label>
+                                      <input 
+                                        type="number" 
+                                        min="0" 
+                                        value={selectedWidget.hid?.hold_ms || 0} 
+                                        onInput={(e) => handleUpdateWidgetProperty('hid.hold_ms', parseInt((e.target as HTMLInputElement).value) || 0)} 
+                                        style="padding: 6px 10px; font-size: 0.85rem;"
+                                      />
+                                    </div>
                                   </div>
-                                </div>
-                                <div class="form-group" style="margin-bottom: 0;">
-                                  <label style="font-size: 0.65rem;">Hold Pulse ms</label>
-                                  <input 
-                                    type="number" 
-                                    min="0" 
-                                    value={selectedWidget.hid?.hold_ms || 0} 
-                                    onInput={(e) => handleUpdateWidgetProperty('hid.hold_ms', parseInt((e.target as HTMLInputElement).value) || 0)} 
-                                    style="padding: 6px 10px; font-size: 0.85rem;"
-                                  />
-                                </div>
+                                )}
                               </div>
 
                               {/* GameLink State Event Linker */}
@@ -2015,7 +2228,7 @@ export function App() {
 
             {/* Play Mode (Gamepad) Tab */}
             {activeTab === 'gamepad' && (
-              <div class="retro-container crt-effect">
+              <div class={`retro-container crt-effect ${isFullscreen ? 'fullscreen-mode' : ''}`}>
                 {/* Connection Status Banner */}
                 <div class={`retro-banner ${wsConnected}`}>
                   {wsConnected === 'connected' && 'SYSTEM STATUS: ONLINE // WEBSOCKET CONNECTED'}
@@ -2023,57 +2236,82 @@ export function App() {
                   {wsConnected === 'disconnected' && 'SYSTEM STATUS: DISCONNECTED // RECONNECTING...'}
                 </div>
 
-                {/* Sub-mode selector */}
-                <div class="retro-tabs">
-                  <button 
-                    class={`retro-tab-btn ${gamepadMode === 'console' ? 'active' : ''}`}
-                    onClick={() => setGamepadMode('console')}
-                  >
-                    Console
-                  </button>
-                  <button 
-                    class={`retro-tab-btn ${gamepadMode === 'classic' ? 'active' : ''}`}
-                    onClick={() => setGamepadMode('classic')}
-                  >
-                    16-Bit Pad
-                  </button>
+                {/* Sub-mode and Layout Selectors Row */}
+                <div class="retro-selectors-row">
+                  <div class="retro-select-item">
+                    <span class="retro-select-label">SHIP:</span>
+                    <select 
+                      value={editingShipId} 
+                      onChange={(e) => setEditingShipId((e.target as HTMLSelectElement).value)}
+                      class="retro-select"
+                    >
+                      {shipsList.map(s => (
+                        <option value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div class="retro-select-item">
+                    <span class="retro-select-label">PANEL:</span>
+                    <select 
+                      value={activeConsoleId} 
+                      onChange={(e) => setActiveConsoleId((e.target as HTMLSelectElement).value)}
+                      class="retro-select"
+                    >
+                      {(shipConfig?.consoles ?? []).map(c => (
+                        <option value={c.console_id}>{c.display_name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div class="retro-select-item">
+                    <span class="retro-select-label">MODE:</span>
+                    <div class="retro-mode-toggle-group">
+                      <button 
+                        class={`retro-tab-btn mini ${gamepadMode === 'console' ? 'active' : ''}`}
+                        onClick={() => setGamepadMode('console')}
+                      >
+                        Console
+                      </button>
+                      <button 
+                        class={`retro-tab-btn mini ${gamepadMode === 'classic' ? 'active' : ''}`}
+                        onClick={() => setGamepadMode('classic')}
+                      >
+                        Pad
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="retro-select-item" style="margin-left: auto;">
+                    {isFullscreen ? (
+                      <button class="retro-tab-btn mini active" onClick={exitPlayFullscreen}>
+                        [ EXIT FULLSCREEN ]
+                      </button>
+                    ) : (
+                      <button class="retro-tab-btn mini" onClick={enterPlayFullscreen}>
+                        [ FULLSCREEN ]
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Console Mode */}
                 {gamepadMode === 'console' && (
-                  <div>
-                    {/* Console selection */}
-                    <div style={{ display: 'flex', gap: '15px', alignItems: 'center', marginBottom: '20px' }}>
-                      <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>SELECT ACTIVE CONSOLE PANEL:</span>
-                      <select 
-                        value={activeConsoleId} 
-                        onChange={(e) => setActiveConsoleId((e.target as HTMLSelectElement).value)}
-                        style={{
-                          backgroundColor: '#1d2021',
-                          color: '#ebdbb2',
-                          border: '2px solid #504945',
-                          padding: '6px 12px',
-                          fontSize: '1.1rem',
-                          fontFamily: 'VT323, monospace'
-                        }}
-                      >
-                        {(shipConfig?.consoles ?? []).map(c => (
-                          <option value={c.console_id}>{c.display_name}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Active Console Widgets Grid */}
+                  <div style="flex-grow: 1; display: flex; flex-direction: column; min-height: 0;">
                     {(() => {
                       const c = (shipConfig?.consoles ?? []).find(x => x.console_id === activeConsoleId);
                       if (!c) {
-                        return <p style={{ fontSize: '1.2rem', color: '#fe8019' }}>No console panel selected.</p>;
+                        return <p style={{ fontSize: '1.2rem', color: '#fe8019', padding: '20px' }}>No console panel selected.</p>;
                       }
                       if (!c.actions || c.actions.length === 0) {
-                        return <p style={{ fontSize: '1.2rem', color: '#fe8019' }}>No actions configured on this panel.</p>;
+                        return <p style={{ fontSize: '1.2rem', color: '#fe8019', padding: '20px' }}>No actions configured on this panel.</p>;
                       }
+                      const [playCols, playRows] = parseLayoutGrid(c.layout);
                       return (
-                        <div class="retro-controls-grid">
+                        <div 
+                          class="retro-grid-canvas" 
+                          style={`grid-template-columns: repeat(${playCols}, 1fr); grid-template-rows: repeat(${playRows}, 1fr);`}
+                        >
                           {c.actions.map((w: any) => {
                             let colorClass = 'color-blue';
                             const lowerId = (w.id || '').toLowerCase();
@@ -2083,18 +2321,76 @@ export function App() {
                             } else if (lowerId.includes('eject') || lowerId.includes('self') || lowerId.includes('weapon') || lowerId.includes('shield')) {
                               colorClass = 'color-red';
                             }
-                            return (
-                              <button
-                                class={`retro-widget-btn ${colorClass}`}
-                                onMouseDown={(e) => handleActionMacro(w.id, true, e)}
-                                onMouseUp={(e) => handleActionMacro(w.id, false, e)}
-                                onTouchStart={(e) => handleActionMacro(w.id, true, e)}
-                                onTouchEnd={(e) => handleActionMacro(w.id, false, e)}
-                              >
-                                <div style={{ fontSize: '1.1rem', marginBottom: '4px', textTransform: 'uppercase' }}>{w.label}</div>
-                                <div style={{ fontSize: '0.75rem', opacity: 0.6 }}>({wtype.toUpperCase()})</div>
-                              </button>
-                            );
+                            const isPressed = pressedActions[w.id] || false;
+                            const currentVal = playWidgetValues[w.id];
+
+                            const isButton = wtype.startsWith('btn_') || wtype === 'indicator';
+
+                            if (isButton) {
+                              return (
+                                <button
+                                  class={`retro-grid-widget-btn ${colorClass} ${isPressed ? 'active' : ''}`}
+                                  style={`grid-row: ${w.row + 1} / span ${w.height || 1}; grid-column: ${w.col + 1} / span ${w.width || 1};`}
+                                  onMouseDown={(e) => {
+                                    if (wtype === 'btn_latching') {
+                                      const newState = !isPressed;
+                                      setPressedActions(prev => ({ ...prev, [w.id]: newState }));
+                                      handleActionMacro(w.id, newState, e);
+                                    } else {
+                                      setPressedActions(prev => ({ ...prev, [w.id]: true }));
+                                      handleActionMacro(w.id, true, e);
+                                    }
+                                  }}
+                                  onMouseUp={(e) => {
+                                    if (wtype !== 'btn_latching') {
+                                      setPressedActions(prev => ({ ...prev, [w.id]: false }));
+                                      handleActionMacro(w.id, false, e);
+                                    }
+                                  }}
+                                  onTouchStart={(e) => {
+                                    if (wtype === 'btn_latching') {
+                                      const newState = !isPressed;
+                                      setPressedActions(prev => ({ ...prev, [w.id]: newState }));
+                                      handleActionMacro(w.id, newState, e);
+                                    } else {
+                                      setPressedActions(prev => ({ ...prev, [w.id]: true }));
+                                      handleActionMacro(w.id, true, e);
+                                    }
+                                  }}
+                                  onTouchEnd={(e) => {
+                                    if (wtype !== 'btn_latching') {
+                                      setPressedActions(prev => ({ ...prev, [w.id]: false }));
+                                      handleActionMacro(w.id, false, e);
+                                    }
+                                  }}
+                                >
+                                  <div class="retro-sprite-container">
+                                    <WidgetSprite type={wtype} active={isPressed} />
+                                  </div>
+                                  <div class="retro-widget-text">
+                                    <div class="label">{w.label || w.id}</div>
+                                    <div class="desc">{wtype.replace('btn_', '').replace('axis_', '').toUpperCase()}</div>
+                                  </div>
+                                </button>
+                              );
+                            } else {
+                              return (
+                                <div
+                                  class={`retro-grid-widget-btn ${colorClass} analog-control`}
+                                  style={`grid-row: ${w.row + 1} / span ${w.height || 1}; grid-column: ${w.col + 1} / span ${w.width || 1}; cursor: grab;`}
+                                  onMouseDown={(e) => startWidgetDrag(w, e)}
+                                  onTouchStart={(e) => startWidgetDrag(w, e)}
+                                >
+                                  <div class="retro-sprite-container">
+                                    <WidgetSprite type={wtype} active={false} value={currentVal} />
+                                  </div>
+                                  <div class="retro-widget-text">
+                                    <div class="label">{w.label || w.id}</div>
+                                    <div class="desc">{wtype.replace('btn_', '').replace('axis_', '').toUpperCase()}</div>
+                                  </div>
+                                </div>
+                              );
+                            }
                           })}
                         </div>
                       );

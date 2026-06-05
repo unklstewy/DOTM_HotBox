@@ -662,6 +662,19 @@ static esp_err_t ws_handler(httpd_req_t *req)
                     if (btn) {
                         sc_hid_raw_button_pulse(btn->valueint, hold ? hold->valueint : 0);
                     }
+                } else if (strcmp(cmd->valuestring, "gp_axis") == 0) {
+                    cJSON *pad = cJSON_GetObjectItem(root, "pad");
+                    cJSON *axis = cJSON_GetObjectItem(root, "axis");
+                    cJSON *val = cJSON_GetObjectItem(root, "val");
+                    if (pad && axis && val) {
+                        sc_hid_raw_axis_set(pad->valueint, axis->valueint, val->valueint);
+                    }
+                } else if (strcmp(cmd->valuestring, "gp_hat") == 0) {
+                    cJSON *pad = cJSON_GetObjectItem(root, "pad");
+                    cJSON *val = cJSON_GetObjectItem(root, "val");
+                    if (pad && val) {
+                        sc_hid_raw_hat_set(pad->valueint, val->valueint);
+                    }
                 }
             }
             cJSON_Delete(root);

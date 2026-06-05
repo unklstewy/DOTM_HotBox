@@ -99,6 +99,22 @@ esp_err_t sc_hid_raw_button_release(uint16_t button);
  */
 esp_err_t sc_hid_raw_button_pulse(uint16_t button, uint32_t hold_ms);
 
+/**
+ * @brief Update the raw gamepad axis value.
+ * @param gamepad Gamepad selection (1 = Gamepad A, 2 = Gamepad B)
+ * @param axis    Axis index (0 to 7)
+ * @param value   Raw analog value (0-255)
+ */
+esp_err_t sc_hid_raw_axis_set(uint8_t gamepad, uint8_t axis, uint8_t value);
+
+/**
+ * @brief Update the raw gamepad POV Hat value.
+ * @param gamepad Gamepad selection (1 = Gamepad A, 2 = Gamepad B)
+ * @param value   Hat value (0-8, 0 = neutral)
+ */
+esp_err_t sc_hid_raw_hat_set(uint8_t gamepad, uint8_t value);
+
+
 /* ── Low-level Report API (internal / testing only) ────────────────────── */
 
 /** @brief Send a raw gamepad report. */

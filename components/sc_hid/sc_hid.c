@@ -44,18 +44,23 @@ static StaticTask_t  s_dispatch_task_buf;
 static StackType_t   s_dispatch_task_stack[SC_HID_TASK_STACK_SIZE];
 static TaskHandle_t  s_dispatch_task_handle = NULL;
 
-/* ── Internal queue for action dispatch ─────────────────────────────────── */
 typedef enum {
     HID_CMD_PRESS,
     HID_CMD_RELEASE,
-    HID_CMD_PULSE
+    HID_CMD_PULSE,
+    HID_CMD_AXIS,
+    HID_CMD_HAT
 } hid_cmd_type_t;
 
 typedef struct {
     hid_cmd_type_t  cmd;
     sc_hid_action_t action;
     uint32_t        hold_ms;
+    uint8_t         gamepad;
+    uint8_t         axis;
+    uint8_t         axis_val;
 } hid_dispatch_t;
+
 
 static QueueHandle_t s_dispatch_q;
 
@@ -283,6 +288,42 @@ esp_err_t sc_hid_raw_button_pulse(uint16_t button, uint32_t hold_ms)
     return ESP_OK;
 }
 
+esp_err_t sc_hid_raw_axis_set(uint8_t gamepad, uint8_t axis, uint8_t value)
+{
+    if (!tud_ready()) return ESP_ERR_INVALID_STATE;
+    if (gamepad < 1 || gamepad > 2 || axis >= 8) return ESP_ERR_INVALID_ARG;
+
+    hid_dispatch_t msg = {
+        .cmd = HID_CMD_AXIS,
+        .gamepad = gamepad,
+        .axis = axis,
+        .axis_val = value
+    };
+    if (xQueueSend(s_dispatch_q, &msg, pdMS_TO_TICKS(50)) != pdTRUE) {
+        ESP_LOGW(TAG, "HID dispatch queue full — dropping axis set");
+        return ESP_ERR_TIMEOUT;
+    }
+    return ESP_OK;
+}
+
+esp_err_t sc_hid_raw_hat_set(uint8_t gamepad, uint8_t value)
+{
+    if (!tud_ready()) return ESP_ERR_INVALID_STATE;
+    if (gamepad < 1 || gamepad > 2 || value > 8) return ESP_ERR_INVALID_ARG;
+
+    hid_dispatch_t msg = {
+        .cmd = HID_CMD_HAT,
+        .gamepad = gamepad,
+        .axis_val = value
+    };
+    if (xQueueSend(s_dispatch_q, &msg, pdMS_TO_TICKS(50)) != pdTRUE) {
+        ESP_LOGW(TAG, "HID dispatch queue full — dropping hat set");
+        return ESP_ERR_TIMEOUT;
+    }
+    return ESP_OK;
+}
+
+
 /* ── Low-level reports ───────────────────────────────────────────────────── */
 
 struct TU_ATTR_PACKED gamepad_report_t {
@@ -316,6 +357,9 @@ esp_err_t sc_hid_report_gamepad_send(uint32_t buttons)
 esp_err_t sc_hid_report_gamepad_release(void)
 {
     struct gamepad_report_t rep = {0};
+    for (int i = 0; i < 6; i++) {
+        rep.axes[i] = 128;
+    }
     esp_err_t err1 = sc_hid_report_gamepad_a_send(&rep);
     esp_err_t err2 = sc_hid_report_gamepad_b_send(&rep);
     return (err1 == ESP_OK) ? err2 : err1;
@@ -346,6 +390,12 @@ static void sc_hid_dispatch_task(void *arg)
     struct gamepad_report_t current_a = {0};
     struct gamepad_report_t current_b = {0};
     uint32_t button_release_time[256] = {0};
+
+    /* Center joystick axes (0 to 5) at 128 by default */
+    for (int i = 0; i < 6; i++) {
+        current_a.axes[i] = 128;
+        current_b.axes[i] = 128;
+    }
 
     uint16_t current_consumer = 0;
     uint32_t consumer_release_time = 0;
@@ -427,6 +477,18 @@ static void sc_hid_dispatch_task(void *arg)
                 } else if (msg.action.consumer_usage > 0) {
                     current_consumer = msg.action.consumer_usage;
                     consumer_release_time = now + hold;
+                }
+            } else if (msg.cmd == HID_CMD_AXIS) {
+                if (msg.gamepad == 1 && msg.axis < 8) {
+                    current_a.axes[msg.axis] = msg.axis_val;
+                } else if (msg.gamepad == 2 && msg.axis < 8) {
+                    current_b.axes[msg.axis] = msg.axis_val;
+                }
+            } else if (msg.cmd == HID_CMD_HAT) {
+                if (msg.gamepad == 1) {
+                    current_a.hat = msg.axis_val;
+                } else if (msg.gamepad == 2) {
+                    current_b.hat = msg.axis_val;
                 }
             }
         }
