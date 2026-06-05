@@ -1,3 +1,4 @@
+#include "esp_memory_utils.h"
 #include "sc_bsp.h"
 #include "sc_config.h"
 
@@ -146,14 +147,22 @@ lv_display_t* sc_bsp_display_create(void)
     lv_display_set_user_data(disp, s_panel);
     lv_display_set_flush_cb(disp, sc_bsp_lvgl_flush_cb);
 
-    uint32_t draw_buf_size = SC_UI_DISPLAY_WIDTH * SC_UI_DISPLAY_HEIGHT * 2 / 10;
-    void *draw_buf = heap_caps_malloc(draw_buf_size, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    /* At 200 MHz PSRAM is fast enough for LVGL rendering.
+     * Allocate the draw buffer from PSRAM first to keep all internal SRAM
+     * free for task stacks and FreeRTOS kernel structures.
+     * Use 1/4 of the screen (800x320 px = 512 KB RGB565) so LVGL flushes
+     * at most 4 strips per frame instead of 10, reducing DSI transfer overhead. */
+    uint32_t draw_buf_size = SC_UI_DISPLAY_WIDTH * (SC_UI_DISPLAY_HEIGHT / 4) * 2;
+    void *draw_buf = heap_caps_malloc(draw_buf_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (!draw_buf) {
-        ESP_LOGW(TAG, "SRAM too small for draw buffer, falling back to PSRAM!");
-        draw_buf = heap_caps_malloc(draw_buf_size, MALLOC_CAP_SPIRAM);
+        ESP_LOGW(TAG, "PSRAM draw buffer alloc failed, falling back to SRAM");
+        draw_buf_size = SC_UI_DISPLAY_WIDTH * SC_UI_DISPLAY_HEIGHT * 2 / 10;
+        draw_buf = heap_caps_malloc(draw_buf_size, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
     }
+    assert(draw_buf);
     lv_display_set_buffers(disp, draw_buf, NULL, draw_buf_size, LV_DISPLAY_RENDER_MODE_PARTIAL);
-    ESP_LOGI(TAG, "LVGL display configured (partial render, 1/10 screen draw buffer)");
+    ESP_LOGI(TAG, "LVGL display configured (partial render, 1/4 screen draw buffer in %s, %lu bytes)",
+             esp_ptr_external_ram(draw_buf) ? "PSRAM" : "SRAM", (unsigned long)draw_buf_size);
 
     return disp;
 }

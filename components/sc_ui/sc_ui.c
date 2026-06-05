@@ -34,8 +34,8 @@ static const char *TAG = "sc_ui";
 /* ── LVGL task ────────────────────────────────────────────────────────────── */
 #define SC_UI_LVGL_TICK_MS      (2)
 
-static StaticTask_t  s_ui_task_buf;
-static StackType_t   s_ui_task_stack[SC_UI_TASK_STACK_SIZE];
+/* Task stack lives in PSRAM (200 MHz — fast enough for LVGL's stack frames).
+ * This frees 8 KB+ of internal SRAM for FreeRTOS kernel / ISR use. */
 static TaskHandle_t  s_ui_task_handle = NULL;
 
 /* ── Display & touch handles ─────────────────────────────────────────────── */
@@ -115,17 +115,18 @@ esp_err_t sc_ui_init(const sc_terminal_config_t *cfg)
     
     ESP_LOGI(TAG, "LVGL tick timer started");
 
-    /* Start LVGL task */
-    s_ui_task_handle = xTaskCreateStatic(
+    /* Start LVGL task — stack in PSRAM so internal SRAM stays free for
+     * FreeRTOS kernel, ISR stacks, and tight inner-loop allocations. */
+    BaseType_t rc = xTaskCreateWithCaps(
         sc_ui_lvgl_task,
         "sc_ui_lvgl",
         SC_UI_TASK_STACK_SIZE,
         NULL,
         SC_UI_TASK_PRIORITY,
-        s_ui_task_stack,
-        &s_ui_task_buf
+        &s_ui_task_handle,
+        MALLOC_CAP_SPIRAM
     );
-    if (!s_ui_task_handle) return ESP_FAIL;
+    if (rc != pdPASS) return ESP_FAIL;
     ESP_LOGI(TAG, "LVGL task started");
 
     /* Navigate to initial screen */

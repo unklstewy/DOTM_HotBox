@@ -23,7 +23,7 @@ extern "C" {
 #endif
 
 /* ── Constants ──────────────────────────────────────────────────────────── */
-#define SC_UI_TASK_STACK_SIZE     (8192)
+#define SC_UI_TASK_STACK_SIZE     (24576)  /* in PSRAM — large stack costs nothing in SRAM */
 #define SC_UI_TASK_PRIORITY       (5)
 #define SC_UI_DISPLAY_WIDTH       (800)
 #define SC_UI_DISPLAY_HEIGHT      (1280)
