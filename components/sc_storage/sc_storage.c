@@ -4,7 +4,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#if CONFIG_IDF_TARGET_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S3 || CONFIG_IDF_TARGET_ESP32C3
 #include "esp_spiffs.h"
 #else
 #include "esp_vfs_fat.h"
@@ -29,8 +29,8 @@ static esp_err_t sdmmc_slot0_noop_deinit(void) { return ESP_OK; }
 
 esp_err_t sc_storage_init(void)
 {
-#if CONFIG_IDF_TARGET_ESP32S3
-    ESP_LOGI(TAG, "Initializing SPIFFS storage on ESP32-S3...");
+#if CONFIG_IDF_TARGET_ESP32S3 || CONFIG_IDF_TARGET_ESP32C3
+    ESP_LOGI(TAG, "Initializing SPIFFS storage...");
     esp_vfs_spiffs_conf_t conf = {
         .base_path = "/sdcard",
         .partition_label = "storage",

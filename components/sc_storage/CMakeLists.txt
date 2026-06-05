@@ -1,4 +1,4 @@
-if(IDF_TARGET STREQUAL "esp32s3")
+if(IDF_TARGET STREQUAL "esp32s3" OR IDF_TARGET STREQUAL "esp32c3")
     set(extra_reqs spiffs)
 else()
     set(extra_reqs vfs fatfs sdmmc esp_lcd)

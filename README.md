@@ -57,22 +57,21 @@ Any device on your local network (iPad, iPhone, Android tablet, Surface Pro, or 
 | **Seeed Studio reTerminal D1001** | [seeedstudio.com/reTerminal-D1001](https://www.seeedstudio.com/reTerminal-D1001.html) |
 | MicroSD card (recommended ≥ 16 GB, UHS-I) | Any reputable brand (Samsung, SanDisk) |
 
-> The reTerminal D1001 is the **only** supported board. It is available direct from Seeed Studio and select distributors (Mouser, DigiKey, Amazon).
+> HotBox Lite supports running headlessly on ESP32-S3 and ESP32-C3 dev kits, rendering the screen completely in a browser.
 
-### Specifications
+### Hardware Specifications
 
-| Parameter | Value |
-|-----------|-------|
-| **Host SoC** | ESP32-P4NRW32 (dual-core RISC-V, 400 MHz, 32 MB Flash, 32 MB PSRAM) |
-| **Wi-Fi / BLE coprocessor** | ESP32-C6 (802.11 b/g/n + BLE 5.0), connected via SDIO Slot 1 |
-| **Display** | 5" IPS DSI panel, 800 × 1280, JD9365 controller |
-| **Touch** | Capacitive multi-touch, GSL3670 controller |
-| **Storage** | MicroSD via SDMMC Slot 0 (4-bit, 40 MHz) |
-| **USB** | USB-C (USB-Serial/JTAG + USB HID composite device) |
-| **IO Expander** | PCA9535 (controls LCD power, backlight, touch reset) |
-| **LDO** | Internal ESP32-P4 LDO Channel 4 → 3.3 V for SD card rail |
-| **Firmware** | ESP-IDF 6.0.1, FreeRTOS, LVGL 9 |
-| **Power** | USB-C 5 V (bus-powered from PC) |
+| Feature | Standard HotBox (reTerminal D1001) | HotBox Lite (ESP32-S3 DevKit) | HotBox Lite (ESP32-C3 DevKit-C1-8N16) |
+|---|---|---|---|
+| **Host SoC** | ESP32-P4NRW32 (400MHz Dual-Core RISC-V) | ESP32-S3 (240MHz Xtensa LX7) | ESP32-C3 (160MHz Single-Core RISC-V) |
+| **Wi-Fi / BLE** | ESP32-C6 (via SDIO) | Native 2.4 GHz Wi-Fi + BLE 5.0 | Native 2.4 GHz Wi-Fi + BLE 5.0 |
+| **SRAM** | 32 MB PSRAM + 768 KB SRAM | 512 KB SRAM + optional PSRAM | 400 KB SRAM (No PSRAM) |
+| **Internal Flash** | 32 MB | 8 MB / 16 MB | 8 MB |
+| **Display** | 5" DSI IPS (800x1280, JD9365) | Headless (rendered in browser) | Headless (rendered in browser) |
+| **Touch Sensor** | GSL3670 (Capacitive) | Headless (pointer events in browser) | Headless (pointer events in browser) |
+| **Storage** | MicroSD slot (SDMMC 4-bit) | SPIFFS Flash Partition (7.5 MB) | SPIFFS Flash Partition (7.5 MB) |
+| **HID Interface** | Native USB OTG Gamepad Device | Native USB OTG Gamepad Device | Serial/WebSocket command forwarding |
+| **Power Input** | USB-C 5 V (from PC) | USB-C 5 V (from PC) | USB-C 5 V (from PC) |
 
 #### GPIO / Peripheral Map
 
@@ -138,18 +137,56 @@ The ESP32-P4 hosts all application logic. The ESP32-C6 is a transparent Wi-Fi co
 
 ### Build & Flash
 
+First, clone the repository:
 ```bash
 git clone https://github.com/yourname/ESPSCar.git
 cd ESPSCar
+```
 
-# Configure (generates sdkconfig from sdkconfig.defaults)
+#### Step 1: Compile the Web Portal Assets (Required for all targets)
+The Web Portal UI must be built first so its assets can be bundled (into SPIFFS or served):
+```bash
+cd web_portal
+npm install
+npm run build
+cd ..
+# Copy the built portal assets to the SPIFFS build directory
+cp -r web_portal/dist/* spiffs_image/web/
+```
+
+#### Step 2: Build and Flash by Target
+
+##### Option A: Standard HotBox (reTerminal D1001 — ESP32-P4)
+This is the default target. It compiles the LVGL display screen, SD card storage reader, and USB HID gamepad:
+```bash
+# Set target to esp32p4 and configure defaults
+idf.py set-target esp32p4
 idf.py reconfigure
 
-# Build
-idf.py build
-
-# Flash + open monitor (replace /dev/ttyACM0 with your port)
+# Compile and Flash
 idf.py -p /dev/ttyACM0 flash monitor
+```
+
+##### Option B: HotBox Lite (Headless Mode — ESP32-S3)
+Compiles a headless build with SPIFFS flash storage support and native USB OTG gamepad emulation:
+```bash
+# Set target to esp32s3
+idf.py set-target esp32s3
+idf.py reconfigure
+
+# Compile and Flash (this compiles the SPIFFS storage binary and flashes it automatically)
+idf.py -p /dev/ttyACM0 flash monitor
+```
+
+##### Option C: HotBox Lite (Headless Mode — ESP32-C3)
+Compiles a headless build with SPIFFS flash storage. Gamepad commands are routed over Wi-Fi / WebSocket:
+```bash
+# Set target to esp32c3
+idf.py set-target esp32c3
+idf.py reconfigure
+
+# Compile and Flash
+idf.py -p /dev/ttyUSB0 flash monitor
 ```
 
 On Linux, add yourself to the `dialout` group if you get a permission error:

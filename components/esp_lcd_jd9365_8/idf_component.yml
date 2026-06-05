@@ -5,6 +5,7 @@ description: Lcd driver for 8 inch display JD9365
 targets:
 - esp32p4
 - esp32s3
+- esp32c3
 
 dependencies:
   cmake_utilities:

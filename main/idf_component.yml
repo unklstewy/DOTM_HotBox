@@ -24,6 +24,8 @@ dependencies:
   ## esp_tinyusb moved to the component registry in IDF v5.x.
   espressif/esp_tinyusb:
     version: "^1.4.2"
+    rules:
+      - if: "target in [esp32s3, esp32p4]"
 
   ## ── Networking extras (moved to registry in IDF v5.x) ───────────────
   espressif/esp_websocket_client:

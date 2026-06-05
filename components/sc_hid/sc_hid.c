@@ -1,3 +1,6 @@
+#include "sdkconfig.h"
+#if !CONFIG_IDF_TARGET_ESP32C3
+
 /*
  * sc_hid.c — TinyUSB composite HID device (Keyboard + Consumer Control)
  *
@@ -549,3 +552,32 @@ void sc_hid_set_phy_swap(bool enable)
     ESP_LOGI(TAG, "Native USB PHY is fixed on this target; skipping phy swap.");
 #endif
 }
+
+#else /* CONFIG_IDF_TARGET_ESP32C3 */
+
+#include "sc_hid.h"
+#include "esp_log.h"
+
+static const char *TAG = "sc_hid_stub";
+
+esp_err_t sc_hid_init(void) {
+    ESP_LOGI(TAG, "Headless build: running sc_hid stubs on ESP32-C3.");
+    return ESP_OK;
+}
+void sc_hid_deinit(void) {}
+void sc_hid_set_phy_swap(bool enable) {}
+esp_err_t sc_hid_action_table_load(const sc_hid_action_t *actions, size_t count) { return ESP_OK; }
+esp_err_t sc_hid_action_send(const char *action_id) { return ESP_OK; }
+esp_err_t sc_hid_action_hold(const char *action_id, uint32_t override_ms) { return ESP_OK; }
+esp_err_t sc_hid_action_press(const char *action_id) { return ESP_OK; }
+esp_err_t sc_hid_action_release(const char *action_id) { return ESP_OK; }
+esp_err_t sc_hid_raw_button_press(uint16_t button) { return ESP_OK; }
+esp_err_t sc_hid_raw_button_release(uint16_t button) { return ESP_OK; }
+esp_err_t sc_hid_raw_button_pulse(uint16_t button, uint32_t hold_ms) { return ESP_OK; }
+esp_err_t sc_hid_raw_axis_set(uint8_t gamepad, uint8_t axis, uint8_t value) { return ESP_OK; }
+esp_err_t sc_hid_raw_hat_set(uint8_t gamepad, uint8_t value) { return ESP_OK; }
+esp_err_t sc_hid_report_gamepad_send(uint32_t buttons) { return ESP_OK; }
+esp_err_t sc_hid_report_gamepad_release(void) { return ESP_OK; }
+esp_err_t sc_hid_report_consumer_send(uint16_t usage) { return ESP_OK; }
+
+#endif /* !CONFIG_IDF_TARGET_ESP32C3 */

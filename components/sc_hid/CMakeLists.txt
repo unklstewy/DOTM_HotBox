@@ -1,3 +1,8 @@
+set(extra_reqs)
+if(NOT IDF_TARGET STREQUAL "esp32c3")
+    list(APPEND extra_reqs espressif__esp_tinyusb)
+endif()
+
 idf_component_register(
     SRCS
         "sc_hid.c"
@@ -5,10 +10,10 @@ idf_component_register(
     INCLUDE_DIRS
         "include"
     REQUIRES
-        espressif__esp_tinyusb
         espressif__cjson
         esp_timer
         sc_config
+        ${extra_reqs}
 )
 
 # TinyUSB callback functions (tud_hid_get_report_cb etc.) are referenced FROM
@@ -17,4 +22,6 @@ idf_component_register(
 # scanned (no unresolved refs to it yet) and then TinyUSB would fail with
 # "undefined reference".  Linking sc_hid with --whole-archive ensures the
 # callbacks are always present in the final image regardless of link order.
-idf_component_set_property(${COMPONENT_NAME} WHOLE_ARCHIVE TRUE)
+if(NOT IDF_TARGET STREQUAL "esp32c3")
+    idf_component_set_property(${COMPONENT_NAME} WHOLE_ARCHIVE TRUE)
+endif()
