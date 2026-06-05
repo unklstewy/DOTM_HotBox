@@ -2,7 +2,7 @@
 
 > A purpose-built touchscreen MFD (Multi-Function Display) for Star Citizen, running on the Seeed Studio reTerminal D1001. Appears to your PC as a USB gamepad, sends button presses as game-bound actions, and can react to in-game events via a companion PC bridge.
 
-![SC Terminal — Pilot MFD](art/splash.png)
+![SC Terminal — Pilot MFD]([sdcard/assets/images/splash_base_landscape.png))
 
 ---
 
