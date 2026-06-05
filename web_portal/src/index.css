@@ -1193,6 +1193,10 @@ input[type="range"]::-webkit-slider-thumb:hover {
   padding: 12px;
   box-sizing: border-box;
   overflow: hidden;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .retro-grid-widget-btn {
@@ -1212,6 +1216,9 @@ input[type="range"]::-webkit-slider-thumb:hover {
   width: 100%;
   height: 100%;
   user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  -webkit-touch-callout: none;
   box-sizing: border-box;
   transition: all 0.05s ease;
 }
@@ -1283,6 +1290,40 @@ input[type="range"]::-webkit-slider-thumb:hover {
   font-size: 0.5rem;
   opacity: 0.6;
   margin-top: 2px;
+}
+
+/* Danger button armed and active styles */
+.retro-grid-widget-btn.btn-danger {
+  border-color: #7c0a02;
+  color: #ea9999;
+}
+.retro-grid-widget-btn.btn-danger.armed {
+  border-color: #ff0000;
+  color: #ff0000;
+  animation: danger-pulse 1s infinite alternate;
+}
+.retro-grid-widget-btn.btn-danger.active {
+  background-color: #cc241d;
+  color: #ffffff;
+  box-shadow: 0 0 20px #ff0000;
+}
+
+@keyframes danger-pulse {
+  from {
+    box-shadow: 0 0 4px #7c0a02;
+  }
+  to {
+    box-shadow: 0 0 16px #ff0000, inset 0 0 8px rgba(255, 0, 0, 0.4);
+  }
+}
+
+@keyframes danger-blink {
+  from {
+    opacity: 0.2;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 

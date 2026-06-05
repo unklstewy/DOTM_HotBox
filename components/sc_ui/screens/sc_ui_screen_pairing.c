@@ -99,7 +99,7 @@ lv_obj_t *sc_ui_screen_pairing_create(lv_obj_t *parent)
     FIELD(s_root, "Wi-Fi SSID",    &s_ssid_ta,    "MyNetwork",          false);
     FIELD(s_root, "Wi-Fi Password",&s_psk_ta,     "••••••••",           true);
     FIELD(s_root, "Bridge Host",   &s_host_ta,    "sc-bridge.local",    false);
-    FIELD(s_root, "Ship ID",       &s_ship_ta,    "cutlass_black",      false);
+    FIELD(s_root, "Ship ID",       &s_ship_ta,    "test_case_ship",      false);
     FIELD(s_root, "Console ID",    &s_console_ta, "pilot_mfd_left",     false);
 
     #undef FIELD

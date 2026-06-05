@@ -143,6 +143,7 @@ export function App() {
   const [editorThemeOverride, setEditorThemeOverride] = useState<'drake' | 'origin' | null>(null);
   const [svgContent, setSvgContent] = useState<string>('');
   const [spriteRects, setSpriteRects] = useState<Record<string, { x: number, y: number, w: number, h: number }>>({});
+  const [dangerArmed, setDangerArmed] = useState<Record<string, boolean>>({});
 
   
   // Status State
@@ -153,12 +154,13 @@ export function App() {
     ssid: 'SC_Terminal',
     uptime: 0,
     free_heap: 0,
-    psram_free: 0
+    psram_free: 0,
+    target: 'esp32p4'
   });
 
   // Config State (Active Device Configuration)
   const [config, setConfig] = useState<Config>({
-    ship_id: 'cutlass_black',
+    ship_id: 'test_case_ship',
     console_id: 'pilot_mfd_left',
     terminal_index: 0,
     display_rotation: 0
@@ -167,7 +169,7 @@ export function App() {
   const [configSuccess, setConfigSuccess] = useState(false);
 
   // WYSIWYG Editor State
-  const [editingShipId, setEditingShipId] = useState<string>('cutlass_black');
+  const [editingShipId, setEditingShipId] = useState<string>('test_case_ship');
   const [shipConfig, setShipConfig] = useState<ShipConfig | null>(null);
   const [activeConsoleId, setActiveConsoleId] = useState<string>('');
   const [selectedWidgetIdx, setSelectedWidgetIdx] = useState<number | null>(null);
@@ -313,14 +315,12 @@ export function App() {
 
   const startWidgetDrag = (widget: any, e: any) => {
     e.preventDefault();
-    const isTouch = e.type.startsWith('touch');
-    const startEvent = isTouch ? e.touches[0] : e;
-    const clientX = startEvent.clientX;
-    const clientY = startEvent.clientY;
-    
     const buttonEl = e.currentTarget as HTMLElement;
+    try {
+      buttonEl.setPointerCapture(e.pointerId);
+    } catch (err) {}
+
     const rect = buttonEl.getBoundingClientRect();
-    
     const widgetId = widget.id;
     const wtype = widget.widget_type || '';
     
@@ -371,14 +371,15 @@ export function App() {
       }
     };
     
-    updateValue(clientX, clientY);
+    updateValue(e.clientX, e.clientY);
     
-    const handleMove = (moveEvt: MouseEvent | TouchEvent) => {
-      const currEvt = moveEvt.type.startsWith('touch') ? (moveEvt as TouchEvent).touches[0] : (moveEvt as MouseEvent);
-      updateValue(currEvt.clientX, currEvt.clientY);
+    const handlePointerMove = (moveEvt: any) => {
+      moveEvt.preventDefault();
+      updateValue(moveEvt.clientX, moveEvt.clientY);
     };
     
-    const handleUp = () => {
+    const handlePointerUp = (upEvt: any) => {
+      upEvt.preventDefault();
       if (wtype === 'axis_joystick') {
         setPlayWidgetValues(prev => ({ ...prev, [widgetId]: { x: 128, y: 128 } }));
         sendWsCmd({ cmd: 'gp_axis', pad: gamepadId, axis: gamepadAxis, val: 128 });
@@ -388,30 +389,34 @@ export function App() {
         sendWsCmd({ cmd: 'gp_hat', pad: gamepadId, val: 0 });
       }
       
-      if (isTouch) {
-        window.removeEventListener('touchmove', handleMove);
-        window.removeEventListener('touchend', handleUp);
-      } else {
-        window.removeEventListener('mousemove', handleMove);
-        window.removeEventListener('mouseup', handleUp);
-      }
+      try {
+        buttonEl.releasePointerCapture(upEvt.pointerId);
+      } catch (err) {}
+      
+      buttonEl.removeEventListener('pointermove', handlePointerMove);
+      buttonEl.removeEventListener('pointerup', handlePointerUp);
+      buttonEl.removeEventListener('pointercancel', handlePointerUp);
     };
     
-    if (isTouch) {
-      window.addEventListener('touchmove', handleMove, { passive: false });
-      window.addEventListener('touchend', handleUp);
-    } else {
-      window.addEventListener('mousemove', handleMove);
-      window.addEventListener('mouseup', handleUp);
-    }
+    buttonEl.addEventListener('pointermove', handlePointerMove);
+    buttonEl.addEventListener('pointerup', handlePointerUp);
+    buttonEl.addEventListener('pointercancel', handlePointerUp);
   };
 
-  const handleGpEvent = (btnIndex: number, isPress: boolean, e: any) => {
+  const handleGpEvent = (btnIndex: number, e: any) => {
     e.preventDefault();
-    sendWsCmd({
-      cmd: isPress ? 'gp_press' : 'gp_release',
-      btn: btnIndex
-    });
+    const buttonEl = e.currentTarget as HTMLElement;
+    if (e.type === 'pointerdown') {
+      try {
+        buttonEl.setPointerCapture(e.pointerId);
+      } catch (err) {}
+      sendWsCmd({ cmd: 'gp_press', btn: btnIndex });
+    } else if (e.type === 'pointerup' || e.type === 'pointercancel') {
+      try {
+        buttonEl.releasePointerCapture(e.pointerId);
+      } catch (err) {}
+      sendWsCmd({ cmd: 'gp_release', btn: btnIndex });
+    }
   };
 
   const handleActionMacro = (actId: string, isPress: boolean, e: any) => {
@@ -420,6 +425,79 @@ export function App() {
       cmd: isPress ? 'press' : 'release',
       action_id: actId
     });
+  };
+
+  const handleConsoleBtnPress = (w: any, e: any) => {
+    e.preventDefault();
+    const buttonEl = e.currentTarget as HTMLElement;
+    try {
+      buttonEl.setPointerCapture(e.pointerId);
+    } catch (err) {}
+
+    const gpBtn = w.hid?.gamepad_button;
+    const wtype = w.widget_type || '';
+    const isPressed = pressedActions[w.id] || false;
+
+    if (wtype === 'btn_latching') {
+      const newState = !isPressed;
+      setPressedActions(prev => ({ ...prev, [w.id]: newState }));
+      if (gpBtn && gpBtn > 0) {
+        sendWsCmd({ cmd: newState ? 'gp_press' : 'gp_release', btn: gpBtn });
+      } else {
+        handleActionMacro(w.id, newState, e);
+      }
+    } else if (wtype === 'btn_danger') {
+      const isArmed = dangerArmed[w.id] || false;
+      if (!isArmed) {
+        setDangerArmed(prev => ({ ...prev, [w.id]: true }));
+      } else {
+        setPressedActions(prev => ({ ...prev, [w.id]: true }));
+        if (gpBtn && gpBtn > 0) {
+          sendWsCmd({ cmd: 'gp_press', btn: gpBtn });
+        } else {
+          handleActionMacro(w.id, true, e);
+        }
+      }
+    } else {
+      setPressedActions(prev => ({ ...prev, [w.id]: true }));
+      if (gpBtn && gpBtn > 0) {
+        sendWsCmd({ cmd: 'gp_press', btn: gpBtn });
+      } else {
+        handleActionMacro(w.id, true, e);
+      }
+    }
+  };
+
+  const handleConsoleBtnRelease = (w: any, e: any) => {
+    e.preventDefault();
+    const buttonEl = e.currentTarget as HTMLElement;
+    try {
+      buttonEl.releasePointerCapture(e.pointerId);
+    } catch (err) {}
+
+    const gpBtn = w.hid?.gamepad_button;
+    const wtype = w.widget_type || '';
+    const isPressed = pressedActions[w.id] || false;
+
+    if (wtype === 'btn_danger') {
+      const isArmed = dangerArmed[w.id] || false;
+      if (isArmed && isPressed) {
+        setPressedActions(prev => ({ ...prev, [w.id]: false }));
+        setDangerArmed(prev => ({ ...prev, [w.id]: false }));
+        if (gpBtn && gpBtn > 0) {
+          sendWsCmd({ cmd: 'gp_release', btn: gpBtn });
+        } else {
+          handleActionMacro(w.id, false, e);
+        }
+      }
+    } else if (wtype !== 'btn_latching') {
+      setPressedActions(prev => ({ ...prev, [w.id]: false }));
+      if (gpBtn && gpBtn > 0) {
+        sendWsCmd({ cmd: 'gp_release', btn: gpBtn });
+      } else {
+        handleActionMacro(w.id, false, e);
+      }
+    }
   };
 
   useEffect(() => {
@@ -487,7 +565,7 @@ export function App() {
     loadSvg();
   }, [activeTheme, shipConfig?.manufacturer]);
 
-  function WidgetSprite({ type, active, value }: { type: string, active?: boolean, value?: any }) {
+  function WidgetSprite({ type, active, value, armed }: { type: string, active?: boolean, value?: any, armed?: boolean }) {
     const renderSprite = (spriteId: string, style?: any) => {
       const rect = spriteRects[spriteId];
       if (!rect) {
@@ -511,7 +589,14 @@ export function App() {
       case 'btn_latching':
         return renderSprite(active ? 'sprite-btn_latching_on' : 'sprite-btn_latching_off');
       case 'btn_danger':
-        return renderSprite('sprite-btn_danger');
+        return (
+          <div style="position: relative; width: 100%; height: 100%;">
+            {renderSprite('sprite-btn_danger', armed ? { filter: 'drop-shadow(0 0 8px #ff0000) hue-rotate(-20deg)' } : {})}
+            {armed && (
+              <div style="position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; border-radius: 50%; background-color: #ff0000; box-shadow: 0 0 6px #ff0000; animation: danger-blink 0.5s infinite alternate;" />
+            )}
+          </div>
+        );
       case 'slider_h': {
         const val = value !== undefined ? value : 0;
         const leftPos = 5 + (val / 255) * 60;
@@ -1948,7 +2033,7 @@ export function App() {
                             {/* Main Drag/Drop Grid Layout Area */}
                             <div style="background: rgba(0,0,0,0.4); border-radius: 8px; border: 1px solid var(--border-color); padding: 15px; position: relative;">
                               <div style="font-family: monospace; font-size: 0.75rem; color: var(--primary); margin-bottom: 8px; text-transform: uppercase;">
-                                Grid: {gridCols} Cols x {gridRows} Rows (D1001 LCD LCD boundaries layout)
+                                Grid: {gridCols} Cols x {gridRows} Rows {status.target === 'esp32s3' ? '(HotBox-Lite boundaries)' : '(D1001 LCD boundaries)'}
                               </div>
                               
                               <div 
@@ -2180,20 +2265,22 @@ export function App() {
                 <h2>System Control</h2>
                 <p style="margin-bottom: 25px;">Manage low-level hardware parameters and power actions.</p>
 
-                <div class="form-group" style="margin-bottom: 30px;">
-                  <label>Display Backlight Brightness ({backlight}%)</label>
-                  <div class="slider-container" style="margin-top: 10px;">
-                    <span>🔆</span>
-                    <input 
-                      type="range" 
-                      min="5" 
-                      max="100" 
-                      value={backlight} 
-                      onChange={(e) => handleBacklightChange(parseInt((e.target as HTMLInputElement).value))} 
-                    />
-                    <span>☀</span>
+                {status.target !== 'esp32s3' && (
+                  <div class="form-group" style="margin-bottom: 30px;">
+                    <label>Display Backlight Brightness ({backlight}%)</label>
+                    <div class="slider-container" style="margin-top: 10px;">
+                      <span>🔆</span>
+                      <input 
+                        type="range" 
+                        min="5" 
+                        max="100" 
+                        value={backlight} 
+                        onChange={(e) => handleBacklightChange(parseInt((e.target as HTMLInputElement).value))} 
+                      />
+                      <span>☀</span>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div class="form-group" style="margin-bottom: 30px;">
                   <label>USB Gamepad Output (PHY Swap)</label>
@@ -2218,7 +2305,11 @@ export function App() {
                   <h3 style="font-family: 'Orbitron', sans-serif; font-size: 0.95rem; color: var(--accent); margin-bottom: 10px; text-transform: uppercase;">
                     ⚠ Danger Zone
                   </h3>
-                  <p style="font-size: 0.85rem; margin-bottom: 20px;">Rebooting the device will disconnect active sessions and reload all settings and assets from flash and SD card.</p>
+                  <p style="font-size: 0.85rem; margin-bottom: 20px;">
+                    {status.target === 'esp32s3' 
+                      ? 'Rebooting the device will disconnect active sessions and reload all settings and configurations from flash memory.'
+                      : 'Rebooting the device will disconnect active sessions and reload all settings and assets from flash and SD card.'}
+                  </p>
                   <button class="btn danger" style="width: 100%;" onClick={handleReboot}>
                     Reboot Terminal
                   </button>
@@ -2311,6 +2402,7 @@ export function App() {
                         <div 
                           class="retro-grid-canvas" 
                           style={`grid-template-columns: repeat(${playCols}, 1fr); grid-template-rows: repeat(${playRows}, 1fr);`}
+                          onContextMenu={(e) => e.preventDefault()}
                         >
                           {c.actions.map((w: any) => {
                             let colorClass = 'color-blue';
@@ -2327,45 +2419,17 @@ export function App() {
                             const isButton = wtype.startsWith('btn_') || wtype === 'indicator';
 
                             if (isButton) {
+                              const isArmed = dangerArmed[w.id] || false;
                               return (
                                 <button
-                                  class={`retro-grid-widget-btn ${colorClass} ${isPressed ? 'active' : ''}`}
+                                  class={`retro-grid-widget-btn ${colorClass} ${isPressed ? 'active' : ''} ${isArmed ? 'armed' : ''} ${wtype === 'btn_danger' ? 'btn-danger' : ''}`}
                                   style={`grid-row: ${w.row + 1} / span ${w.height || 1}; grid-column: ${w.col + 1} / span ${w.width || 1};`}
-                                  onMouseDown={(e) => {
-                                    if (wtype === 'btn_latching') {
-                                      const newState = !isPressed;
-                                      setPressedActions(prev => ({ ...prev, [w.id]: newState }));
-                                      handleActionMacro(w.id, newState, e);
-                                    } else {
-                                      setPressedActions(prev => ({ ...prev, [w.id]: true }));
-                                      handleActionMacro(w.id, true, e);
-                                    }
-                                  }}
-                                  onMouseUp={(e) => {
-                                    if (wtype !== 'btn_latching') {
-                                      setPressedActions(prev => ({ ...prev, [w.id]: false }));
-                                      handleActionMacro(w.id, false, e);
-                                    }
-                                  }}
-                                  onTouchStart={(e) => {
-                                    if (wtype === 'btn_latching') {
-                                      const newState = !isPressed;
-                                      setPressedActions(prev => ({ ...prev, [w.id]: newState }));
-                                      handleActionMacro(w.id, newState, e);
-                                    } else {
-                                      setPressedActions(prev => ({ ...prev, [w.id]: true }));
-                                      handleActionMacro(w.id, true, e);
-                                    }
-                                  }}
-                                  onTouchEnd={(e) => {
-                                    if (wtype !== 'btn_latching') {
-                                      setPressedActions(prev => ({ ...prev, [w.id]: false }));
-                                      handleActionMacro(w.id, false, e);
-                                    }
-                                  }}
+                                  onPointerDown={(e) => handleConsoleBtnPress(w, e)}
+                                  onPointerUp={(e) => handleConsoleBtnRelease(w, e)}
+                                  onPointerCancel={(e) => handleConsoleBtnRelease(w, e)}
                                 >
                                   <div class="retro-sprite-container">
-                                    <WidgetSprite type={wtype} active={isPressed} />
+                                    <WidgetSprite type={wtype} active={isPressed} armed={isArmed} />
                                   </div>
                                   <div class="retro-widget-text">
                                     <div class="label">{w.label || w.id}</div>
@@ -2378,8 +2442,7 @@ export function App() {
                                 <div
                                   class={`retro-grid-widget-btn ${colorClass} analog-control`}
                                   style={`grid-row: ${w.row + 1} / span ${w.height || 1}; grid-column: ${w.col + 1} / span ${w.width || 1}; cursor: grab;`}
-                                  onMouseDown={(e) => startWidgetDrag(w, e)}
-                                  onTouchStart={(e) => startWidgetDrag(w, e)}
+                                  onPointerDown={(e) => startWidgetDrag(w, e)}
                                 >
                                   <div class="retro-sprite-container">
                                     <WidgetSprite type={wtype} active={false} value={currentVal} />
@@ -2406,19 +2469,17 @@ export function App() {
                       <div class="classic-shoulders">
                         <div 
                           class="shoulder-btn"
-                          onMouseDown={(e) => handleGpEvent(9, true, e)}
-                          onMouseUp={(e) => handleGpEvent(9, false, e)}
-                          onTouchStart={(e) => handleGpEvent(9, true, e)}
-                          onTouchEnd={(e) => handleGpEvent(9, false, e)}
+                          onPointerDown={(e) => handleGpEvent(9, e)}
+                          onPointerUp={(e) => handleGpEvent(9, e)}
+                          onPointerCancel={(e) => handleGpEvent(9, e)}
                         >
                           L
                         </div>
                         <div 
                           class="shoulder-btn"
-                          onMouseDown={(e) => handleGpEvent(10, true, e)}
-                          onMouseUp={(e) => handleGpEvent(10, false, e)}
-                          onTouchStart={(e) => handleGpEvent(10, true, e)}
-                          onTouchEnd={(e) => handleGpEvent(10, false, e)}
+                          onPointerDown={(e) => handleGpEvent(10, e)}
+                          onPointerUp={(e) => handleGpEvent(10, e)}
+                          onPointerCancel={(e) => handleGpEvent(10, e)}
                         >
                           R
                         </div>
@@ -2429,31 +2490,27 @@ export function App() {
                         <div class="dpad-cross">
                           <div 
                             class="dpad-btn up"
-                            onMouseDown={(e) => handleGpEvent(1, true, e)}
-                            onMouseUp={(e) => handleGpEvent(1, false, e)}
-                            onTouchStart={(e) => handleGpEvent(1, true, e)}
-                            onTouchEnd={(e) => handleGpEvent(1, false, e)}
+                            onPointerDown={(e) => handleGpEvent(1, e)}
+                            onPointerUp={(e) => handleGpEvent(1, e)}
+                            onPointerCancel={(e) => handleGpEvent(1, e)}
                           />
                           <div 
                             class="dpad-btn right"
-                            onMouseDown={(e) => handleGpEvent(2, true, e)}
-                            onMouseUp={(e) => handleGpEvent(2, false, e)}
-                            onTouchStart={(e) => handleGpEvent(2, true, e)}
-                            onTouchEnd={(e) => handleGpEvent(2, false, e)}
+                            onPointerDown={(e) => handleGpEvent(2, e)}
+                            onPointerUp={(e) => handleGpEvent(2, e)}
+                            onPointerCancel={(e) => handleGpEvent(2, e)}
                           />
                           <div 
                             class="dpad-btn down"
-                            onMouseDown={(e) => handleGpEvent(3, true, e)}
-                            onMouseUp={(e) => handleGpEvent(3, false, e)}
-                            onTouchStart={(e) => handleGpEvent(3, true, e)}
-                            onTouchEnd={(e) => handleGpEvent(3, false, e)}
+                            onPointerDown={(e) => handleGpEvent(3, e)}
+                            onPointerUp={(e) => handleGpEvent(3, e)}
+                            onPointerCancel={(e) => handleGpEvent(3, e)}
                           />
                           <div 
                             class="dpad-btn left"
-                            onMouseDown={(e) => handleGpEvent(4, true, e)}
-                            onMouseUp={(e) => handleGpEvent(4, false, e)}
-                            onTouchStart={(e) => handleGpEvent(4, true, e)}
-                            onTouchEnd={(e) => handleGpEvent(4, false, e)}
+                            onPointerDown={(e) => handleGpEvent(4, e)}
+                            onPointerUp={(e) => handleGpEvent(4, e)}
+                            onPointerCancel={(e) => handleGpEvent(4, e)}
                           />
                           <div class="dpad-center-stub" />
                         </div>
@@ -2464,20 +2521,18 @@ export function App() {
                         <div class="select-start-col">
                           <div 
                             class="capsule-btn"
-                            onMouseDown={(e) => handleGpEvent(13, true, e)}
-                            onMouseUp={(e) => handleGpEvent(13, false, e)}
-                            onTouchStart={(e) => handleGpEvent(13, true, e)}
-                            onTouchEnd={(e) => handleGpEvent(13, false, e)}
+                            onPointerDown={(e) => handleGpEvent(13, e)}
+                            onPointerUp={(e) => handleGpEvent(13, e)}
+                            onPointerCancel={(e) => handleGpEvent(13, e)}
                           />
                           <span>SELECT</span>
                         </div>
                         <div class="select-start-col">
                           <div 
                             class="capsule-btn"
-                            onMouseDown={(e) => handleGpEvent(14, true, e)}
-                            onMouseUp={(e) => handleGpEvent(14, false, e)}
-                            onTouchStart={(e) => handleGpEvent(14, true, e)}
-                            onTouchEnd={(e) => handleGpEvent(14, false, e)}
+                            onPointerDown={(e) => handleGpEvent(14, e)}
+                            onPointerUp={(e) => handleGpEvent(14, e)}
+                            onPointerCancel={(e) => handleGpEvent(14, e)}
                           />
                           <span>START</span>
                         </div>
@@ -2487,37 +2542,33 @@ export function App() {
                       <div class="classic-action-buttons">
                         <div 
                           class="action-btn x"
-                          onMouseDown={(e) => handleGpEvent(7, true, e)}
-                          onMouseUp={(e) => handleGpEvent(7, false, e)}
-                          onTouchStart={(e) => handleGpEvent(7, true, e)}
-                          onTouchEnd={(e) => handleGpEvent(7, false, e)}
+                          onPointerDown={(e) => handleGpEvent(7, e)}
+                          onPointerUp={(e) => handleGpEvent(7, e)}
+                          onPointerCancel={(e) => handleGpEvent(7, e)}
                         >
                           X
                         </div>
                         <div 
                           class="action-btn a"
-                          onMouseDown={(e) => handleGpEvent(5, true, e)}
-                          onMouseUp={(e) => handleGpEvent(5, false, e)}
-                          onTouchStart={(e) => handleGpEvent(5, true, e)}
-                          onTouchEnd={(e) => handleGpEvent(5, false, e)}
+                          onPointerDown={(e) => handleGpEvent(5, e)}
+                          onPointerUp={(e) => handleGpEvent(5, e)}
+                          onPointerCancel={(e) => handleGpEvent(5, e)}
                         >
                           A
                         </div>
                         <div 
                           class="action-btn b"
-                          onMouseDown={(e) => handleGpEvent(6, true, e)}
-                          onMouseUp={(e) => handleGpEvent(6, false, e)}
-                          onTouchStart={(e) => handleGpEvent(6, true, e)}
-                          onTouchEnd={(e) => handleGpEvent(6, false, e)}
+                          onPointerDown={(e) => handleGpEvent(6, e)}
+                          onPointerUp={(e) => handleGpEvent(6, e)}
+                          onPointerCancel={(e) => handleGpEvent(6, e)}
                         >
                           B
                         </div>
                         <div 
                           class="action-btn y"
-                          onMouseDown={(e) => handleGpEvent(8, true, e)}
-                          onMouseUp={(e) => handleGpEvent(8, false, e)}
-                          onTouchStart={(e) => handleGpEvent(8, true, e)}
-                          onTouchEnd={(e) => handleGpEvent(8, false, e)}
+                          onPointerDown={(e) => handleGpEvent(8, e)}
+                          onPointerUp={(e) => handleGpEvent(8, e)}
+                          onPointerCancel={(e) => handleGpEvent(8, e)}
                         >
                           Y
                         </div>
@@ -2528,19 +2579,17 @@ export function App() {
                     <div class="classic-triggers-bar">
                       <div 
                         class="trigger-touch-btn"
-                        onMouseDown={(e) => handleGpEvent(11, true, e)}
-                        onMouseUp={(e) => handleGpEvent(11, false, e)}
-                        onTouchStart={(e) => handleGpEvent(11, true, e)}
-                        onTouchEnd={(e) => handleGpEvent(11, false, e)}
+                        onPointerDown={(e) => handleGpEvent(11, e)}
+                        onPointerUp={(e) => handleGpEvent(11, e)}
+                        onPointerCancel={(e) => handleGpEvent(11, e)}
                       >
                         L2 TRIGGER
                       </div>
                       <div 
                         class="trigger-touch-btn"
-                        onMouseDown={(e) => handleGpEvent(12, true, e)}
-                        onMouseUp={(e) => handleGpEvent(12, false, e)}
-                        onTouchStart={(e) => handleGpEvent(12, true, e)}
-                        onTouchEnd={(e) => handleGpEvent(12, false, e)}
+                        onPointerDown={(e) => handleGpEvent(12, e)}
+                        onPointerUp={(e) => handleGpEvent(12, e)}
+                        onPointerCancel={(e) => handleGpEvent(12, e)}
                       >
                         R2 TRIGGER
                       </div>
@@ -2620,7 +2669,7 @@ export function App() {
       )}
 
       <footer style="margin-top: 40px; padding: 20px 0; border-top: 1px solid rgba(0, 240, 255, 0.05); text-align: center; font-size: 0.8rem; color: var(--text-secondary); font-family: monospace;">
-        SC_TERMINAL_SYSTEM // v1.0.0 // RE-TERMINAL-D1001-P4
+        SC_TERMINAL_SYSTEM // v1.0.0 // {status.target === 'esp32s3' ? 'HOTBOX-LITE-S3' : 'RE-TERMINAL-D1001-P4'}
       </footer>
       <div style={{ display: 'none' }} dangerouslySetInnerHTML={{ __html: svgContent }} />
     </>

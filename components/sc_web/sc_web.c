@@ -169,13 +169,14 @@ static esp_err_t get_status_handler(httpd_req_t *req)
     
     char json[384];
     snprintf(json, sizeof(json),
-             "{\"online\":true,\"ip\":\"%s\",\"mode\":\"%s\",\"ssid\":\"%s\",\"uptime\":%lu,\"free_heap\":%lu,\"psram_free\":%lu}",
+             "{\"online\":true,\"ip\":\"%s\",\"mode\":\"%s\",\"ssid\":\"%s\",\"uptime\":%lu,\"free_heap\":%lu,\"psram_free\":%lu,\"target\":\"%s\"}",
              ip_str,
              sc_network_is_ap() ? "AP" : "STA",
              ssid,
              (unsigned long)(esp_timer_get_time() / 1000000),
              (unsigned long)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
-             (unsigned long)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+             (unsigned long)heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
+             CONFIG_IDF_TARGET);
              
     httpd_resp_send(req, json, strlen(json));
     return ESP_OK;
