@@ -26,7 +26,9 @@
 #include "sc_config.h"
 #include "sc_storage.h"
 #include "sc_hid.h"
+#if CONFIG_IDF_TARGET_ESP32P4
 #include "sc_ui.h"
+#endif
 #include "sdkconfig.h"
 
 #include "sc_network.h"
@@ -72,7 +74,11 @@ void app_main(void)
     }
 
     /* ── 4. UI ──────────────────────────────────────────────────────────── */
+#if CONFIG_IDF_TARGET_ESP32P4
     ESP_ERROR_CHECK(sc_ui_init(cfg));
+#else
+    ESP_LOGI(TAG, "Headless build: skipping LVGL display/touch interface.");
+#endif
 
     /* ── 5. Network (Wi-Fi AP + Web Server) ─────────────────────────────── */
     err = sc_network_init();

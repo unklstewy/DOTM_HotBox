@@ -1,3 +1,7 @@
+if(NOT IDF_TARGET STREQUAL "esp32p4")
+    return()
+endif()
+
 idf_component_register(
     SRCS
         "sc_ui.c"

@@ -1,3 +1,6 @@
+#include "sdkconfig.h"
+
+#if CONFIG_IDF_TARGET_ESP32P4
 /**
  * @file wifi_hal_stubs.c
  * @brief Stub implementations for WiFi HAL functions not available on esp32_host targets.
@@ -53,3 +56,4 @@ void ic_register_nan_callbacks(void *callbacks)
     (void)callbacks;
     ESP_LOGD(TAG, "ic_register_nan_callbacks stub (no-op on esp32_host)");
 }
+#endif

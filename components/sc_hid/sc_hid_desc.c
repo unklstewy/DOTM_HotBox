@@ -24,44 +24,141 @@
 
 /* ── HID Report Descriptor ───────────────────────────────────────────────── */
 static const uint8_t s_hid_report_desc[] = {
-    /* --- Report 1: Gamepad ---------------------------------------- */
+    /* --- Report 1: Gamepad A (Buttons 1-128) ---------------------- */
     HID_USAGE_PAGE (HID_USAGE_PAGE_DESKTOP),
     HID_USAGE      (HID_USAGE_DESKTOP_GAMEPAD),
     HID_COLLECTION (HID_COLLECTION_APPLICATION),
         HID_REPORT_ID (1)
 
-        /* 32 Buttons (4 bytes) */
+        /* 128 Buttons (16 bytes) */
         HID_USAGE_PAGE   (HID_USAGE_PAGE_BUTTON),
         HID_USAGE_MIN    (1),
-        HID_USAGE_MAX    (32),
+        HID_USAGE_MAX    (128),
         HID_LOGICAL_MIN  (0),
         HID_LOGICAL_MAX  (1),
-        HID_REPORT_COUNT (32),
+        HID_REPORT_COUNT (128),
         HID_REPORT_SIZE  (1),
         HID_INPUT        (HID_DATA | HID_VARIABLE | HID_ABSOLUTE),
 
-        /* X and Y Axis (2 bytes) */
+        /* 8 Analog Axes (8 bytes: X, Y, Z, Rz, Rx, Ry, Slider, Dial) */
         HID_USAGE_PAGE   (HID_USAGE_PAGE_DESKTOP),
         HID_USAGE        (HID_USAGE_DESKTOP_X),
         HID_USAGE        (HID_USAGE_DESKTOP_Y),
-        HID_LOGICAL_MIN_N(0x81, 1), /* -127 */
-        HID_LOGICAL_MAX_N(0x7F, 1), /* 127 */
-        HID_REPORT_COUNT (2),
+        HID_USAGE        (HID_USAGE_DESKTOP_Z),
+        HID_USAGE        (HID_USAGE_DESKTOP_RX),
+        HID_USAGE        (HID_USAGE_DESKTOP_RY),
+        HID_USAGE        (HID_USAGE_DESKTOP_RZ),
+        HID_USAGE        (HID_USAGE_DESKTOP_SLIDER),
+        HID_USAGE        (HID_USAGE_DESKTOP_DIAL),
+        HID_LOGICAL_MIN  (0),
+        HID_LOGICAL_MAX_N(0xFF, 1),
+        HID_REPORT_COUNT (8),
         HID_REPORT_SIZE  (8),
         HID_INPUT        (HID_DATA | HID_VARIABLE | HID_ABSOLUTE),
+
+        /* 1 POV Hat (1 byte: 4 bits value + 4 bits padding) */
+        HID_USAGE_PAGE   (HID_USAGE_PAGE_DESKTOP),
+        HID_USAGE        (HID_USAGE_DESKTOP_HAT_SWITCH),
+        HID_LOGICAL_MIN  (1),
+        HID_LOGICAL_MAX  (8),
+        HID_PHYSICAL_MIN (0),
+        HID_PHYSICAL_MAX_N(315, 2),
+        HID_REPORT_SIZE  (4),
+        HID_REPORT_COUNT (1),
+        HID_INPUT        (HID_DATA | HID_VARIABLE | HID_ABSOLUTE | HID_NULL_STATE),
+        /* Padding */
+        HID_REPORT_SIZE  (1),
+        HID_REPORT_COUNT (4),
+        HID_INPUT        (HID_CONSTANT),
     HID_COLLECTION_END,
 
-    /* --- Report 2: Consumer Control ------------------------------------- */
+    /* --- Report 2: Gamepad B (Buttons 129-256) -------------------- */
+    HID_USAGE_PAGE (HID_USAGE_PAGE_DESKTOP),
+    HID_USAGE      (HID_USAGE_DESKTOP_GAMEPAD),
+    HID_COLLECTION (HID_COLLECTION_APPLICATION),
+        HID_REPORT_ID (2)
+
+        /* 128 Buttons (16 bytes) */
+        HID_USAGE_PAGE   (HID_USAGE_PAGE_BUTTON),
+        HID_USAGE_MIN    (1),
+        HID_USAGE_MAX    (128),
+        HID_LOGICAL_MIN  (0),
+        HID_LOGICAL_MAX  (1),
+        HID_REPORT_COUNT (128),
+        HID_REPORT_SIZE  (1),
+        HID_INPUT        (HID_DATA | HID_VARIABLE | HID_ABSOLUTE),
+
+        /* 8 Analog Axes (8 bytes: X, Y, Z, Rz, Rx, Ry, Slider, Dial) */
+        HID_USAGE_PAGE   (HID_USAGE_PAGE_DESKTOP),
+        HID_USAGE        (HID_USAGE_DESKTOP_X),
+        HID_USAGE        (HID_USAGE_DESKTOP_Y),
+        HID_USAGE        (HID_USAGE_DESKTOP_Z),
+        HID_USAGE        (HID_USAGE_DESKTOP_RX),
+        HID_USAGE        (HID_USAGE_DESKTOP_RY),
+        HID_USAGE        (HID_USAGE_DESKTOP_RZ),
+        HID_USAGE        (HID_USAGE_DESKTOP_SLIDER),
+        HID_USAGE        (HID_USAGE_DESKTOP_DIAL),
+        HID_LOGICAL_MIN  (0),
+        HID_LOGICAL_MAX_N(0xFF, 1),
+        HID_REPORT_COUNT (8),
+        HID_REPORT_SIZE  (8),
+        HID_INPUT        (HID_DATA | HID_VARIABLE | HID_ABSOLUTE),
+
+        /* 1 POV Hat (1 byte: 4 bits value + 4 bits padding) */
+        HID_USAGE_PAGE   (HID_USAGE_PAGE_DESKTOP),
+        HID_USAGE        (HID_USAGE_DESKTOP_HAT_SWITCH),
+        HID_LOGICAL_MIN  (1),
+        HID_LOGICAL_MAX  (8),
+        HID_PHYSICAL_MIN (0),
+        HID_PHYSICAL_MAX_N(315, 2),
+        HID_REPORT_SIZE  (4),
+        HID_REPORT_COUNT (1),
+        HID_INPUT        (HID_DATA | HID_VARIABLE | HID_ABSOLUTE | HID_NULL_STATE),
+        /* Padding */
+        HID_REPORT_SIZE  (1),
+        HID_REPORT_COUNT (4),
+        HID_INPUT        (HID_CONSTANT),
+    HID_COLLECTION_END,
+
+    /* --- Report 3: Consumer Control ------------------------------------- */
     HID_USAGE_PAGE (HID_USAGE_PAGE_CONSUMER),
     HID_USAGE      (HID_USAGE_CONSUMER_CONTROL),
     HID_COLLECTION (HID_COLLECTION_APPLICATION),
-        HID_REPORT_ID (2)
+        HID_REPORT_ID (3)
         HID_USAGE_MIN_N (0x0000, 2),
         HID_USAGE_MAX_N (0x03FF, 2),
         HID_LOGICAL_MIN (0x00),
         HID_LOGICAL_MAX_N(0x03FF, 2),
         HID_REPORT_COUNT(1),
         HID_REPORT_SIZE (16),
+        HID_INPUT       (HID_DATA | HID_ARRAY | HID_ABSOLUTE),
+    HID_COLLECTION_END,
+
+    /* --- Report 4: Keyboard --------------------------------------------- */
+    HID_USAGE_PAGE (HID_USAGE_PAGE_DESKTOP),
+    HID_USAGE      (HID_USAGE_DESKTOP_KEYBOARD),
+    HID_COLLECTION (HID_COLLECTION_APPLICATION),
+        HID_REPORT_ID (4)
+        /* Modifiers (1 byte) */
+        HID_USAGE_PAGE (HID_USAGE_PAGE_KEYBOARD),
+        HID_USAGE_MIN  (224), /* Left Control */
+        HID_USAGE_MAX  (231), /* Right GUI */
+        HID_LOGICAL_MIN (0),
+        HID_LOGICAL_MAX (1),
+        HID_REPORT_SIZE (1),
+        HID_REPORT_COUNT(8),
+        HID_INPUT       (HID_DATA | HID_VARIABLE | HID_ABSOLUTE),
+        /* Reserved (1 byte) */
+        HID_REPORT_SIZE (8),
+        HID_REPORT_COUNT(1),
+        HID_INPUT       (HID_CONSTANT),
+        /* Keycodes (6 bytes) */
+        HID_USAGE_MIN   (0),
+        HID_USAGE_MAX   (101),
+        HID_LOGICAL_MIN (0),
+        HID_LOGICAL_MAX (101),
+        HID_REPORT_SIZE (8),
+        HID_REPORT_COUNT(6),
         HID_INPUT       (HID_DATA | HID_ARRAY | HID_ABSOLUTE),
     HID_COLLECTION_END,
 };

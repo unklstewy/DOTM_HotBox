@@ -28,7 +28,7 @@ extern "C" {
 /** One HID action loaded from the ship JSON config. */
 typedef struct {
     char     action_id[SC_HID_ACTION_ID_LEN]; /**< Matches JSON "id" field   */
-    uint8_t  gamepad_button;                   /**< Gamepad button (1-32, 0=none) */
+    uint16_t gamepad_button;                   /**< Gamepad button (1-256, 0=none) */
     uint16_t consumer_usage;                   /**< Consumer usage (0 = none)  */
     uint32_t hold_ms;                          /**< 0 = tap, >0 = hold         */
 } sc_hid_action_t;
@@ -78,12 +78,26 @@ esp_err_t sc_hid_action_hold(const char *action_id, uint32_t override_ms);
  * @param action_id Action to press.
  */
 esp_err_t sc_hid_action_press(const char *action_id);
+esp_err_t sc_hid_action_release(const char *action_id);
 
 /**
- * @brief Set the gamepad button or consumer control state to released.
- * @param action_id Action to release.
+ * @brief Set the gamepad button to pressed (held).
+ * @param button Gamepad button (1-256)
  */
-esp_err_t sc_hid_action_release(const char *action_id);
+esp_err_t sc_hid_raw_button_press(uint16_t button);
+
+/**
+ * @brief Set the gamepad button to released.
+ * @param button Gamepad button (1-256)
+ */
+esp_err_t sc_hid_raw_button_release(uint16_t button);
+
+/**
+ * @brief Send a pulse (press + auto-release after hold_ms) on a gamepad button.
+ * @param button Gamepad button (1-256)
+ * @param hold_ms Duration to hold; 0 = default (50ms)
+ */
+esp_err_t sc_hid_raw_button_pulse(uint16_t button, uint32_t hold_ms);
 
 /* ── Low-level Report API (internal / testing only) ────────────────────── */
 

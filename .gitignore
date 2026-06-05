@@ -25,3 +25,6 @@ venv/
 secrets.h
 secrets/
 *.local
+
+# Generated spiffs image
+spiffs_image/

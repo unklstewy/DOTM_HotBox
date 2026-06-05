@@ -5,7 +5,9 @@
 #include "sc_web.h"
 #include "sc_config.h"
 #include "sc_network.h"
+#if CONFIG_IDF_TARGET_ESP32P4
 #include "sc_ui.h"
+#endif
 #include "sc_hid.h"
 
 #include <stdio.h>
@@ -242,7 +244,9 @@ static esp_err_t post_config_handler(httpd_req_t *req)
     }
 
     /* Apply rotation live */
+#if CONFIG_IDF_TARGET_ESP32P4
     sc_ui_set_rotation(new_cfg.display_rotation);
+#endif
     
     httpd_resp_sendstr(req, "{\"status\":\"ok\"}");
     return ESP_OK;
@@ -595,6 +599,78 @@ static esp_err_t post_system_hid_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+static esp_err_t ws_handler(httpd_req_t *req)
+{
+    if (req->method == HTTP_GET) {
+        ESP_LOGI(TAG, "WS connection handshake completed");
+        return ESP_OK;
+    }
+
+    httpd_ws_frame_t ws_pkt;
+    memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
+    ws_pkt.type = HTTPD_WS_TYPE_TEXT;
+
+    esp_err_t ret = httpd_ws_recv_frame(req, &ws_pkt, 0);
+    if (ret != ESP_OK) {
+        return ret;
+    }
+
+    if (ws_pkt.len > 0) {
+        uint8_t *buf = calloc(1, ws_pkt.len + 1);
+        if (!buf) {
+            return ESP_ERR_NO_MEM;
+        }
+        ws_pkt.payload = buf;
+        ret = httpd_ws_recv_frame(req, &ws_pkt, ws_pkt.len);
+        if (ret != ESP_OK) {
+            free(buf);
+            return ret;
+        }
+
+        cJSON *root = cJSON_Parse((const char *)buf);
+        if (root) {
+            cJSON *cmd = cJSON_GetObjectItem(root, "cmd");
+            if (cmd && cmd->valuestring) {
+                if (strcmp(cmd->valuestring, "press") == 0) {
+                    cJSON *act = cJSON_GetObjectItem(root, "action_id");
+                    if (act && act->valuestring) {
+                        sc_hid_action_press(act->valuestring);
+                    }
+                } else if (strcmp(cmd->valuestring, "release") == 0) {
+                    cJSON *act = cJSON_GetObjectItem(root, "action_id");
+                    if (act && act->valuestring) {
+                        sc_hid_action_release(act->valuestring);
+                    }
+                } else if (strcmp(cmd->valuestring, "pulse") == 0) {
+                    cJSON *act = cJSON_GetObjectItem(root, "action_id");
+                    if (act && act->valuestring) {
+                        sc_hid_action_send(act->valuestring);
+                    }
+                } else if (strcmp(cmd->valuestring, "gp_press") == 0) {
+                    cJSON *btn = cJSON_GetObjectItem(root, "btn");
+                    if (btn) {
+                        sc_hid_raw_button_press(btn->valueint);
+                    }
+                } else if (strcmp(cmd->valuestring, "gp_release") == 0) {
+                    cJSON *btn = cJSON_GetObjectItem(root, "btn");
+                    if (btn) {
+                        sc_hid_raw_button_release(btn->valueint);
+                    }
+                } else if (strcmp(cmd->valuestring, "gp_pulse") == 0) {
+                    cJSON *btn = cJSON_GetObjectItem(root, "btn");
+                    cJSON *hold = cJSON_GetObjectItem(root, "hold_ms");
+                    if (btn) {
+                        sc_hid_raw_button_pulse(btn->valueint, hold ? hold->valueint : 0);
+                    }
+                }
+            }
+            cJSON_Delete(root);
+        }
+        free(buf);
+    }
+    return ESP_OK;
+}
+
 /* ── Lifecycle ───────────────────────────────────────────────────────────── */
 
 esp_err_t sc_web_start(void)
@@ -668,6 +744,16 @@ esp_err_t sc_web_start(void)
 
     httpd_uri_t api_hid_post = { .uri = "/api/system/hid", .method = HTTP_POST, .handler = post_system_hid_handler, .user_ctx = NULL };
     httpd_register_uri_handler(s_server, &api_hid_post);
+
+    /* ── WebSocket ── */
+    httpd_uri_t ws_uri = {
+        .uri        = "/ws",
+        .method     = HTTP_GET,
+        .handler    = ws_handler,
+        .user_ctx   = NULL,
+        .is_websocket = true
+    };
+    httpd_register_uri_handler(s_server, &ws_uri);
 
     /* ── Catch-All ───────────────────────────────────────────────────────── */
     httpd_uri_t catch_all = { .uri = "/*", .method = HTTP_GET, .handler = default_handler, .user_ctx = NULL };

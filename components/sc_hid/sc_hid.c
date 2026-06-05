@@ -23,7 +23,9 @@
 
 /* Low-level register access for USB PHY software override */
 #include "soc/soc.h"
+#if CONFIG_IDF_TARGET_ESP32P4
 #include "soc/lp_system_reg.h"
+#endif
 #include "sc_config.h"
 
 static const char *TAG = "sc_hid";
@@ -93,12 +95,14 @@ esp_err_t sc_hid_init(void)
      * - LP_SYSTEM_REG_SW_HW_USB_PHY_SEL = 1 (enable software override of the eFuse)
      * - LP_SYSTEM_REG_SW_USB_PHY_SEL = 1 (route FS_PHY1 to OTG, FS_PHY2 to Serial/JTAG)
      */
+#if CONFIG_IDF_TARGET_ESP32P4
     if (sc_config_get()->hid_enabled) {
         uint32_t usb_ctrl = REG_READ(LP_SYSTEM_REG_USB_CTRL_REG);
         usb_ctrl |= LP_SYSTEM_REG_SW_HW_USB_PHY_SEL;
         usb_ctrl |= LP_SYSTEM_REG_SW_USB_PHY_SEL;
         REG_WRITE(LP_SYSTEM_REG_USB_CTRL_REG, usb_ctrl);
     }
+#endif
 
     esp_err_t ret = tinyusb_driver_install(&tusb_cfg);
     if (ret != ESP_OK) {
@@ -233,33 +237,94 @@ esp_err_t sc_hid_action_release(const char *action_id)
     return ESP_OK;
 }
 
+esp_err_t sc_hid_raw_button_press(uint16_t button)
+{
+    if (!tud_ready()) return ESP_ERR_INVALID_STATE;
+    if (button < 1 || button > 256) return ESP_ERR_INVALID_ARG;
+
+    sc_hid_action_t action = {0};
+    action.gamepad_button = button;
+
+    hid_dispatch_t msg = { .cmd = HID_CMD_PRESS, .action = action, .hold_ms = 0 };
+    if (xQueueSend(s_dispatch_q, &msg, pdMS_TO_TICKS(50)) != pdTRUE) {
+        return ESP_ERR_TIMEOUT;
+    }
+    return ESP_OK;
+}
+
+esp_err_t sc_hid_raw_button_release(uint16_t button)
+{
+    if (!tud_ready()) return ESP_ERR_INVALID_STATE;
+    if (button < 1 || button > 256) return ESP_ERR_INVALID_ARG;
+
+    sc_hid_action_t action = {0};
+    action.gamepad_button = button;
+
+    hid_dispatch_t msg = { .cmd = HID_CMD_RELEASE, .action = action, .hold_ms = 0 };
+    if (xQueueSend(s_dispatch_q, &msg, pdMS_TO_TICKS(50)) != pdTRUE) {
+        return ESP_ERR_TIMEOUT;
+    }
+    return ESP_OK;
+}
+
+esp_err_t sc_hid_raw_button_pulse(uint16_t button, uint32_t hold_ms)
+{
+    if (!tud_ready()) return ESP_ERR_INVALID_STATE;
+    if (button < 1 || button > 256) return ESP_ERR_INVALID_ARG;
+
+    sc_hid_action_t action = {0};
+    action.gamepad_button = button;
+
+    uint32_t hold = hold_ms > 0 ? hold_ms : 50;
+    hid_dispatch_t msg = { .cmd = HID_CMD_PULSE, .action = action, .hold_ms = hold };
+    if (xQueueSend(s_dispatch_q, &msg, pdMS_TO_TICKS(50)) != pdTRUE) {
+        return ESP_ERR_TIMEOUT;
+    }
+    return ESP_OK;
+}
+
 /* ── Low-level reports ───────────────────────────────────────────────────── */
+
+struct TU_ATTR_PACKED gamepad_report_t {
+    uint8_t buttons[16];   /* 128 buttons */
+    uint8_t axes[8];       /* 8 axes */
+    uint8_t hat;           /* 4 bits POV, 4 bits padding */
+};
+
+esp_err_t sc_hid_report_gamepad_a_send(const struct gamepad_report_t *rep)
+{
+    if (!tud_hid_ready()) return ESP_ERR_INVALID_STATE;
+    tud_hid_report(1, rep, sizeof(struct gamepad_report_t));
+    return ESP_OK;
+}
+
+esp_err_t sc_hid_report_gamepad_b_send(const struct gamepad_report_t *rep)
+{
+    if (!tud_hid_ready()) return ESP_ERR_INVALID_STATE;
+    tud_hid_report(2, rep, sizeof(struct gamepad_report_t));
+    return ESP_OK;
+}
 
 esp_err_t sc_hid_report_gamepad_send(uint32_t buttons)
 {
-    if (!tud_hid_ready()) return ESP_ERR_INVALID_STATE;
-    struct TU_ATTR_PACKED {
-        uint32_t buttons;
-        int8_t   x;
-        int8_t   y;
-    } report = {
-        .buttons = buttons,
-        .x = 0,
-        .y = 0
-    };
-    tud_hid_report(1, &report, sizeof(report));
-    return ESP_OK;
+    /* Deprecated but kept for compatibility. Sends up to 32 buttons to Gamepad A. */
+    struct gamepad_report_t rep = {0};
+    memcpy(rep.buttons, &buttons, sizeof(buttons));
+    return sc_hid_report_gamepad_a_send(&rep);
 }
 
 esp_err_t sc_hid_report_gamepad_release(void)
 {
-    return sc_hid_report_gamepad_send(0);
+    struct gamepad_report_t rep = {0};
+    esp_err_t err1 = sc_hid_report_gamepad_a_send(&rep);
+    esp_err_t err2 = sc_hid_report_gamepad_b_send(&rep);
+    return (err1 == ESP_OK) ? err2 : err1;
 }
 
 esp_err_t sc_hid_report_consumer_send(uint16_t usage)
 {
     if (!tud_hid_ready()) return ESP_ERR_INVALID_STATE;
-    tud_hid_report(2, &usage, sizeof(usage));
+    tud_hid_report(3, &usage, sizeof(usage));
     return ESP_OK;
 }
 
@@ -278,12 +343,18 @@ static void sc_hid_usb_task(void *arg)
 
 static void sc_hid_dispatch_task(void *arg)
 {
-    uint32_t current_buttons = 0;
-    uint32_t button_release_time[32] = {0};
+    struct gamepad_report_t current_a = {0};
+    struct gamepad_report_t current_b = {0};
+    uint32_t button_release_time[256] = {0};
+
     uint16_t current_consumer = 0;
     uint32_t consumer_release_time = 0;
 
-    uint32_t last_sent_buttons = 0xFFFFFFFF; /* force initial send */
+    struct gamepad_report_t last_sent_a;
+    struct gamepad_report_t last_sent_b;
+    memset(&last_sent_a, 0xFF, sizeof(last_sent_a)); /* force initial send */
+    memset(&last_sent_b, 0xFF, sizeof(last_sent_b));
+
     uint16_t last_sent_consumer = 0xFFFF;
 
     hid_dispatch_t msg;
@@ -291,10 +362,15 @@ static void sc_hid_dispatch_task(void *arg)
     for (;;) {
         uint32_t now = esp_log_timestamp();
 
-        /* Check auto-releases for gamepad buttons */
-        for (int i = 0; i < 32; i++) {
+        /* Check auto-releases for all 256 gamepad buttons */
+        for (int i = 0; i < 256; i++) {
             if (button_release_time[i] > 0 && now >= button_release_time[i]) {
-                current_buttons &= ~(1UL << i);
+                if (i < 128) {
+                    current_a.buttons[i / 8] &= ~(1 << (i % 8));
+                } else {
+                    int idx = i - 128;
+                    current_b.buttons[idx / 8] &= ~(1 << (idx % 8));
+                }
                 button_release_time[i] = 0;
             }
         }
@@ -308,19 +384,29 @@ static void sc_hid_dispatch_task(void *arg)
         /* Wait up to 10ms for a command */
         if (xQueueReceive(s_dispatch_q, &msg, pdMS_TO_TICKS(10)) == pdTRUE) {
             if (msg.cmd == HID_CMD_PRESS) {
-                if (msg.action.gamepad_button > 0 && msg.action.gamepad_button <= 32) {
-                    int idx = msg.action.gamepad_button - 1;
-                    current_buttons |= (1UL << idx);
-                    button_release_time[idx] = 0; /* cancel any active auto-release */
+                if (msg.action.gamepad_button > 0 && msg.action.gamepad_button <= 256) {
+                    int i = msg.action.gamepad_button - 1;
+                    if (i < 128) {
+                        current_a.buttons[i / 8] |= (1 << (i % 8));
+                    } else {
+                        int idx = i - 128;
+                        current_b.buttons[idx / 8] |= (1 << (idx % 8));
+                    }
+                    button_release_time[i] = 0; /* cancel any active auto-release */
                 } else if (msg.action.consumer_usage > 0) {
                     current_consumer = msg.action.consumer_usage;
                     consumer_release_time = 0;
                 }
             } else if (msg.cmd == HID_CMD_RELEASE) {
-                if (msg.action.gamepad_button > 0 && msg.action.gamepad_button <= 32) {
-                    int idx = msg.action.gamepad_button - 1;
-                    current_buttons &= ~(1UL << idx);
-                    button_release_time[idx] = 0;
+                if (msg.action.gamepad_button > 0 && msg.action.gamepad_button <= 256) {
+                    int i = msg.action.gamepad_button - 1;
+                    if (i < 128) {
+                        current_a.buttons[i / 8] &= ~(1 << (i % 8));
+                    } else {
+                        int idx = i - 128;
+                        current_b.buttons[idx / 8] &= ~(1 << (idx % 8));
+                    }
+                    button_release_time[i] = 0;
                 } else if (msg.action.consumer_usage > 0) {
                     if (current_consumer == msg.action.consumer_usage) {
                         current_consumer = 0;
@@ -329,10 +415,15 @@ static void sc_hid_dispatch_task(void *arg)
                 }
             } else if (msg.cmd == HID_CMD_PULSE) {
                 uint32_t hold = msg.hold_ms > 0 ? msg.hold_ms : 50;
-                if (msg.action.gamepad_button > 0 && msg.action.gamepad_button <= 32) {
-                    int idx = msg.action.gamepad_button - 1;
-                    current_buttons |= (1UL << idx);
-                    button_release_time[idx] = now + hold;
+                if (msg.action.gamepad_button > 0 && msg.action.gamepad_button <= 256) {
+                    int i = msg.action.gamepad_button - 1;
+                    if (i < 128) {
+                        current_a.buttons[i / 8] |= (1 << (i % 8));
+                    } else {
+                        int idx = i - 128;
+                        current_b.buttons[idx / 8] |= (1 << (idx % 8));
+                    }
+                    button_release_time[i] = now + hold;
                 } else if (msg.action.consumer_usage > 0) {
                     current_consumer = msg.action.consumer_usage;
                     consumer_release_time = now + hold;
@@ -342,9 +433,14 @@ static void sc_hid_dispatch_task(void *arg)
 
         /* Send reports on changes */
         if (tud_hid_ready()) {
-            if (current_buttons != last_sent_buttons) {
-                if (sc_hid_report_gamepad_send(current_buttons) == ESP_OK) {
-                    last_sent_buttons = current_buttons;
+            if (memcmp(&current_a, &last_sent_a, sizeof(struct gamepad_report_t)) != 0) {
+                if (sc_hid_report_gamepad_a_send(&current_a) == ESP_OK) {
+                    last_sent_a = current_a;
+                }
+            }
+            if (memcmp(&current_b, &last_sent_b, sizeof(struct gamepad_report_t)) != 0) {
+                if (sc_hid_report_gamepad_b_send(&current_b) == ESP_OK) {
+                    last_sent_b = current_b;
                 }
             }
             if (current_consumer != last_sent_consumer) {
@@ -375,6 +471,7 @@ static esp_err_t sc_hid_action_find(const char *id, sc_hid_action_t *out)
 
 void sc_hid_set_phy_swap(bool enable)
 {
+#if CONFIG_IDF_TARGET_ESP32P4
     uint32_t usb_ctrl = REG_READ(LP_SYSTEM_REG_USB_CTRL_REG);
     if (enable) {
         ESP_LOGI(TAG, "Enabling USB PHY override: swapping FS_PHY1 to USB-OTG");
@@ -386,4 +483,7 @@ void sc_hid_set_phy_swap(bool enable)
         usb_ctrl &= ~LP_SYSTEM_REG_SW_USB_PHY_SEL;
     }
     REG_WRITE(LP_SYSTEM_REG_USB_CTRL_REG, usb_ctrl);
+#else
+    ESP_LOGI(TAG, "Native USB PHY is fixed on this target; skipping phy swap.");
+#endif
 }

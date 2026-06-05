@@ -1,0 +1,30 @@
+{
+  "short_name": "HotBox Lite",
+  "name": "Star Citizen HotBox Lite Controller",
+  "description": "Progressive Web App gamepad and terminal control panel for HotBox.",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "512x512",
+      "purpose": "maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#03070c",
+  "theme_color": "#ff4c00",
+  "display": "standalone",
+  "orientation": "landscape"
+}

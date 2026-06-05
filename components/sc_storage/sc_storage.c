@@ -1,16 +1,22 @@
 #include "sc_storage.h"
 #include "esp_log.h"
+#include <stdlib.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
+#if CONFIG_IDF_TARGET_ESP32S3
+#include "esp_spiffs.h"
+#else
 #include "esp_vfs_fat.h"
 #include "driver/sdmmc_host.h"
 #include "driver/gpio.h"
 #include "sdmmc_cmd.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 #include "esp_ldo_regulator.h"
-#include <stdlib.h>
+#endif
 
 static const char *TAG = "sc_storage";
 
+#if !CONFIG_IDF_TARGET_ESP32S3
 #define SD_PWR_EN_PIN GPIO_NUM_46
 
 /* ESP-Hosted SDIO uses __attribute__((constructor)) to call sdmmc_host_init()
@@ -19,9 +25,30 @@ static const char *TAG = "sc_storage";
  * believe the host was "freshly" initialized while skipping the actual init. */
 static esp_err_t sdmmc_slot0_noop_init(void) { return ESP_OK; }
 static esp_err_t sdmmc_slot0_noop_deinit(void) { return ESP_OK; }
+#endif
 
 esp_err_t sc_storage_init(void)
 {
+#if CONFIG_IDF_TARGET_ESP32S3
+    ESP_LOGI(TAG, "Initializing SPIFFS storage on ESP32-S3...");
+    esp_vfs_spiffs_conf_t conf = {
+        .base_path = "/sdcard",
+        .partition_label = "storage",
+        .max_files = 8,
+        .format_if_mount_failed = true
+    };
+    esp_err_t ret = esp_vfs_spiffs_register(&conf);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to mount SPIFFS (%s)", esp_err_to_name(ret));
+        return ret;
+    }
+    size_t total = 0, used = 0;
+    ret = esp_spiffs_info("storage", &total, &used);
+    if (ret == ESP_OK) {
+        ESP_LOGI(TAG, "SPIFFS mounted at /sdcard. Size: total %d, used %d", (int)total, (int)used);
+    }
+    return ESP_OK;
+#else
     ESP_LOGI(TAG, "Initializing SD card via SDMMC...");
 
     // Enable internal LDO to power VDD_IO_5 (which powers GPIO46)
@@ -84,4 +111,5 @@ esp_err_t sc_storage_init(void)
     sdmmc_card_print_info(stdout, card);
 
     return ESP_OK;
+#endif
 }

@@ -79,7 +79,14 @@ const getWidgetIcon = (type: string) => {
 };
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<'status' | 'config' | 'wifi' | 'files' | 'settings'>('status');
+  const [activeTab, setActiveTab] = useState<'status' | 'config' | 'wifi' | 'files' | 'settings' | 'gamepad'>('status');
+  
+  // WebSocket State for Retro Gamepad / PWA Play Mode
+  const [wsConnected, setWsConnected] = useState<'connected' | 'disconnected' | 'connecting'>('disconnected');
+  const wsRef = useRef<WebSocket | null>(null);
+
+  // Active sub-mode in gamepad (console or gamepad)
+  const [gamepadMode, setGamepadMode] = useState<'console' | 'classic'>('console');
   
   // Theme and Vector SVG State
   const [editorThemeOverride, setEditorThemeOverride] = useState<'drake' | 'origin' | null>(null);
@@ -205,6 +212,85 @@ export function App() {
       fetchFiles(currentPath);
     }
   }, [activeTab, currentPath]);
+
+  // WebSocket management for Gamepad / PWA mode
+  const connectWebSocket = () => {
+    if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
+    setWsConnected('connecting');
+    const host = window.location.host || '192.168.4.1';
+    const wsUrl = `ws://${host}/ws`;
+    
+    try {
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        setWsConnected('connected');
+        console.log('PWA WebSocket connected');
+      };
+
+      ws.onclose = () => {
+        setWsConnected('disconnected');
+        console.log('PWA WebSocket disconnected');
+        // Auto-reconnect after 3 seconds if we're still on the gamepad tab
+        setTimeout(() => {
+          if (activeTab === 'gamepad') {
+            connectWebSocket();
+          }
+        }, 3000);
+      };
+
+      ws.onerror = (err) => {
+        console.error('PWA WebSocket error', err);
+        setWsConnected('disconnected');
+      };
+    } catch (e) {
+      console.error(e);
+      setWsConnected('disconnected');
+    }
+  };
+
+  const sendWsCmd = (payload: any) => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify(payload));
+    } else {
+      console.warn('WS not connected, packet dropped:', payload);
+    }
+  };
+
+  const handleGpEvent = (btnIndex: number, isPress: boolean, e: any) => {
+    e.preventDefault();
+    sendWsCmd({
+      cmd: isPress ? 'gp_press' : 'gp_release',
+      btn: btnIndex
+    });
+  };
+
+  const handleActionMacro = (actId: string, isPress: boolean, e: any) => {
+    e.preventDefault();
+    sendWsCmd({
+      cmd: isPress ? 'press' : 'release',
+      action_id: actId
+    });
+  };
+
+  useEffect(() => {
+    if (activeTab === 'gamepad') {
+      connectWebSocket();
+    } else {
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+    }
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
+  }, [activeTab]);
 
   const getActiveTheme = () => {
     if (editorThemeOverride) return editorThemeOverride;
@@ -1183,6 +1269,14 @@ export function App() {
             <button class={`nav-tab ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>
               System
             </button>
+            <button class={`nav-tab ${activeTab === 'gamepad' ? 'active' : ''}`} onClick={() => {
+              setActiveTab('gamepad');
+              if (!shipConfig) {
+                fetchShipConfig(config.ship_id);
+              }
+            }}>
+              🎮 Play Mode
+            </button>
           </div>
 
           <main style="flex-grow: 1; display: flex; flex-direction: column;">
@@ -1916,6 +2010,247 @@ export function App() {
                     Reboot Terminal
                   </button>
                 </div>
+              </div>
+            )}
+
+            {/* Play Mode (Gamepad) Tab */}
+            {activeTab === 'gamepad' && (
+              <div class="retro-container crt-effect">
+                {/* Connection Status Banner */}
+                <div class={`retro-banner ${wsConnected}`}>
+                  {wsConnected === 'connected' && 'SYSTEM STATUS: ONLINE // WEBSOCKET CONNECTED'}
+                  {wsConnected === 'connecting' && 'SYSTEM STATUS: CONNECTING TO HOST...'}
+                  {wsConnected === 'disconnected' && 'SYSTEM STATUS: DISCONNECTED // RECONNECTING...'}
+                </div>
+
+                {/* Sub-mode selector */}
+                <div class="retro-tabs">
+                  <button 
+                    class={`retro-tab-btn ${gamepadMode === 'console' ? 'active' : ''}`}
+                    onClick={() => setGamepadMode('console')}
+                  >
+                    Console
+                  </button>
+                  <button 
+                    class={`retro-tab-btn ${gamepadMode === 'classic' ? 'active' : ''}`}
+                    onClick={() => setGamepadMode('classic')}
+                  >
+                    16-Bit Pad
+                  </button>
+                </div>
+
+                {/* Console Mode */}
+                {gamepadMode === 'console' && (
+                  <div>
+                    {/* Console selection */}
+                    <div style={{ display: 'flex', gap: '15px', alignItems: 'center', marginBottom: '20px' }}>
+                      <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>SELECT ACTIVE CONSOLE PANEL:</span>
+                      <select 
+                        value={activeConsoleId} 
+                        onChange={(e) => setActiveConsoleId((e.target as HTMLSelectElement).value)}
+                        style={{
+                          backgroundColor: '#1d2021',
+                          color: '#ebdbb2',
+                          border: '2px solid #504945',
+                          padding: '6px 12px',
+                          fontSize: '1.1rem',
+                          fontFamily: 'VT323, monospace'
+                        }}
+                      >
+                        {(shipConfig?.consoles ?? []).map(c => (
+                          <option value={c.console_id}>{c.display_name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Active Console Widgets Grid */}
+                    {(() => {
+                      const c = (shipConfig?.consoles ?? []).find(x => x.console_id === activeConsoleId);
+                      if (!c) {
+                        return <p style={{ fontSize: '1.2rem', color: '#fe8019' }}>No console panel selected.</p>;
+                      }
+                      if (!c.actions || c.actions.length === 0) {
+                        return <p style={{ fontSize: '1.2rem', color: '#fe8019' }}>No actions configured on this panel.</p>;
+                      }
+                      return (
+                        <div class="retro-controls-grid">
+                          {c.actions.map((w: any) => {
+                            let colorClass = 'color-blue';
+                            const lowerId = (w.id || '').toLowerCase();
+                            const wtype = w.widget_type || '';
+                            if (wtype === 'indicator' || lowerId.includes('power') || lowerId.includes('engine') || lowerId.includes('on')) {
+                              colorClass = 'color-green';
+                            } else if (lowerId.includes('eject') || lowerId.includes('self') || lowerId.includes('weapon') || lowerId.includes('shield')) {
+                              colorClass = 'color-red';
+                            }
+                            return (
+                              <button
+                                class={`retro-widget-btn ${colorClass}`}
+                                onMouseDown={(e) => handleActionMacro(w.id, true, e)}
+                                onMouseUp={(e) => handleActionMacro(w.id, false, e)}
+                                onTouchStart={(e) => handleActionMacro(w.id, true, e)}
+                                onTouchEnd={(e) => handleActionMacro(w.id, false, e)}
+                              >
+                                <div style={{ fontSize: '1.1rem', marginBottom: '4px', textTransform: 'uppercase' }}>{w.label}</div>
+                                <div style={{ fontSize: '0.75rem', opacity: 0.6 }}>({wtype.toUpperCase()})</div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                {/* Classic Gamepad Mode */}
+                {gamepadMode === 'classic' && (
+                  <div>
+                    <div class="classic-gamepad-container">
+                      {/* Shoulder Buttons L / R */}
+                      <div class="classic-shoulders">
+                        <div 
+                          class="shoulder-btn"
+                          onMouseDown={(e) => handleGpEvent(9, true, e)}
+                          onMouseUp={(e) => handleGpEvent(9, false, e)}
+                          onTouchStart={(e) => handleGpEvent(9, true, e)}
+                          onTouchEnd={(e) => handleGpEvent(9, false, e)}
+                        >
+                          L
+                        </div>
+                        <div 
+                          class="shoulder-btn"
+                          onMouseDown={(e) => handleGpEvent(10, true, e)}
+                          onMouseUp={(e) => handleGpEvent(10, false, e)}
+                          onTouchStart={(e) => handleGpEvent(10, true, e)}
+                          onTouchEnd={(e) => handleGpEvent(10, false, e)}
+                        >
+                          R
+                        </div>
+                      </div>
+
+                      {/* D-Pad */}
+                      <div class="classic-dpad">
+                        <div class="dpad-cross">
+                          <div 
+                            class="dpad-btn up"
+                            onMouseDown={(e) => handleGpEvent(1, true, e)}
+                            onMouseUp={(e) => handleGpEvent(1, false, e)}
+                            onTouchStart={(e) => handleGpEvent(1, true, e)}
+                            onTouchEnd={(e) => handleGpEvent(1, false, e)}
+                          />
+                          <div 
+                            class="dpad-btn right"
+                            onMouseDown={(e) => handleGpEvent(2, true, e)}
+                            onMouseUp={(e) => handleGpEvent(2, false, e)}
+                            onTouchStart={(e) => handleGpEvent(2, true, e)}
+                            onTouchEnd={(e) => handleGpEvent(2, false, e)}
+                          />
+                          <div 
+                            class="dpad-btn down"
+                            onMouseDown={(e) => handleGpEvent(3, true, e)}
+                            onMouseUp={(e) => handleGpEvent(3, false, e)}
+                            onTouchStart={(e) => handleGpEvent(3, true, e)}
+                            onTouchEnd={(e) => handleGpEvent(3, false, e)}
+                          />
+                          <div 
+                            class="dpad-btn left"
+                            onMouseDown={(e) => handleGpEvent(4, true, e)}
+                            onMouseUp={(e) => handleGpEvent(4, false, e)}
+                            onTouchStart={(e) => handleGpEvent(4, true, e)}
+                            onTouchEnd={(e) => handleGpEvent(4, false, e)}
+                          />
+                          <div class="dpad-center-stub" />
+                        </div>
+                      </div>
+
+                      {/* Select / Start buttons */}
+                      <div class="classic-center-btns">
+                        <div class="select-start-col">
+                          <div 
+                            class="capsule-btn"
+                            onMouseDown={(e) => handleGpEvent(13, true, e)}
+                            onMouseUp={(e) => handleGpEvent(13, false, e)}
+                            onTouchStart={(e) => handleGpEvent(13, true, e)}
+                            onTouchEnd={(e) => handleGpEvent(13, false, e)}
+                          />
+                          <span>SELECT</span>
+                        </div>
+                        <div class="select-start-col">
+                          <div 
+                            class="capsule-btn"
+                            onMouseDown={(e) => handleGpEvent(14, true, e)}
+                            onMouseUp={(e) => handleGpEvent(14, false, e)}
+                            onTouchStart={(e) => handleGpEvent(14, true, e)}
+                            onTouchEnd={(e) => handleGpEvent(14, false, e)}
+                          />
+                          <span>START</span>
+                        </div>
+                      </div>
+
+                      {/* Action Buttons (ABXY) */}
+                      <div class="classic-action-buttons">
+                        <div 
+                          class="action-btn x"
+                          onMouseDown={(e) => handleGpEvent(7, true, e)}
+                          onMouseUp={(e) => handleGpEvent(7, false, e)}
+                          onTouchStart={(e) => handleGpEvent(7, true, e)}
+                          onTouchEnd={(e) => handleGpEvent(7, false, e)}
+                        >
+                          X
+                        </div>
+                        <div 
+                          class="action-btn a"
+                          onMouseDown={(e) => handleGpEvent(5, true, e)}
+                          onMouseUp={(e) => handleGpEvent(5, false, e)}
+                          onTouchStart={(e) => handleGpEvent(5, true, e)}
+                          onTouchEnd={(e) => handleGpEvent(5, false, e)}
+                        >
+                          A
+                        </div>
+                        <div 
+                          class="action-btn b"
+                          onMouseDown={(e) => handleGpEvent(6, true, e)}
+                          onMouseUp={(e) => handleGpEvent(6, false, e)}
+                          onTouchStart={(e) => handleGpEvent(6, true, e)}
+                          onTouchEnd={(e) => handleGpEvent(6, false, e)}
+                        >
+                          B
+                        </div>
+                        <div 
+                          class="action-btn y"
+                          onMouseDown={(e) => handleGpEvent(8, true, e)}
+                          onMouseUp={(e) => handleGpEvent(8, false, e)}
+                          onTouchStart={(e) => handleGpEvent(8, true, e)}
+                          onTouchEnd={(e) => handleGpEvent(8, false, e)}
+                        >
+                          Y
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Analog Trigger buttons bar */}
+                    <div class="classic-triggers-bar">
+                      <div 
+                        class="trigger-touch-btn"
+                        onMouseDown={(e) => handleGpEvent(11, true, e)}
+                        onMouseUp={(e) => handleGpEvent(11, false, e)}
+                        onTouchStart={(e) => handleGpEvent(11, true, e)}
+                        onTouchEnd={(e) => handleGpEvent(11, false, e)}
+                      >
+                        L2 TRIGGER
+                      </div>
+                      <div 
+                        class="trigger-touch-btn"
+                        onMouseDown={(e) => handleGpEvent(12, true, e)}
+                        onMouseUp={(e) => handleGpEvent(12, false, e)}
+                        onTouchStart={(e) => handleGpEvent(12, true, e)}
+                        onTouchEnd={(e) => handleGpEvent(12, false, e)}
+                      >
+                        R2 TRIGGER
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </main>
