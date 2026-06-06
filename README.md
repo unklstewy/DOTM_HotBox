@@ -54,7 +54,7 @@ Any device on your local network (iPad, iPhone, Android tablet, Surface Pro, or 
 
 | Item | Link |
 |------|------|
-| **Seeed Studio reTerminal D1001** | [seeedstudio.com/reTerminal-D1001](https://www.seeedstudio.com/reTerminal-D1001.html) |
+| **Seeed Studio reTerminal D1001** | [seeedstudio.com/reTerminal-D1001](https://www.seeedstudio.com/reTerminal-D1001-p-6729.html) |
 | MicroSD card (recommended ≥ 16 GB, UHS-I) | Any reputable brand (Samsung, SanDisk) |
 
 > HotBox Lite supports running headlessly on ESP32-S3 and ESP32-C3 dev kits, rendering the screen completely in a browser.
