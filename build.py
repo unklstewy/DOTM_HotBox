@@ -153,12 +153,30 @@ def prepare_assets(profile_name):
         os.makedirs("spiffs_image/ships", exist_ok=True)
         os.makedirs("spiffs_image/web", exist_ok=True)
         os.makedirs("spiffs_image/assets/images", exist_ok=True)
-        os.makedirs("spiffs_image/assets/themes", exist_ok=True)
         
         sync_dir("sdcard/ships", "spiffs_image/ships")
         sync_dir("sdcard/web", "spiffs_image/web")
         sync_dir("sdcard/assets/images", "spiffs_image/assets/images")
-        sync_dir("sdcard/assets/themes", "spiffs_image/assets/themes")
+        
+        # Sync only required theme files (svg and sprites directory) to avoid SPIFFS partition overflow
+        themes_dst = "spiffs_image/assets/themes"
+        if os.path.exists(themes_dst):
+            shutil.rmtree(themes_dst)
+        os.makedirs(themes_dst, exist_ok=True)
+        
+        for theme in ["drake", "origin"]:
+            src_theme_dir = f"sdcard/assets/themes/{theme}"
+            dst_theme_dir = f"{themes_dst}/{theme}"
+            os.makedirs(dst_theme_dir, exist_ok=True)
+            
+            # Copy sprite_sheet.svg
+            svg_src = f"{src_theme_dir}/sprite_sheet.svg"
+            svg_dst = f"{dst_theme_dir}/sprite_sheet.svg"
+            if os.path.exists(svg_src):
+                shutil.copyfile(svg_src, svg_dst)
+                
+            # Sync sprites/ directory
+            sync_dir(f"{src_theme_dir}/sprites", f"{dst_theme_dir}/sprites")
 
 def build_profile(profile_name):
     prepare_assets(profile_name)
