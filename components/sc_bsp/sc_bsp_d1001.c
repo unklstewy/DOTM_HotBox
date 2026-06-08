@@ -494,7 +494,7 @@ static esp_err_t sc_bsp_touch_hw_init(void)
 
     const esp_lcd_touch_config_t tp_cfg = {
         .x_max = SC_UI_DISPLAY_WIDTH, .y_max = SC_UI_DISPLAY_HEIGHT,
-        .rst_gpio_num = -1, .int_gpio_num = SC_UI_TOUCH_INT,
+        .rst_gpio_num = 12, .int_gpio_num = SC_UI_TOUCH_INT,
         .levels = { .reset = 0, .interrupt = 0 }, .flags = { .swap_xy = 0, .mirror_x = 0, .mirror_y = 0 },
     };
     
