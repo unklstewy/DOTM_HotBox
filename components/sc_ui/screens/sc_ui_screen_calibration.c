@@ -125,6 +125,13 @@ lv_obj_t *sc_ui_screen_calibration_create(void *user_data)
 {
     lv_display_set_rotation(NULL, LV_DISPLAY_ROTATION_0);
 
+    // Disable active calibration so we receive raw touch coordinates
+    sc_terminal_config_t cfg = *sc_config_get();
+    if (cfg.touch_cal.is_calibrated) {
+        cfg.touch_cal.is_calibrated = false;
+        sc_config_save(&cfg);
+    }
+
     s_scr = lv_obj_create(NULL);
     lv_obj_set_style_bg_color(s_scr, lv_color_black(), 0);
     lv_obj_remove_flag(s_scr, LV_OBJ_FLAG_SCROLLABLE);
