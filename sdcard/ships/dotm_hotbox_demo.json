@@ -1,0 +1,431 @@
+{
+    "ship_id": "dotm_hotbox_demo",
+    "ship_name": "DOTM HotBox Demo",
+    "manufacturer": "Dankside of the Moon",
+    "consoles": [
+        {
+            "console_id": "pilot_mfd_left",
+            "display_name": "Demo:  01",
+            "position": "pilot",
+            "layout": "grid_4x5",
+            "actions": [
+                {
+                    "id": "request_landing",
+                    "label": "LAND RQ",
+                    "description": "Request landing permission",
+                    "icon": "landing",
+                    "row": 0,
+                    "col": 1,
+                    "width": 1,
+                    "height": 1,
+                    "hid": {
+                        "consumer_usage": 0,
+                        "hold_ms": 0,
+                        "gamepad_button": 2
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                },
+                {
+                    "id": "jog_wheel_6047",
+                    "label": "Mining Laser Power",
+                    "description": "Fine Adjustment of Mining Laser Output",
+                    "icon": "jog_wheel",
+                    "row": 1,
+                    "col": 0,
+                    "width": 2,
+                    "height": 3,
+                    "widget_type": "jog_wheel",
+                    "hid": {
+                        "consumer_usage": 0,
+                        "hold_ms": 0,
+                        "gamepad_button": 11
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                },
+                {
+                    "id": "btn_latching_5679",
+                    "label": "LAND GEAR",
+                    "description": "Latching Button",
+                    "icon": "btn_latching",
+                    "row": 0,
+                    "col": 0,
+                    "width": 1,
+                    "height": 1,
+                    "widget_type": "btn_latching",
+                    "hid": {
+                        "consumer_usage": 0,
+                        "hold_ms": 0,
+                        "gamepad_button": 12
+                    },
+                    "state": {
+                        "gamelink_event": "gear_state_changed",
+                        "values": {
+                            "up": {
+                                "label": "UP",
+                                "color": "#00F0FF"
+                            },
+                            "down": {
+                                "label": "DOWN",
+                                "color": "#00F0FF"
+                            },
+                            "deploying": {
+                                "label": "DEPLOYING",
+                                "color": "#00F0FF"
+                            },
+                            "retracted": {
+                                "label": "RETRACTED",
+                                "color": "#00F0FF"
+                            }
+                        }
+                    }
+                },
+                {
+                    "id": "btn_danger_slf_dest",
+                    "label": "Self Destruct",
+                    "description": "Ship Go Boom",
+                    "icon": "btn_danger",
+                    "row": 0,
+                    "col": 2,
+                    "width": 1,
+                    "height": 1,
+                    "widget_type": "btn_danger",
+                    "hid": {
+                        "consumer_usage": 0,
+                        "hold_ms": 0,
+                        "gamepad_button": 13
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                },
+                {
+                    "id": "slider_hz_someslidervalue",
+                    "label": "Slider One",
+                    "description": "Horizontal Slider Values",
+                    "icon": "slider_h",
+                    "row": 4,
+                    "col": 0,
+                    "width": 2,
+                    "height": 1,
+                    "widget_type": "slider_h",
+                    "hid": {
+                        "consumer_usage": 0,
+                        "hold_ms": 0,
+                        "gamepad_button": 14
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                },
+                {
+                    "id": "slider_v_0958",
+                    "label": "Vert Slider",
+                    "description": "Vertical Slider",
+                    "icon": "slider_v",
+                    "row": 0,
+                    "col": 3,
+                    "width": 1,
+                    "height": 5,
+                    "widget_type": "slider_v",
+                    "hid": {
+                        "consumer_usage": 0,
+                        "hold_ms": 0,
+                        "gamepad_button": 1
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                },
+                {
+                    "id": "axis_throttle_4284",
+                    "label": "Throttle Access",
+                    "description": "Throttle Axis",
+                    "icon": "axis_throttle",
+                    "row": 1,
+                    "col": 2,
+                    "width": 1,
+                    "height": 4,
+                    "widget_type": "axis_throttle",
+                    "hid": {
+                        "consumer_usage": 0,
+                        "hold_ms": 0,
+                        "gamepad_button": 3
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                }
+            ]
+        },
+        {
+            "console_id": "pilot_mfd_right",
+            "display_name": "Demo: 02",
+            "position": "pilot",
+            "layout": "grid_4x5",
+            "actions": [
+                {
+                    "id": "axis_joystick_6911",
+                    "label": "Docking Controls",
+                    "description": "Docking Controls",
+                    "icon": "axis_joystick",
+                    "row": 1,
+                    "col": 0,
+                    "width": 2,
+                    "height": 4,
+                    "widget_type": "axis_joystick",
+                    "hid": {
+                        "consumer_usage": 0,
+                        "hold_ms": 0,
+                        "gamepad_button": 1
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                },
+                {
+                    "id": "axis_dpad_9331",
+                    "label": "D-PAD",
+                    "description": "D-Pad Axis",
+                    "icon": "axis_dpad",
+                    "row": 1,
+                    "col": 2,
+                    "width": 2,
+                    "height": 2,
+                    "widget_type": "axis_dpad",
+                    "hid": {
+                        "consumer_usage": 0,
+                        "hold_ms": 0,
+                        "gamepad_button": 2
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                },
+                {
+                    "id": "axis_haat_6233",
+                    "label": "Hat Switch Control ",
+                    "description": "HAT Switch Axis",
+                    "icon": "axis_haat",
+                    "row": 3,
+                    "col": 3,
+                    "width": 2,
+                    "height": 2,
+                    "widget_type": "axis_haat",
+                    "hid": {
+                        "consumer_usage": 0,
+                        "hold_ms": 0,
+                        "gamepad_button": 3
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                },
+                {
+                    "id": "axis_rudder_8496",
+                    "label": "Rudder",
+                    "description": "Rudder Pedals",
+                    "icon": "axis_rudder",
+                    "row": 0,
+                    "col": 0,
+                    "width": 4,
+                    "height": 1,
+                    "widget_type": "axis_rudder",
+                    "hid": {
+                        "consumer_usage": 0,
+                        "hold_ms": 0,
+                        "gamepad_button": 4
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                },
+                {
+                    "id": "knob_2365",
+                    "label": "ROTARY KNOB",
+                    "description": "Rotary Knob",
+                    "icon": "knob",
+                    "row": 3,
+                    "col": 2,
+                    "width": 1,
+                    "height": 2,
+                    "widget_type": "knob",
+                    "hid": {
+                        "consumer_usage": 0,
+                        "hold_ms": 0,
+                        "gamepad_button": 5
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                }
+            ]
+        },
+        {
+            "console_id": "pilot_power",
+            "display_name": "Demo: 03",
+            "position": "pilot",
+            "layout": "grid_4x5",
+            "actions": [
+                {
+                    "id": "power_all_off",
+                    "label": "PWR OFF",
+                    "description": "Cut all non-essential power",
+                    "icon": "power_off",
+                    "row": 0,
+                    "col": 1,
+                    "width": 2,
+                    "height": 1,
+                    "hid": {
+                        "consumer_usage": 0,
+                        "hold_ms": 1000,
+                        "gamepad_button": 20
+                    },
+                    "state": {
+                        "gamelink_event": "power_state_changed",
+                        "values": {
+                            "online": {
+                                "label": "PWR ON",
+                                "color": "#00FF88"
+                            },
+                            "reduced": {
+                                "label": "PWR LOW",
+                                "color": "#FFAA00"
+                            },
+                            "offline": {
+                                "label": "PWR OFF",
+                                "color": "#FF4444"
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "console_id": "pilot_weapons",
+            "display_name": "Demo: 04",
+            "position": "pilot",
+            "layout": "grid_4x5",
+            "actions": [
+                {
+                    "id": "cycle_gun_mode",
+                    "label": "GUN MODE",
+                    "description": "Cycle gun fire mode (single/burst/auto)",
+                    "icon": "gun_mode",
+                    "row": 0,
+                    "col": 0,
+                    "width": 2,
+                    "height": 1,
+                    "hid": {
+                        "consumer_usage": 0,
+                        "hold_ms": 0,
+                        "gamepad_button": 21
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                },
+                {
+                    "id": "cycle_missile_type",
+                    "label": "MSSL TYP",
+                    "description": "Cycle missile type",
+                    "icon": "missile_type",
+                    "row": 0,
+                    "col": 2,
+                    "width": 2,
+                    "height": 1,
+                    "hid": {
+                        "consumer_usage": 0,
+                        "hold_ms": 0,
+                        "gamepad_button": 22
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                },
+                {
+                    "id": "gimbal_lock",
+                    "label": "GIMBAL",
+                    "description": "Toggle gimbal lock",
+                    "icon": "gimbal",
+                    "row": 1,
+                    "col": 0,
+                    "width": 1,
+                    "height": 1,
+                    "hid": {
+                        "consumer_usage": 0,
+                        "hold_ms": 0,
+                        "gamepad_button": 23
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                },
+                {
+                    "id": "countermeasure_flares",
+                    "label": "FLARES",
+                    "description": "Deploy flares",
+                    "icon": "flare",
+                    "row": 1,
+                    "col": 1,
+                    "width": 1,
+                    "height": 1,
+                    "hid": {
+                        "consumer_usage": 0,
+                        "hold_ms": 0,
+                        "gamepad_button": 24
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                },
+                {
+                    "id": "countermeasure_noise",
+                    "label": "NOISE",
+                    "description": "Deploy noise (ECM)",
+                    "icon": "ecm",
+                    "row": 1,
+                    "col": 2,
+                    "width": 1,
+                    "height": 1,
+                    "hid": {
+                        "consumer_usage": 0,
+                        "hold_ms": 0,
+                        "gamepad_button": 25
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                },
+                {
+                    "id": "self_destruct",
+                    "label": "S-DEST",
+                    "description": "Initiate self-destruct sequence",
+                    "icon": "skull",
+                    "row": 4,
+                    "col": 3,
+                    "width": 1,
+                    "height": 1,
+                    "hid": {
+                        "consumer_usage": 0,
+                        "hold_ms": 5000,
+                        "gamepad_button": 26
+                    },
+                    "state": {
+                        "gamelink_event": null
+                    }
+                }
+            ]
+        },
+        {
+            "console_id": "demo__07",
+            "display_name": "Demo: 07",
+            "position": "pilot",
+            "layout": "grid_4x5",
+            "actions": []
+        }
+    ]
+}

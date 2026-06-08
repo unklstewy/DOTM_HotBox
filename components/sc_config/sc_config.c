@@ -40,7 +40,7 @@ static const char *TAG = "sc_config";
 #define NVS_KEY_TC_INV_Y     "tc_inv_y"
 
 /* ── Defaults ────────────────────────────────────────────────────────────── */
-#define DEFAULT_SHIP_ID      "test_case_ship"
+#define DEFAULT_SHIP_ID      "dotm_hotbox_demo"
 #define DEFAULT_CONSOLE_ID   "pilot_mfd_left"
 #define DEFAULT_TERM_IDX     (0)
 #define DEFAULT_BRIDGE_HOST  "sc-bridge.local"

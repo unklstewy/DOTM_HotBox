@@ -101,11 +101,67 @@ def get_directory_target(build_dir):
     except Exception:
         return None
 
-def run_cmd(args, check=True):
+def run_cmd(args, check=True, **kwargs):
     print(f"Running: {' '.join(args)}")
-    return subprocess.run(args, check=check)
+    return subprocess.run(args, check=check, **kwargs)
+
+def sync_dir(src, dst, extensions=None):
+    if not os.path.exists(src):
+        return
+    for root, dirs, files in os.walk(src):
+        rel_path = os.path.relpath(root, src)
+        dest_dir = dst if rel_path == "." else os.path.join(dst, rel_path)
+        os.makedirs(dest_dir, exist_ok=True)
+        for file in files:
+            if extensions:
+                _, ext = os.path.splitext(file)
+                if ext.lower() not in extensions:
+                    continue
+            src_file = os.path.join(root, file)
+            dest_file = os.path.join(dest_dir, file)
+            if not os.path.exists(dest_file) or os.path.getmtime(src_file) > os.path.getmtime(dest_file):
+                shutil.copyfile(src_file, dest_file)
+
+def prepare_assets(profile_name):
+    print(f"\n[build.py] Preparing assets for profile: {profile_name.upper()}...")
+    
+    # 1. Run branding image converter
+    run_cmd([sys.executable, "tools/convert_branding_images.py"])
+    
+    # 2. Run sprite rasterizer
+    run_cmd([sys.executable, "tools/rasterize_sprites.py", "--all"])
+    
+    # 3. Ensure web portal is built
+    web_dist = "web_portal/dist"
+    if not os.path.exists(web_dist) or not os.path.exists(os.path.join(web_dist, "index.html")):
+        print("[build.py] web_portal/dist not found, building web portal...")
+        if not os.path.exists("web_portal/node_modules"):
+            print("[build.py] Running npm install in web_portal...")
+            run_cmd(["npm", "install"], cwd="web_portal")
+        run_cmd(["npm", "run", "build"], cwd="web_portal")
+        
+    # 4. Copy web portal and branding images to sdcard/ folder
+    os.makedirs("sdcard/web", exist_ok=True)
+    os.makedirs("sdcard/assets/images", exist_ok=True)
+    
+    sync_dir("web_portal/dist", "sdcard/web")
+    sync_dir("data/assets/images", "sdcard/assets/images", extensions=[".bin", ".png"])
+    
+    # 5. For SPIFFS targets (lite/tiny), copy all assets to spiffs_image/
+    if profile_name in ["lite", "tiny"]:
+        print(f"[build.py] Syncing assets to spiffs_image/ for {profile_name.upper()} target...")
+        os.makedirs("spiffs_image/ships", exist_ok=True)
+        os.makedirs("spiffs_image/web", exist_ok=True)
+        os.makedirs("spiffs_image/assets/images", exist_ok=True)
+        os.makedirs("spiffs_image/assets/themes", exist_ok=True)
+        
+        sync_dir("sdcard/ships", "spiffs_image/ships")
+        sync_dir("sdcard/web", "spiffs_image/web")
+        sync_dir("sdcard/assets/images", "spiffs_image/assets/images")
+        sync_dir("sdcard/assets/themes", "spiffs_image/assets/themes")
 
 def build_profile(profile_name):
+    prepare_assets(profile_name)
     target = TARGET_PROFILES[profile_name]["target"]
     build_dir = f"build_{profile_name}"
     sdkconfig_profile = f"sdkconfig.{profile_name}"
@@ -216,6 +272,7 @@ def main():
             return
         elif len(enabled_profiles) == 1:
             profile = enabled_profiles[0]
+            prepare_assets(profile)
             build_dir = f"build_{profile}"
             sdkconfig_profile = f"sdkconfig.{profile}"
             run_cmd(["idf.py", "-DSDKCONFIG=" + sdkconfig_profile, "-B", build_dir, "flash"])
@@ -226,6 +283,7 @@ def main():
     if cmd.startswith("flash-"):
         profile_name = cmd.split("-", 1)[1]
         if profile_name in TARGET_PROFILES:
+            prepare_assets(profile_name)
             build_dir = f"build_{profile_name}"
             sdkconfig_profile = f"sdkconfig.{profile_name}"
             run_cmd(["idf.py", "-DSDKCONFIG=" + sdkconfig_profile, "-B", build_dir, "flash"])

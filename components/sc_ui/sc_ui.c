@@ -115,8 +115,8 @@ esp_err_t sc_ui_init(const sc_terminal_config_t *cfg)
     
     ESP_LOGI(TAG, "LVGL tick timer started");
 
-    /* Start LVGL task — stack in PSRAM so internal SRAM stays free for
-     * FreeRTOS kernel, ISR stacks, and tight inner-loop allocations. */
+    /* Start LVGL task — stack in internal memory to allow flash writes (like config saving)
+     * during UI execution, since SPI flash operations temporarily disable caches. */
     BaseType_t rc = xTaskCreateWithCaps(
         sc_ui_lvgl_task,
         "sc_ui_lvgl",
@@ -124,7 +124,7 @@ esp_err_t sc_ui_init(const sc_terminal_config_t *cfg)
         NULL,
         SC_UI_TASK_PRIORITY,
         &s_ui_task_handle,
-        MALLOC_CAP_SPIRAM
+        MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT
     );
     if (rc != pdPASS) return ESP_FAIL;
     ESP_LOGI(TAG, "LVGL task started");
