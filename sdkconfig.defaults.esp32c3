@@ -1,0 +1,7 @@
+# Target options
+CONFIG_IDF_TARGET="esp32c3"
+CONFIG_IDF_TARGET_ESP32C3=y
+
+# Disable ESP-Hosted/Remote Wi-Fi (use native C3 Wi-Fi instead)
+CONFIG_ESP_HOSTED_ENABLED=n
+CONFIG_ESP_WIFI_REMOTE_ENABLED=n

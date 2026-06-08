@@ -233,7 +233,7 @@ static esp_err_t wifi_connect(void)
     esp_err_t ret = nvs_open(NVS_NS_CONFIG, NVS_READONLY, &h);
     if (ret == ESP_ERR_NVS_NOT_FOUND) {
         ESP_LOGW(TAG, "NVS namespace '%s' not found", NVS_NS_CONFIG);
-#if defined(CONFIG_SC_NETWORK_DEV_FALLBACK) && CONFIG_SC_NETWORK_DEV_FALLBACK
+#if defined(CONFIG_HOTBOX_WIFI_FALLBACK) && CONFIG_HOTBOX_WIFI_FALLBACK
         ESP_LOGW(TAG, "Using dev fallback Wi-Fi credentials");
         goto wifi_fallback;
 #else
@@ -253,7 +253,7 @@ static esp_err_t wifi_connect(void)
     ret = nvs_get_str(h, NVS_KEY_SSID, ssid, &len);
     if (ret != ESP_OK || len <= 1) {
         nvs_close(h);
-#if defined(CONFIG_SC_NETWORK_DEV_FALLBACK) && CONFIG_SC_NETWORK_DEV_FALLBACK
+#if defined(CONFIG_HOTBOX_WIFI_FALLBACK) && CONFIG_HOTBOX_WIFI_FALLBACK
 wifi_fallback:
         strlcpy(ssid, CONFIG_HOTBOX_WIFI_SSID, sizeof(ssid));
         strlcpy(psk,  CONFIG_HOTBOX_WIFI_PASSWORD,  sizeof(psk));
@@ -272,7 +272,7 @@ wifi_fallback:
     }
     nvs_close(h);
 
-#if defined(CONFIG_SC_NETWORK_DEV_FALLBACK) && CONFIG_SC_NETWORK_DEV_FALLBACK
+#if defined(CONFIG_HOTBOX_WIFI_FALLBACK) && CONFIG_HOTBOX_WIFI_FALLBACK
 wifi_start:
 #endif
     wifi_config_t wifi_cfg = {0};

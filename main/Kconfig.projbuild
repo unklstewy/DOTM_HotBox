@@ -1,35 +1,45 @@
 menu "HotBox Configuration"
 
-    choice HOTBOX_BUILD_PROFILE
-        prompt "HotBox Build Profile"
-        default HOTBOX_PROFILE_TOUCH if IDF_TARGET_ESP32P4
-        default HOTBOX_PROFILE_LITE if IDF_TARGET_ESP32S3 || IDF_TARGET_ESP32C3
+    config HOTBOX_BUILD_TOUCH
+        bool "Build HotBox Touch (Full touchscreen reTerminal target - ESP32-P4)"
+        default y if IDF_TARGET_ESP32P4
+        default n
         help
-            Select the active build profile for HotBox.
+            Build for HotBox Touch (ESP32-P4).
 
-        config HOTBOX_PROFILE_TOUCH
-            bool "HotBox Touch (Full touchscreen reTerminal target)"
-            depends on IDF_TARGET_ESP32P4
-            help
-                Standard HotBox with interactive touchscreen console running on ESP32-P4.
+    config HOTBOX_BUILD_LITE
+        bool "Build HotBox Lite (Headless S3 target - ESP32-S3)"
+        default y if IDF_TARGET_ESP32S3
+        default n
+        help
+            Build for HotBox Lite (ESP32-S3).
 
-        config HOTBOX_PROFILE_LITE
-            bool "HotBox Lite (Headless SPIFFS target)"
-            depends on IDF_TARGET_ESP32S3 || IDF_TARGET_ESP32C3
-            help
-                Headless HotBox Lite running on ESP32-S3 or ESP32-C3.
-    endchoice
+    config HOTBOX_BUILD_TINY
+        bool "Build HotBox Tiny (Headless C3 target - ESP32-C3)"
+        default y if IDF_TARGET_ESP32C3
+        default n
+        help
+            Build for HotBox Tiny (ESP32-C3).
 
     menu "Wi-Fi Configuration"
+        config HOTBOX_WIFI_FALLBACK
+            bool "Use development Wi-Fi fallback when NVS is unpopulated"
+            default y
+            help
+                When enabled, the network subsystem will fall back to the credentials configured
+                below if no Wi-Fi SSID is stored in NVS.
+
         config HOTBOX_WIFI_SSID
             string "Fallback Wi-Fi SSID"
             default "HotBox_AP"
+            depends on HOTBOX_WIFI_FALLBACK
             help
                 The default Wi-Fi SSID to connect to when no SSID is stored in NVS.
 
         config HOTBOX_WIFI_PASSWORD
             string "Fallback Wi-Fi Password"
             default "hotbox123"
+            depends on HOTBOX_WIFI_FALLBACK
             help
                 The default Wi-Fi password.
     endmenu
@@ -42,6 +52,14 @@ menu "HotBox Configuration"
             default "ESP32-C3-DevKit" if IDF_TARGET_ESP32C3
             help
                 A text label to identify the hardware revision/devkit board.
+    endmenu
+
+    menu "Optional Features"
+        config SC_BRIDGE_ENABLED
+            bool "Enable SC-Bridge network connection and GameLink event dispatcher"
+            default n
+            help
+                When enabled the firmware will start sc_network and connect to the PC-side sc-bridge daemon.
     endmenu
 
 endmenu

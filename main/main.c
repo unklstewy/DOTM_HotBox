@@ -50,10 +50,12 @@ void app_main(void)
 
     ESP_LOGI(TAG, "DOTM - HotBox boot — v%d.%d.%d",
              SC_VER_MAJOR, SC_VER_MINOR, SC_VER_PATCH);
-#if CONFIG_HOTBOX_PROFILE_TOUCH
+#if CONFIG_IDF_TARGET_ESP32P4
     ESP_LOGI(TAG, "Target Profile: HotBox Touch (Device: %s)", CONFIG_HOTBOX_DEVKIT_BOARD_NAME);
-#elif CONFIG_HOTBOX_PROFILE_LITE
+#elif CONFIG_IDF_TARGET_ESP32S3
     ESP_LOGI(TAG, "Target Profile: HotBox Lite (Device: %s)", CONFIG_HOTBOX_DEVKIT_BOARD_NAME);
+#elif CONFIG_IDF_TARGET_ESP32C3
+    ESP_LOGI(TAG, "Target Profile: HotBox Tiny (Device: %s)", CONFIG_HOTBOX_DEVKIT_BOARD_NAME);
 #endif
 
     /* ── 1. NVS ─────────────────────────────────────────────────────────── */

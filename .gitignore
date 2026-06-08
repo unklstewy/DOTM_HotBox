@@ -28,3 +28,10 @@ secrets/
 
 # Generated spiffs image
 spiffs_image/
+
+# HotBox multi-target build orchestration
+build_*/
+dist/
+sdkconfig.*
+!sdkconfig.defaults*
+
