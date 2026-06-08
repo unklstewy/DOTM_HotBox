@@ -1,0 +1,47 @@
+menu "HotBox Configuration"
+
+    choice HOTBOX_BUILD_PROFILE
+        prompt "HotBox Build Profile"
+        default HOTBOX_PROFILE_TOUCH if IDF_TARGET_ESP32P4
+        default HOTBOX_PROFILE_LITE if IDF_TARGET_ESP32S3 || IDF_TARGET_ESP32C3
+        help
+            Select the active build profile for HotBox.
+
+        config HOTBOX_PROFILE_TOUCH
+            bool "HotBox Touch (Full touchscreen reTerminal target)"
+            depends on IDF_TARGET_ESP32P4
+            help
+                Standard HotBox with interactive touchscreen console running on ESP32-P4.
+
+        config HOTBOX_PROFILE_LITE
+            bool "HotBox Lite (Headless SPIFFS target)"
+            depends on IDF_TARGET_ESP32S3 || IDF_TARGET_ESP32C3
+            help
+                Headless HotBox Lite running on ESP32-S3 or ESP32-C3.
+    endchoice
+
+    menu "Wi-Fi Configuration"
+        config HOTBOX_WIFI_SSID
+            string "Fallback Wi-Fi SSID"
+            default "HotBox_AP"
+            help
+                The default Wi-Fi SSID to connect to when no SSID is stored in NVS.
+
+        config HOTBOX_WIFI_PASSWORD
+            string "Fallback Wi-Fi Password"
+            default "hotbox123"
+            help
+                The default Wi-Fi password.
+    endmenu
+
+    menu "DevKit Configuration"
+        config HOTBOX_DEVKIT_BOARD_NAME
+            string "DevKit Board Identifier"
+            default "reTerminal D1001" if IDF_TARGET_ESP32P4
+            default "ESP32-S3-DevKit" if IDF_TARGET_ESP32S3
+            default "ESP32-C3-DevKit" if IDF_TARGET_ESP32C3
+            help
+                A text label to identify the hardware revision/devkit board.
+    endmenu
+
+endmenu

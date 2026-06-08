@@ -22,7 +22,7 @@ target_link_options(${CMAKE_PROJECT_NAME}.elf PRIVATE
     -Wl,--allow-multiple-definition
 )
 
-if(CONFIG_IDF_TARGET_ESP32S3)
+if(CONFIG_IDF_TARGET_ESP32S3 OR CONFIG_IDF_TARGET_ESP32C3)
     include($ENV{IDF_PATH}/components/spiffs/project_include.cmake)
     spiffs_create_partition_image(storage spiffs_image FLASH_IN_PROJECT)
 endif()

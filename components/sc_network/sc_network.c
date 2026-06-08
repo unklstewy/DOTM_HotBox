@@ -255,8 +255,8 @@ static esp_err_t wifi_connect(void)
         nvs_close(h);
 #if defined(CONFIG_SC_NETWORK_DEV_FALLBACK) && CONFIG_SC_NETWORK_DEV_FALLBACK
 wifi_fallback:
-        strlcpy(ssid, CONFIG_SC_NETWORK_DEV_SSID, sizeof(ssid));
-        strlcpy(psk,  CONFIG_SC_NETWORK_DEV_PSK,  sizeof(psk));
+        strlcpy(ssid, CONFIG_HOTBOX_WIFI_SSID, sizeof(ssid));
+        strlcpy(psk,  CONFIG_HOTBOX_WIFI_PASSWORD,  sizeof(psk));
         if (ssid[0] == '\0') {
             return ESP_ERR_NOT_FOUND;
         }

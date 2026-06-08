@@ -1305,6 +1305,29 @@ CONFIG_PARTITION_TABLE_MD5=y
 # end of Partition Table
 
 #
+# HotBox Configuration
+#
+# default:
+CONFIG_HOTBOX_PROFILE_TOUCH=y
+
+#
+# Wi-Fi Configuration
+#
+# default:
+CONFIG_HOTBOX_WIFI_SSID="HotBox_AP"
+# default:
+CONFIG_HOTBOX_WIFI_PASSWORD="hotbox123"
+# end of Wi-Fi Configuration
+
+#
+# DevKit Configuration
+#
+# default:
+CONFIG_HOTBOX_DEVKIT_BOARD_NAME="reTerminal D1001"
+# end of DevKit Configuration
+# end of HotBox Configuration
+
+#
 # Compiler options
 #
 # CONFIG_COMPILER_OPTIMIZATION_DEBUG is not set
