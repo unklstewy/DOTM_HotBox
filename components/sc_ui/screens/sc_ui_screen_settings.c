@@ -35,23 +35,25 @@ static lv_obj_t *s_root = NULL;
 static lv_obj_t *s_sidebar = NULL;
 static lv_obj_t *s_content_area = NULL;
 static lv_obj_t *s_content_inner = NULL;
-static lv_obj_t *s_nav_buttons[4] = {NULL};
+static lv_obj_t *s_nav_buttons[6] = {NULL};
 
 typedef enum {
-    TAB_STATUS = 0,
-    TAB_TARGET,
-    TAB_WIFI,
-    TAB_HARDWARE,
+    TAB_TELEMETRY = 0,
+    TAB_SHIP_CONFIG,
+    TAB_WIFI_SETUP,
+    TAB_FILE_MANAGER,
+    TAB_SYSTEM,
+    TAB_PLAY_MODE,
     TAB_COUNT
 } settings_tab_t;
 
-static settings_tab_t s_active_tab = TAB_STATUS;
+static settings_tab_t s_active_tab = TAB_TELEMETRY;
 
-/* ── Status Tab State ── */
+/* ── Telemetry Tab State ── */
 static lv_timer_t *s_status_timer = NULL;
-static lv_obj_t *s_status_fields[6] = {NULL}; // GameLink, IP, Mode, SSID, Heap, Uptime
+static lv_obj_t *s_status_fields[7] = {NULL}; // IP, Uptime, Heap, PSRAM, Ship Model, Console ID, Index
 
-/* ── Target Tab State ── */
+/* ── Ship Config Tab State ── */
 #define MAX_SHIPS 16
 static struct {
     char id[32];
@@ -80,6 +82,24 @@ static lv_obj_t *s_wifi_modal = NULL;
 static lv_obj_t *s_wifi_password_ta = NULL;
 static lv_obj_t *s_wifi_kb = NULL;
 
+/* ── File Manager Tab State ── */
+static char s_current_dir[256] = "/sdcard";
+static lv_obj_t *s_file_list = NULL;
+static lv_obj_t *s_file_status_lbl = NULL;
+static char s_file_to_delete[256] = "";
+static lv_obj_t *s_file_modal = NULL;
+
+#define MAX_FILE_ENTRIES 64
+typedef struct {
+    char name[128];
+    char fullpath[512];
+    bool is_dir;
+    size_t size;
+} file_entry_t;
+
+static file_entry_t s_file_entries[MAX_FILE_ENTRIES];
+static int s_file_entry_count = 0;
+
 /* ── Hardware Tab State ── */
 static lv_obj_t *s_brightness_val_lbl = NULL;
 
@@ -88,23 +108,10 @@ static void draw_active_tab_content(void);
 static void draw_status_tab(void);
 static void draw_target_tab(void);
 static void draw_wifi_tab(void);
+static void draw_file_manager_tab(void);
 static void draw_hardware_tab(void);
 
 /* ── NVS Helpers ── */
-static void get_nvs_ssid(char *buf, size_t max_len)
-{
-    nvs_handle_t h;
-    if (nvs_open("sc_config", NVS_READONLY, &h) == ESP_OK) {
-        size_t len = max_len;
-        if (nvs_get_str(h, "ssid", buf, &len) != ESP_OK) {
-            strlcpy(buf, "None", max_len);
-        }
-        nvs_close(h);
-    } else {
-        strlcpy(buf, "None", max_len);
-    }
-}
-
 static uint8_t get_nvs_brightness(void)
 {
     nvs_handle_t h;
@@ -138,7 +145,9 @@ static void nav_btn_cb(lv_event_t *e)
     lv_obj_t *btn = lv_event_get_target(e);
     for (int i = 0; i < TAB_COUNT; i++) {
         if (s_nav_buttons[i] == btn) {
-            if (s_active_tab != (settings_tab_t)i) {
+            if (i == TAB_PLAY_MODE) {
+                sc_ui_router_pop();
+            } else if (s_active_tab != (settings_tab_t)i) {
                 s_active_tab = (settings_tab_t)i;
                 draw_active_tab_content();
             }
@@ -245,19 +254,19 @@ static void load_consoles_for_ship(const char *ship_id)
     cJSON_Delete(root);
 }
 
+static void telemetry_config_btn_cb(lv_event_t *e)
+{
+    (void)e;
+    s_active_tab = TAB_SHIP_CONFIG;
+    draw_active_tab_content();
+}
+
 /* ── Status Tab Callback ── */
 static void status_timer_cb(lv_timer_t *timer)
 {
     (void)timer;
     sc_network_state_t net_state = sc_network_state_get();
-    const char *state_str = "Disconnected";
-    switch (net_state) {
-        case SC_NET_STATE_DISCONNECTED: state_str = "Disconnected"; break;
-        case SC_NET_STATE_CONNECTING:   state_str = "Connecting..."; break;
-        case SC_NET_STATE_WIFI_UP:      state_str = "Wi-Fi Connected"; break;
-        case SC_NET_STATE_AP_UP:        state_str = "SoftAP Active"; break;
-        case SC_NET_STATE_WS_CONNECTED: state_str = "GameLink Active (Online)"; break;
-    }
+    (void)net_state;
 
     char ip_str[32] = "192.168.4.1";
     esp_netif_ip_info_t ip_info;
@@ -266,9 +275,7 @@ static void status_timer_cb(lv_timer_t *timer)
         esp_ip4addr_ntoa(&ip_info.ip, ip_str, sizeof(ip_str));
     }
 
-    char ssid[32];
-    get_nvs_ssid(ssid, sizeof(ssid));
-    bool is_ap = sc_network_is_ap();
+    const sc_terminal_config_t *cfg = sc_config_get();
 
     uint32_t free_heap = esp_get_free_heap_size();
     uint32_t free_psram = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
@@ -286,15 +293,21 @@ static void status_timer_cb(lv_timer_t *timer)
     }
 
     char heap_str[64];
-    snprintf(heap_str, sizeof(heap_str), "Int: %lu KB | PSRAM: %.1f MB", 
-             (unsigned long)(free_heap / 1024), (double)free_psram / (1024.0 * 1024.0));
+    snprintf(heap_str, sizeof(heap_str), "%lu KB", (unsigned long)(free_heap / 1024));
 
-    if (s_status_fields[0]) lv_label_set_text(s_status_fields[0], state_str);
-    if (s_status_fields[1]) lv_label_set_text(s_status_fields[1], ip_str);
-    if (s_status_fields[2]) lv_label_set_text(s_status_fields[2], is_ap ? "SoftAP" : "Station");
-    if (s_status_fields[3]) lv_label_set_text(s_status_fields[3], is_ap ? "HotBox" : ssid);
-    if (s_status_fields[4]) lv_label_set_text(s_status_fields[4], heap_str);
-    if (s_status_fields[5]) lv_label_set_text(s_status_fields[5], uptime_str);
+    char psram_str[64];
+    snprintf(psram_str, sizeof(psram_str), "%.1f MB", (double)free_psram / (1024.0 * 1024.0));
+
+    char idx_str[32];
+    snprintf(idx_str, sizeof(idx_str), "%d", cfg->terminal_index);
+
+    if (s_status_fields[0]) lv_label_set_text(s_status_fields[0], ip_str);
+    if (s_status_fields[1]) lv_label_set_text(s_status_fields[1], uptime_str);
+    if (s_status_fields[2]) lv_label_set_text(s_status_fields[2], heap_str);
+    if (s_status_fields[3]) lv_label_set_text(s_status_fields[3], psram_str);
+    if (s_status_fields[4]) lv_label_set_text(s_status_fields[4], cfg->ship_id[0] ? cfg->ship_id : "None");
+    if (s_status_fields[5]) lv_label_set_text(s_status_fields[5], cfg->console_id[0] ? cfg->console_id : "None");
+    if (s_status_fields[6]) lv_label_set_text(s_status_fields[6], idx_str);
 }
 
 static void draw_status_tab(void)
@@ -305,10 +318,10 @@ static void draw_status_tab(void)
     lv_obj_set_style_text_color(title, SC_COL_ACCENT, 0);
 
     const char *labels[] = {
-        "System State:", "IP Address:", "Network Mode:", "Wi-Fi SSID:", "Free Memory:", "Uptime:"
+        "IP Address:", "Uptime:", "Free Internal Heap:", "Free PSRAM:", "Ship Model:", "Console ID:", "Terminal Index:"
     };
 
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 7; i++) {
         lv_obj_t *row = lv_obj_create(s_content_inner);
         lv_obj_set_size(row, LV_PCT(100), LV_SIZE_CONTENT);
         lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
@@ -318,7 +331,7 @@ static void draw_status_tab(void)
 
         lv_obj_t *lbl_k = lv_label_create(row);
         lv_label_set_text(lbl_k, labels[i]);
-        lv_obj_set_width(lbl_k, 130);
+        lv_obj_set_width(lbl_k, 160);
         lv_obj_set_style_text_font(lbl_k, SC_FONT_SMALL, 0);
         lv_obj_set_style_text_color(lbl_k, SC_COL_TEXT_DIM, 0);
 
@@ -327,6 +340,16 @@ static void draw_status_tab(void)
         lv_obj_set_style_text_font(s_status_fields[i], SC_FONT_SMALL, 0);
         lv_obj_set_style_text_color(s_status_fields[i], SC_COL_TEXT, 0);
     }
+
+    lv_obj_t *config_btn = lv_button_create(s_content_inner);
+    lv_obj_set_size(config_btn, LV_PCT(90), 40);
+    lv_obj_set_style_bg_color(config_btn, SC_COL_ACCENT, 0);
+    lv_obj_add_event_cb(config_btn, telemetry_config_btn_cb, LV_EVENT_RELEASED, NULL);
+    lv_obj_t *config_lbl = lv_label_create(config_btn);
+    lv_label_set_text(config_lbl, "Configure Layouts & Run");
+    lv_obj_set_style_text_color(config_lbl, SC_COL_BG, 0);
+    lv_obj_set_style_text_font(config_lbl, SC_FONT_MEDIUM, 0);
+    lv_obj_center(config_lbl);
 
     status_timer_cb(NULL);
     s_status_timer = lv_timer_create(status_timer_cb, 1000, NULL);
@@ -403,7 +426,7 @@ static void orientation_dropdown_cb(lv_event_t *e)
     sc_ui_set_rotation(sel);
 }
 
-static void apply_layout_btn_cb(lv_event_t *e)
+static void set_active_run_target_btn_cb(lv_event_t *e)
 {
     (void)e;
     sc_ui_router_home();
@@ -512,9 +535,9 @@ static void draw_target_tab(void)
     lv_obj_t *apply_btn = lv_button_create(s_content_inner);
     lv_obj_set_size(apply_btn, LV_PCT(90), 44);
     lv_obj_set_style_bg_color(apply_btn, SC_COL_READY, 0);
-    lv_obj_add_event_cb(apply_btn, apply_layout_btn_cb, LV_EVENT_RELEASED, NULL);
+    lv_obj_add_event_cb(apply_btn, set_active_run_target_btn_cb, LV_EVENT_RELEASED, NULL);
     lv_obj_t *apply_lbl = lv_label_create(apply_btn);
-    lv_label_set_text(apply_lbl, "APPLY & LOAD LAYOUT");
+    lv_label_set_text(apply_lbl, "Set Active Run Target");
     lv_obj_set_style_text_color(apply_lbl, SC_COL_BG, 0);
     lv_obj_set_style_text_font(apply_lbl, SC_FONT_MEDIUM, 0);
     lv_obj_center(apply_lbl);
@@ -817,10 +840,311 @@ static void hid_switch_cb(lv_event_t *e)
     sc_hid_set_phy_swap(enabled);
 }
 
+static void file_list_item_cb(lv_event_t *e)
+{
+    const char *name = (const char *)lv_event_get_user_data(e);
+    if (!name) return;
+
+    if (strcmp(name, "..") == 0) {
+        if (strcmp(s_current_dir, "/sdcard") != 0 && strcmp(s_current_dir, "/sdcard/") != 0) {
+            char *last_slash = strrchr(s_current_dir, '/');
+            if (last_slash && last_slash != s_current_dir) {
+                *last_slash = '\0';
+            } else {
+                strlcpy(s_current_dir, "/sdcard", sizeof(s_current_dir));
+            }
+            draw_active_tab_content();
+        }
+        return;
+    }
+
+    char fullpath[512];
+    snprintf(fullpath, sizeof(fullpath), "%s/%s", s_current_dir, name);
+    DIR *d = opendir(fullpath);
+    if (d) {
+        closedir(d);
+        strlcpy(s_current_dir, fullpath, sizeof(s_current_dir));
+        draw_active_tab_content();
+    }
+}
+
+static void file_delete_cancel_cb(lv_event_t *e)
+{
+    (void)e;
+    if (s_file_modal) {
+        lv_obj_delete(s_file_modal);
+        s_file_modal = NULL;
+    }
+}
+
+static void file_delete_confirm_cb(lv_event_t *e)
+{
+    (void)e;
+    if (s_file_to_delete[0] != '\0') {
+        ESP_LOGI(TAG, "Deleting file: %s", s_file_to_delete);
+        unlink(s_file_to_delete);
+        s_file_to_delete[0] = '\0';
+    }
+    if (s_file_modal) {
+        lv_obj_delete(s_file_modal);
+        s_file_modal = NULL;
+    }
+    draw_active_tab_content();
+}
+
+static void file_delete_btn_cb(lv_event_t *e)
+{
+    const char *fullpath = (const char *)lv_event_get_user_data(e);
+    if (!fullpath) return;
+
+    strlcpy(s_file_to_delete, fullpath, sizeof(s_file_to_delete));
+
+    s_file_modal = lv_obj_create(lv_layer_top());
+    lv_obj_set_size(s_file_modal, LV_PCT(100), LV_PCT(100));
+    lv_obj_set_style_bg_color(s_file_modal, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(s_file_modal, LV_OPA_70, 0);
+    lv_obj_set_flex_flow(s_file_modal, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_all(s_file_modal, 24, 0);
+    lv_obj_set_style_pad_gap(s_file_modal, 16, 0);
+    lv_obj_set_style_border_width(s_file_modal, 0, 0);
+
+    lv_obj_t *card = lv_obj_create(s_file_modal);
+    lv_obj_set_size(card, LV_PCT(90), LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_bg_color(card, SC_COL_BG_PANEL, 0);
+    lv_obj_set_style_border_color(card, SC_COL_ARMED, 0);
+    lv_obj_set_style_border_width(card, 2, 0);
+    lv_obj_set_style_pad_all(card, 24, 0);
+    lv_obj_set_style_pad_gap(card, 20, 0);
+    lv_obj_align(card, LV_ALIGN_CENTER, 0, -40);
+
+    lv_obj_t *title = lv_label_create(card);
+    lv_label_set_text(title, "DELETE FILE");
+    lv_obj_set_style_text_font(title, SC_FONT_TITLE, 0);
+    lv_obj_set_style_text_color(title, SC_COL_ARMED, 0);
+
+    lv_obj_t *desc = lv_label_create(card);
+    const char *filename = strrchr(fullpath, '/');
+    if (filename) filename++;
+    else filename = fullpath;
+
+    lv_label_set_text_fmt(desc, "Are you sure you want to permanently delete '%s'?", filename);
+    lv_obj_set_style_text_font(desc, SC_FONT_SMALL, 0);
+    lv_obj_set_style_text_color(desc, SC_COL_TEXT, 0);
+    lv_label_set_long_mode(desc, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(desc, LV_PCT(100));
+
+    lv_obj_t *row = lv_obj_create(card);
+    lv_obj_set_size(row, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(row, 0, 0);
+    lv_obj_set_style_pad_all(row, 0, 0);
+    lv_obj_set_style_pad_gap(row, 16, 0);
+
+    lv_obj_t *cancel_btn = lv_button_create(row);
+    lv_obj_set_style_bg_color(cancel_btn, SC_COL_BG, 0);
+    lv_obj_set_style_border_color(cancel_btn, SC_COL_DIVIDER, 0);
+    lv_obj_set_style_border_width(cancel_btn, 1, 0);
+    lv_obj_add_event_cb(cancel_btn, file_delete_cancel_cb, LV_EVENT_RELEASED, NULL);
+    lv_obj_t *cancel_lbl = lv_label_create(cancel_btn);
+    lv_label_set_text(cancel_lbl, "Cancel");
+
+    lv_obj_t *delete_btn = lv_button_create(row);
+    lv_obj_set_style_bg_color(delete_btn, SC_COL_ARMED, 0);
+    lv_obj_add_event_cb(delete_btn, file_delete_confirm_cb, LV_EVENT_RELEASED, NULL);
+    lv_obj_t *delete_lbl = lv_label_create(delete_btn);
+    lv_label_set_text(delete_lbl, "Delete");
+    lv_obj_set_style_text_color(delete_lbl, lv_color_white(), 0);
+    lv_obj_center(delete_lbl);
+}
+
+static void scan_directory(const char *path)
+{
+    s_file_entry_count = 0;
+    DIR *dir = opendir(path);
+    if (!dir) {
+        ESP_LOGE(TAG, "Failed to open directory: %s", path);
+        return;
+    }
+
+    if (strcmp(path, "/sdcard") != 0 && strcmp(path, "/sdcard/") != 0) {
+        file_entry_t *entry = &s_file_entries[s_file_entry_count++];
+        strlcpy(entry->name, "..", sizeof(entry->name));
+        strlcpy(entry->fullpath, "..", sizeof(entry->fullpath));
+        entry->is_dir = true;
+        entry->size = 0;
+    }
+
+    struct dirent *de;
+    while ((de = readdir(dir)) != NULL && s_file_entry_count < MAX_FILE_ENTRIES) {
+        if (strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0) {
+            continue;
+        }
+
+        file_entry_t *entry = &s_file_entries[s_file_entry_count++];
+        strlcpy(entry->name, de->d_name, sizeof(entry->name));
+        snprintf(entry->fullpath, sizeof(entry->fullpath), "%s/%s", path, de->d_name);
+
+        DIR *sub = opendir(entry->fullpath);
+        if (sub) {
+            entry->is_dir = true;
+            entry->size = 0;
+            closedir(sub);
+        } else {
+            entry->is_dir = false;
+            struct stat st;
+            if (stat(entry->fullpath, &st) == 0) {
+                entry->size = st.st_size;
+            } else {
+                entry->size = 0;
+            }
+        }
+    }
+    closedir(dir);
+}
+
+static void draw_file_manager_tab(void)
+{
+    lv_obj_t *title = lv_label_create(s_content_inner);
+    lv_label_set_text(title, "SD Card File Explorer");
+    lv_obj_set_style_text_font(title, SC_FONT_MEDIUM, 0);
+    lv_obj_set_style_text_color(title, SC_COL_ACCENT, 0);
+
+    s_file_status_lbl = lv_label_create(s_content_inner);
+    lv_label_set_text_fmt(s_file_status_lbl, "Path: %s", s_current_dir);
+    lv_obj_set_style_text_font(s_file_status_lbl, SC_FONT_SMALL, 0);
+    lv_obj_set_style_text_color(s_file_status_lbl, SC_COL_TEXT_DIM, 0);
+
+    s_file_list = lv_list_create(s_content_inner);
+    lv_obj_set_size(s_file_list, LV_PCT(90), 400);
+    lv_obj_set_style_bg_color(s_file_list, SC_COL_BG, 0);
+    lv_obj_set_style_border_color(s_file_list, SC_COL_DIVIDER, 0);
+    lv_obj_set_style_border_width(s_file_list, 1, 0);
+    lv_obj_set_style_pad_all(s_file_list, 0, 0);
+
+    scan_directory(s_current_dir);
+
+    for (int i = 0; i < s_file_entry_count; i++) {
+        file_entry_t *entry = &s_file_entries[i];
+
+        const char *icon = entry->is_dir ? "📁" : "📄";
+        char btn_text[256];
+        snprintf(btn_text, sizeof(btn_text), "%s  %.240s", icon, entry->name);
+
+        lv_obj_t *btn = lv_list_add_button(s_file_list, NULL, btn_text);
+        lv_obj_set_style_bg_color(btn, SC_COL_BG_PANEL, 0);
+        lv_obj_set_style_text_color(btn, SC_COL_TEXT, 0);
+        lv_obj_set_style_border_color(btn, SC_COL_DIVIDER, 0);
+        lv_obj_set_style_border_width(btn, 1, 0);
+        lv_obj_set_style_pad_all(btn, 10, 0);
+
+        if (entry->is_dir) {
+            lv_obj_add_event_cb(btn, file_list_item_cb, LV_EVENT_RELEASED, entry->name);
+        } else {
+            lv_obj_t *size_lbl = lv_label_create(btn);
+            if (entry->size >= 1024 * 1024) {
+                lv_label_set_text_fmt(size_lbl, "%.2f MB", (double)entry->size / (1024.0 * 1024.0));
+            } else {
+                lv_label_set_text_fmt(size_lbl, "%.1f KB", (double)entry->size / 1024.0);
+            }
+            lv_obj_align(size_lbl, LV_ALIGN_RIGHT_MID, -70, 0);
+            lv_obj_set_style_text_color(size_lbl, SC_COL_TEXT_DIM, 0);
+            lv_obj_set_style_text_font(size_lbl, SC_FONT_SMALL, 0);
+
+            lv_obj_t *del_btn = lv_button_create(btn);
+            lv_obj_set_size(del_btn, 50, 30);
+            lv_obj_set_style_bg_color(del_btn, SC_COL_ARMED, 0);
+            lv_obj_align(del_btn, LV_ALIGN_RIGHT_MID, -5, 0);
+            lv_obj_add_event_cb(del_btn, file_delete_btn_cb, LV_EVENT_RELEASED, entry->fullpath);
+
+            lv_obj_t *del_lbl = lv_label_create(del_btn);
+            lv_label_set_text(del_lbl, "DEL");
+            lv_obj_set_style_text_font(del_lbl, SC_FONT_SMALL, 0);
+            lv_obj_set_style_text_color(del_lbl, lv_color_white(), 0);
+            lv_obj_center(del_lbl);
+        }
+    }
+}
+
+static void system_reboot_cancel_cb(lv_event_t *e)
+{
+    (void)e;
+    if (s_wifi_modal) {
+        lv_obj_delete(s_wifi_modal);
+        s_wifi_modal = NULL;
+    }
+}
+
+static void system_reboot_confirm_cb(lv_event_t *e)
+{
+    (void)e;
+    esp_restart();
+}
+
+static void system_reboot_btn_cb(lv_event_t *e)
+{
+    (void)e;
+    s_wifi_modal = lv_obj_create(lv_layer_top());
+    lv_obj_set_size(s_wifi_modal, LV_PCT(100), LV_PCT(100));
+    lv_obj_set_style_bg_color(s_wifi_modal, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(s_wifi_modal, LV_OPA_70, 0);
+    lv_obj_set_flex_flow(s_wifi_modal, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_all(s_wifi_modal, 24, 0);
+    lv_obj_set_style_pad_gap(s_wifi_modal, 16, 0);
+    lv_obj_set_style_border_width(s_wifi_modal, 0, 0);
+
+    lv_obj_t *card = lv_obj_create(s_wifi_modal);
+    lv_obj_set_size(card, LV_PCT(90), LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_bg_color(card, SC_COL_BG_PANEL, 0);
+    lv_obj_set_style_border_color(card, SC_COL_ARMED, 0);
+    lv_obj_set_style_border_width(card, 2, 0);
+    lv_obj_set_style_pad_all(card, 24, 0);
+    lv_obj_set_style_pad_gap(card, 20, 0);
+    lv_obj_align(card, LV_ALIGN_CENTER, 0, -40);
+
+    lv_obj_t *title = lv_label_create(card);
+    lv_label_set_text(title, "REBOOT TERMINAL");
+    lv_obj_set_style_text_font(title, SC_FONT_TITLE, 0);
+    lv_obj_set_style_text_color(title, SC_COL_ARMED, 0);
+
+    lv_obj_t *desc = lv_label_create(card);
+    lv_label_set_text(desc, "Are you sure you want to reboot the device? This will disconnect active sessions and reload all settings.");
+    lv_obj_set_style_text_font(desc, SC_FONT_SMALL, 0);
+    lv_obj_set_style_text_color(desc, SC_COL_TEXT, 0);
+    lv_label_set_long_mode(desc, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(desc, LV_PCT(100));
+    
+    lv_obj_t *row = lv_obj_create(card);
+    lv_obj_set_size(row, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(row, 0, 0);
+    lv_obj_set_style_pad_all(row, 0, 0);
+    lv_obj_set_style_pad_gap(row, 16, 0);
+
+    lv_obj_t *cancel_btn = lv_button_create(row);
+    lv_obj_set_style_bg_color(cancel_btn, SC_COL_BG, 0);
+    lv_obj_set_style_border_color(cancel_btn, SC_COL_DIVIDER, 0);
+    lv_obj_set_style_border_width(cancel_btn, 1, 0);
+    lv_obj_add_event_cb(cancel_btn, system_reboot_cancel_cb, LV_EVENT_RELEASED, NULL);
+    lv_obj_t *cancel_lbl = lv_label_create(cancel_btn);
+    lv_label_set_text(cancel_lbl, "Cancel");
+
+    lv_obj_t *reboot_btn = lv_button_create(row);
+    lv_obj_set_style_bg_color(reboot_btn, SC_COL_ARMED, 0);
+    lv_obj_add_event_cb(reboot_btn, system_reboot_confirm_cb, LV_EVENT_RELEASED, NULL);
+    lv_obj_t *reboot_lbl = lv_label_create(reboot_btn);
+    lv_label_set_text(reboot_lbl, "REBOOT");
+    lv_obj_set_style_text_color(reboot_lbl, lv_color_white(), 0);
+    lv_obj_center(reboot_lbl);
+}
+
 static void draw_hardware_tab(void)
 {
     lv_obj_t *title = lv_label_create(s_content_inner);
-    lv_label_set_text(title, "Hardware & Calibration");
+    lv_label_set_text(title, "System Settings");
     lv_obj_set_style_text_font(title, SC_FONT_MEDIUM, 0);
     lv_obj_set_style_text_color(title, SC_COL_ACCENT, 0);
 
@@ -890,6 +1214,15 @@ static void draw_hardware_tab(void)
     lv_obj_set_style_text_color(theme_lbl, SC_COL_BG, 0);
     lv_obj_center(theme_lbl);
 
+    lv_obj_t *reboot_btn = lv_button_create(s_content_inner);
+    lv_obj_set_size(reboot_btn, LV_PCT(90), 40);
+    lv_obj_set_style_bg_color(reboot_btn, SC_COL_ARMED, 0);
+    lv_obj_add_event_cb(reboot_btn, system_reboot_btn_cb, LV_EVENT_RELEASED, NULL);
+    lv_obj_t *reboot_lbl = lv_label_create(reboot_btn);
+    lv_label_set_text(reboot_lbl, "REBOOT TERMINAL");
+    lv_obj_set_style_text_color(reboot_lbl, lv_color_white(), 0);
+    lv_obj_center(reboot_lbl);
+
     lv_obj_t *reset_btn = lv_button_create(s_content_inner);
     lv_obj_set_size(reset_btn, LV_PCT(90), 40);
     lv_obj_set_style_bg_color(reset_btn, SC_COL_ARMED, 0);
@@ -934,16 +1267,19 @@ static void draw_active_tab_content(void)
     lv_obj_set_scrollbar_mode(s_content_inner, LV_SCROLLBAR_MODE_AUTO);
 
     switch (s_active_tab) {
-        case TAB_STATUS:
+        case TAB_TELEMETRY:
             draw_status_tab();
             break;
-        case TAB_TARGET:
+        case TAB_SHIP_CONFIG:
             draw_target_tab();
             break;
-        case TAB_WIFI:
+        case TAB_WIFI_SETUP:
             draw_wifi_tab();
             break;
-        case TAB_HARDWARE:
+        case TAB_FILE_MANAGER:
+            draw_file_manager_tab();
+            break;
+        case TAB_SYSTEM:
             draw_hardware_tab();
             break;
         default:
@@ -1003,7 +1339,7 @@ lv_obj_t *sc_ui_screen_settings_create(lv_obj_t *parent)
     lv_obj_set_style_pad_all(s_sidebar, 8, 0);
     lv_obj_set_style_pad_gap(s_sidebar, 10, 0);
 
-    const char *tab_names[] = {"STATUS", "TARGET", "WI-FI", "HARDWARE"};
+    const char *tab_names[] = {"TELEMETRY", "SHIP CONFIG", "WI-FI SETUP", "FILE MANAGER", "SYSTEM", "PLAY MODE"};
     for (int i = 0; i < TAB_COUNT; i++) {
         s_nav_buttons[i] = lv_button_create(s_sidebar);
         lv_obj_set_size(s_nav_buttons[i], LV_PCT(100), 40);
